@@ -1,61 +1,52 @@
-import { Process, Lst, Model, FileSystem } from 'spinal-core-connectorjs_type';
-import { SpinalContext, SpinalGraph } from "spinal-env-viewer-graph-service";
-import { SpinalBacnet } from "../modules/spinalBacnet";
+import { SpinalGraph } from "spinal-env-viewer-graph-service";
 import { NetworkService } from "spinal-model-bmsnetwork";
-import { SpinalDevice, IDevice } from '../modules/SpinalDevice';
-import { STATES } from './stateEnum'
+import { SpinalBacnet } from "./spinalBacnet";
+import { IDevice } from './SpinalDevice';
+import { STATES } from 'spinal-model-bacnet';
 
-import * as lodash from "lodash";
-
-const config = require("../../config.json5");
 
 
 export class SpinalContextCreation {
 
-   // private context: SpinalContext<any>;
-   // private graph: SpinalGraph<any>;
-
    private bindSateProcess: any;
    private bindDevicesProcess: any;
-
-   private bacnet: SpinalBacnet = new SpinalBacnet(config.network);
+   // private bacnet: SpinalBacnet = new SpinalBacnet(config.network);
+   private bacnet: SpinalBacnet;
    private networkService: NetworkService = new NetworkService(false);
    private discoverModel: any;
-
-   // private devicesFound: Map<number, SpinalDevice> = new Map();
-   // private info : any;
 
    constructor(model) {
       // this.graph = graph;
       // this.initialize();
       // this.discoverModel = this.graph.info.discover;
-      this.listenEvents();
-
+      this.bacnet = new SpinalBacnet(model.network.get())
       this.discoverModel = model;
+
+      this.listenEvents();
       this.bindItem();
       this.bindDevices();
    }
 
-   private initialize() {
-      this.listenEvents();
+   // private initialize() {
+   //    this.listenEvents();
 
-      // if (this.graph.info.discover) {
-      //    this.graph.info.discover.status.set(STATES.reseted);
-      //    this.graph.info.discover.context.set({})
-      //    this.graph.info.discover.network.set({})
-      //    this.graph.info.discover.devices.set(new Lst())
-      // } else {
-      //    const discover = {
-      //       status: STATES.reseted,
-      //       context: {},
-      //       netwinitork: {},
-      //       devices: new Lst()
-      //    }
+   //    // if (this.graph.info.discover) {
+   //    //    this.graph.info.discover.status.set(STATES.reseted);
+   //    //    this.graph.info.discover.context.set({})
+   //    //    this.graph.info.discover.network.set({})
+   //    //    this.graph.info.discover.devices.set(new Lst())
+   //    // } else {
+   //    //    const discover = {
+   //    //       status: STATES.reseted,
+   //    //       context: {},
+   //    //       netwinitork: {},
+   //    //       devices: new Lst()
+   //    //    }
 
-      //    this.graph.info.add_attr({ discover })
-      // }
+   //    //    this.graph.info.add_attr({ discover })
+   //    // }
 
-   }
+   // }
 
    private bindItem() {
       this.bindSateProcess = this.discoverModel.state.bind(() => {
@@ -69,7 +60,8 @@ export class SpinalContextCreation {
          console.log("inside if", this.discoverModel.devices.length, this.bacnet.count)
 
          if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
-            this.discoverModel.state.set(STATES.discovered);
+            this.discoverModel.setDiscoveredMode();
+            this.bacnet.closeClient();
             this.discoverModel.devices.unbind(this.bindDevicesProcess);
          }
       })
@@ -88,13 +80,13 @@ export class SpinalContextCreation {
    }
 
    private async discover() {
-      console.log("*** Discovering... ***");
+      console.log("Discovering...");
 
       this.bacnet.discoverDevices();
    }
 
    private async createNodes() {
-      console.log("*** creating... ***");
+      console.log("creating nodes...");
       const organ = {
          contextName: this.discoverModel.context.name.get(),
          contextType: this.discoverModel.context.type.get(),
@@ -105,9 +97,11 @@ export class SpinalContextCreation {
       await this.networkService.init(graph, organ);
 
       this.bacnet.createDevicesNodes(this.networkService).then((result) => {
-         console.log("*** Created ***");
-         this.discoverModel.state.set(STATES.created);
+         this.discoverModel.setCreatedMode();
          this.discoverModel.state.unbind(this.bindSateProcess);
+         this.discoverModel.remove();
+         console.log("nodes created!");
+
       }).catch((err) => {
 
       });
@@ -119,7 +113,7 @@ export class SpinalContextCreation {
    }
 
    private addDeviceFound(device: IDevice) {
-      console.log("*** device found ***");
+      console.log("device found", device.address);
 
       // const device: IDevice = (<any>spinalDevice).device
       // this.devicesFound.set(device.deviceId, spinalDevice);
@@ -127,12 +121,8 @@ export class SpinalContextCreation {
    }
 
    private timeOutEvent() {
-      console.log("*** Timeout ***");
-      // this.discoverModel.context.rem_attr("name");
-      // this.discoverModel.context.rem_attr("type");
-      // this.discoverModel.network.rem_attr("name");
-      // this.discoverModel.network.rem_attr("type");
-      this.discoverModel.state.set(STATES.timeout);
+      console.log("Timeout...");
+      this.discoverModel.setTimeoutMode();
    }
 
    private getGraph(): Promise<SpinalGraph<any>> {

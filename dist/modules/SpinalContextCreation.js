@@ -10,41 +10,38 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalContextCreation = void 0;
-const spinalBacnet_1 = require("../modules/spinalBacnet");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const stateEnum_1 = require("./stateEnum");
-const config = require("../../config.json5");
+const spinalBacnet_1 = require("./spinalBacnet");
+const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 class SpinalContextCreation {
-    // private devicesFound: Map<number, SpinalDevice> = new Map();
-    // private info : any;
     constructor(model) {
-        this.bacnet = new spinalBacnet_1.SpinalBacnet(config.network);
         this.networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
         // this.graph = graph;
         // this.initialize();
         // this.discoverModel = this.graph.info.discover;
-        this.listenEvents();
+        this.bacnet = new spinalBacnet_1.SpinalBacnet(model.network.get());
         this.discoverModel = model;
+        this.listenEvents();
         this.bindItem();
         this.bindDevices();
     }
-    initialize() {
-        this.listenEvents();
-        // if (this.graph.info.discover) {
-        //    this.graph.info.discover.status.set(STATES.reseted);
-        //    this.graph.info.discover.context.set({})
-        //    this.graph.info.discover.network.set({})
-        //    this.graph.info.discover.devices.set(new Lst())
-        // } else {
-        //    const discover = {
-        //       status: STATES.reseted,
-        //       context: {},
-        //       netwinitork: {},
-        //       devices: new Lst()
-        //    }
-        //    this.graph.info.add_attr({ discover })
-        // }
-    }
+    // private initialize() {
+    //    this.listenEvents();
+    //    // if (this.graph.info.discover) {
+    //    //    this.graph.info.discover.status.set(STATES.reseted);
+    //    //    this.graph.info.discover.context.set({})
+    //    //    this.graph.info.discover.network.set({})
+    //    //    this.graph.info.discover.devices.set(new Lst())
+    //    // } else {
+    //    //    const discover = {
+    //    //       status: STATES.reseted,
+    //    //       context: {},
+    //    //       netwinitork: {},
+    //    //       devices: new Lst()
+    //    //    }
+    //    //    this.graph.info.add_attr({ discover })
+    //    // }
+    // }
     bindItem() {
         this.bindSateProcess = this.discoverModel.state.bind(() => {
             this.binFunc();
@@ -55,17 +52,18 @@ class SpinalContextCreation {
         this.bindDevicesProcess = this.discoverModel.devices.bind(() => {
             console.log("inside if", this.discoverModel.devices.length, this.bacnet.count);
             if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
-                this.discoverModel.state.set(stateEnum_1.STATES.discovered);
+                this.discoverModel.setDiscoveredMode();
+                this.bacnet.closeClient();
                 this.discoverModel.devices.unbind(this.bindDevicesProcess);
             }
         });
     }
     binFunc() {
         switch (this.discoverModel.state.get()) {
-            case stateEnum_1.STATES.discovering:
+            case spinal_model_bacnet_1.STATES.discovering:
                 this.discover();
                 break;
-            case stateEnum_1.STATES.creating:
+            case spinal_model_bacnet_1.STATES.creating:
                 this.createNodes();
             default:
                 break;
@@ -73,13 +71,13 @@ class SpinalContextCreation {
     }
     discover() {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("*** Discovering... ***");
+            console.log("Discovering...");
             this.bacnet.discoverDevices();
         });
     }
     createNodes() {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("*** creating... ***");
+            console.log("creating nodes...");
             const organ = {
                 contextName: this.discoverModel.context.name.get(),
                 contextType: this.discoverModel.context.type.get(),
@@ -89,9 +87,10 @@ class SpinalContextCreation {
             const graph = yield this.getGraph();
             yield this.networkService.init(graph, organ);
             this.bacnet.createDevicesNodes(this.networkService).then((result) => {
-                console.log("*** Created ***");
-                this.discoverModel.state.set(stateEnum_1.STATES.created);
+                this.discoverModel.setCreatedMode();
                 this.discoverModel.state.unbind(this.bindSateProcess);
+                this.discoverModel.remove();
+                console.log("nodes created!");
             }).catch((err) => {
             });
         });
@@ -101,18 +100,14 @@ class SpinalContextCreation {
         this.bacnet.on("timeout", () => this.timeOutEvent());
     }
     addDeviceFound(device) {
-        console.log("*** device found ***");
+        console.log("device found", device.address);
         // const device: IDevice = (<any>spinalDevice).device
         // this.devicesFound.set(device.deviceId, spinalDevice);
         this.discoverModel.devices.push(device);
     }
     timeOutEvent() {
-        console.log("*** Timeout ***");
-        // this.discoverModel.context.rem_attr("name");
-        // this.discoverModel.context.rem_attr("type");
-        // this.discoverModel.network.rem_attr("name");
-        // this.discoverModel.network.rem_attr("type");
-        this.discoverModel.state.set(stateEnum_1.STATES.timeout);
+        console.log("Timeout...");
+        this.discoverModel.setTimeoutMode();
     }
     getGraph() {
         return new Promise((resolve, reject) => {

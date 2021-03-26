@@ -14,15 +14,17 @@ export class SpinalBacnet extends EventEmitter {
     private queueSize: number = 60;
     private events = {};
     public count: number = 0;
+    private config: any;
 
     constructor(config) {
         super();
-
-        this.CONNECTION_TIME_OUT = config.timeout;
-        this.client = new bacnet({
-            port: config.port,
-            adpuTimeout: this.CONNECTION_TIME_OUT
-        });
+        console.log("config", config)
+        this.CONNECTION_TIME_OUT = config.timeout || 45000;
+        this.config = config;
+        // this.client = new bacnet({
+        //     port: config.port,
+        //     // adpuTimeout: this.CONNECTION_TIME_OUT
+        // });
 
         // this.client.on('error', (err) => {
         //     console.log('Error occurred: ', err);
@@ -35,48 +37,38 @@ export class SpinalBacnet extends EventEmitter {
     // }
 
     public async discoverDevices(): Promise<void> {
-        // const devices = await this.getDevices((<any>networkService).networkId);
         this.count = 0;
+
+        this.client = new bacnet({
+            address: this.config.address,
+            port: this.config.port,
+            // adpuTimeout: this.CONNECTION_TIME_OUT
+        });
+
+        console.log("discoverDevice", this.count)
 
         const timeOutId = setTimeout(() => {
             console.error("[TIMEOUT] - Cannot establish connection with BACnet server.");
             this.emit("timeout");
-            // this.client.close();
-            // process.exit();
+            this.closeClient();
+
         }, this.CONNECTION_TIME_OUT);
 
         this.client.on('iAm', (device) => {
             clearTimeout(timeOutId);
             this.count++;
 
-            // const node = devices.find(el => el.idNetwork.get() == device.deviceId)
             const spinalDevice = new SpinalDevice(device, this.client);
             spinalDevice.on("initialized", (res) => {
                 this.devices.set(res.device.deviceId, res);
                 this.emit("deviceFound", res.device);
             })
 
-
-            // spinalDevice.init(node, networkService);
-
-            // this._getDeviceObjectList(device).then((objects: Array<Array<{ type: string, instance: number }>>) => {
-            //     console.log(objects);
-            //     // let objectListDetails = []
-            //     // objects.map(object => {
-            //     //     return () => {
-            //     //         return this._getObjectDetail(device, object).then((g) => objectListDetails.push(g))
-            //     //     }
-            //     // }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
-            //     //     // objectListDetails = [].concat.apply([], objectListDetails)
-            //     //     const obj = { device, itemsList: [].concat.apply([], objectListDetails) }
-            //     //     this.devices.set(device.deviceId, obj);
-            //     //     this.emit("deviceFound", obj)
-            //     // })
-            // })
         })
 
         this.client.whoIs();
     }
+
 
 
     public async createDevicesNodes(networkService: NetworkService) {
@@ -93,6 +85,13 @@ export class SpinalBacnet extends EventEmitter {
         return Promise.all(promises);
     }
 
+
+
+    public closeClient() {
+        if (this.client) {
+            this.client.close();
+        }
+    }
 
     // public on(eventName: string, listener: Function) {
     //     if (!this.events[eventName]) {

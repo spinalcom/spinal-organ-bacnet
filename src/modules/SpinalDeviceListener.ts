@@ -1,7 +1,7 @@
-import { IDevice } from "../modules/SpinalDevice";
+import { IDevice } from "./SpinalDevice";
 import { loadFile } from "../utilities/Utilities";
 import NetworkService from "spinal-model-bmsnetwork";
-import { ObjectTypes, SENSOR_TYPES, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../globalVariables";
+import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
 import { EventEmitter } from "events";
 
 import * as bacnet from 'bacstack';

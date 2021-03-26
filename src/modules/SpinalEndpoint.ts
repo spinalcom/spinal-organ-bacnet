@@ -1,5 +1,5 @@
 import NetworkService from "spinal-model-bmsnetwork";
-import { PropertyIds } from '../globalVariables'
+import { PropertyIds } from '../utilities/globalVariables'
 
 export class SpinalEndpoint {
    private id: string;

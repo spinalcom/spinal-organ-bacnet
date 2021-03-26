@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalDeviceListener = void 0;
 const Utilities_1 = require("../utilities/Utilities");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const globalVariables_1 = require("../globalVariables");
+const globalVariables_1 = require("../utilities/globalVariables");
 const events_1 = require("events");
 const bacnet = require("bacstack");
 const lodash = require("lodash");

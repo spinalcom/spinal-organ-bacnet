@@ -11,7 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalDevice = void 0;
 const lodash = require("lodash");
-const globalVariables_1 = require("../globalVariables");
+const globalVariables_1 = require("../utilities/globalVariables");
 const events_1 = require("events");
 const Utilities_1 = require("../utilities/Utilities");
 // export interface IEndpoint {
@@ -252,7 +252,13 @@ class SpinalDevice extends events_1.EventEmitter {
             {
                 objectId: { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
                 properties: [
-                    { id: globalVariables_1.PropertyIds.PROP_OBJECT_NAME },
+                    { id: globalVariables_1.PropertyIds.PROP_ALL },
+                ]
+            },
+            {
+                objectId: { type: 332, instance: device.deviceId },
+                properties: [
+                    { id: globalVariables_1.PropertyIds.PROP_ALL },
                 ]
             }
         ];
@@ -265,6 +271,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 const dataFormated = data.values.map(el => this._formatProperty(device.deviceId, el));
                 const obj = {
                     id: device.deviceId,
+                    address: device.address,
                     name: dataFormated[0][this._getPropertyNameByCode(globalVariables_1.PropertyIds.PROP_OBJECT_NAME)],
                     type: dataFormated[0].type
                     // type: this._getObjectTypeByCode(dataFormated[0][this._getPropertyNameByCode(PropertyIds.PROP_OBJECT_TYPE)][0])

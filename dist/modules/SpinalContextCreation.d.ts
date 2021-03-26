@@ -5,7 +5,6 @@ export declare class SpinalContextCreation {
     private networkService;
     private discoverModel;
     constructor(model: any);
-    private initialize;
     private bindItem;
     private bindDevices;
     private binFunc;

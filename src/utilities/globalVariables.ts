@@ -4,7 +4,6 @@ import * as bacnet from 'bacstack';
 export const ObjectTypes = bacnet.enum.ObjectTypes;
 // const PROP_DESCRIPTION = bacnet.enum.PropertyIds.PROP_DESCRIPTION;
 export const PropertyIds = bacnet.enum.PropertyIds;
-
 export const ENUM_DISABLE = bacnet.enum.EnableDisable;
 
 export const SENSOR_TYPES = [

@@ -1,6 +1,6 @@
 import * as lodash from "lodash";
 import NetworkService from "spinal-model-bmsnetwork";
-import { ObjectTypes, SENSOR_TYPES, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../globalVariables";
+import { ObjectTypes, SENSOR_TYPES, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
 import { EventEmitter } from "events";
 import { SpinalEndpoint } from "./SpinalEndpoint";
 import { SpinalNodeRef } from "spinal-env-viewer-graph-service";
@@ -32,8 +32,9 @@ export class SpinalDevice extends EventEmitter {
    private children: Array<{ type: string, instance: number }[]> = [];
 
    private node: SpinalNodeRef;
-   private networkService: NetworkService;
 
+
+   private networkService: NetworkService;
 
    private updateInterval: number;
 
@@ -53,6 +54,7 @@ export class SpinalDevice extends EventEmitter {
       // this.on("nodeCreated", this.updateEndpoints);
 
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
+
          this.info = deviceInfo;
          const objectLists: any = await this._getDeviceObjectList(this.device);
 
@@ -316,7 +318,16 @@ export class SpinalDevice extends EventEmitter {
          {
             objectId: { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
             properties: [
-               { id: PropertyIds.PROP_OBJECT_NAME },
+               { id: PropertyIds.PROP_ALL },
+               // { id: PropertyIds.PROP_OBJECT_NAME },
+               // { id: PropertyIds.PROP_OBJECT_TYPE }
+            ]
+         },
+         {
+            objectId: { type: 332, instance: device.deviceId },
+            properties: [
+               { id: PropertyIds.PROP_ALL },
+               // { id: PropertyIds.PROP_OBJECT_NAME },
                // { id: PropertyIds.PROP_OBJECT_TYPE }
             ]
          }
@@ -330,8 +341,10 @@ export class SpinalDevice extends EventEmitter {
             }
 
             const dataFormated = data.values.map(el => this._formatProperty(device.deviceId, el))
+
             const obj = {
                id: device.deviceId,
+               address: device.address,
                name: dataFormated[0][this._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
                type: dataFormated[0].type
                // type: this._getObjectTypeByCode(dataFormated[0][this._getPropertyNameByCode(PropertyIds.PROP_OBJECT_TYPE)][0])
