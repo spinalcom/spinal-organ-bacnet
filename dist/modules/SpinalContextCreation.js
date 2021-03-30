@@ -10,38 +10,22 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalContextCreation = void 0;
+const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const spinalBacnet_1 = require("./spinalBacnet");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 class SpinalContextCreation {
     constructor(model) {
         this.networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
-        // this.graph = graph;
-        // this.initialize();
-        // this.discoverModel = this.graph.info.discover;
         this.bacnet = new spinalBacnet_1.SpinalBacnet(model.network.get());
         this.discoverModel = model;
+        this.init();
+    }
+    init() {
         this.listenEvents();
         this.bindItem();
         this.bindDevices();
     }
-    // private initialize() {
-    //    this.listenEvents();
-    //    // if (this.graph.info.discover) {
-    //    //    this.graph.info.discover.status.set(STATES.reseted);
-    //    //    this.graph.info.discover.context.set({})
-    //    //    this.graph.info.discover.network.set({})
-    //    //    this.graph.info.discover.devices.set(new Lst())
-    //    // } else {
-    //    //    const discover = {
-    //    //       status: STATES.reseted,
-    //    //       context: {},
-    //    //       netwinitork: {},
-    //    //       devices: new Lst()
-    //    //    }
-    //    //    this.graph.info.add_attr({ discover })
-    //    // }
-    // }
     bindItem() {
         this.bindSateProcess = this.discoverModel.state.bind(() => {
             this.binFunc();
@@ -69,6 +53,9 @@ class SpinalContextCreation {
                 break;
         }
     }
+    /**
+     * Methods
+     */
     discover() {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("Discovering...");
@@ -81,18 +68,36 @@ class SpinalContextCreation {
             const organ = {
                 contextName: this.discoverModel.context.name.get(),
                 contextType: this.discoverModel.context.type.get(),
-                networkType: this.discoverModel.network.type.get(),
-                networkName: this.discoverModel.network.name.get()
+                networkType: this.discoverModel.organ.type.get(),
+                networkName: this.discoverModel.organ.name.get()
+                // networkType: this.discoverModel.network.type.get(),
+                // networkName: this.discoverModel.network.name.get()
             };
             const graph = yield this.getGraph();
             yield this.networkService.init(graph, organ);
-            this.bacnet.createDevicesNodes(this.networkService).then((result) => {
-                this.discoverModel.setCreatedMode();
-                this.discoverModel.state.unbind(this.bindSateProcess);
-                this.discoverModel.remove();
-                console.log("nodes created!");
+            const net = this.discoverModel.network.get();
+            const networkNodeInfo = yield this.getOrCreateNetNode(net);
+            console.log(networkNodeInfo);
+            this.bacnet.createDevicesNodes(this.networkService, networkNodeInfo.get()).then((result) => {
+                //    //    this.discoverModel.setCreatedMode();
+                //    //    this.discoverModel.state.unbind(this.bindSateProcess);
+                //    //    this.discoverModel.remove();
+                //    //    console.log("nodes created!");
             }).catch((err) => {
             });
+        });
+    }
+    getOrCreateNetNode(net) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const organId = this.networkService.networkId;
+            const contextId = this.networkService.contextId;
+            const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildrenInContext(organId, contextId);
+            for (const child of children) {
+                if (child.name.get() === net.name) {
+                    return child;
+                }
+            }
+            return this.networkService.createNewBmsNetwork(organId, net.type, net.name);
         });
     }
     listenEvents() {

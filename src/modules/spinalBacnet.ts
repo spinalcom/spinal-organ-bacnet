@@ -71,14 +71,14 @@ export class SpinalBacnet extends EventEmitter {
 
 
 
-    public async createDevicesNodes(networkService: NetworkService) {
-        const devices = await this.getDevices((<any>networkService).networkId);
+    public async createDevicesNodes(networkService: NetworkService, network: { id: string, name: string, type: string }) {
+        const devices = await this.getDevices(network.id);
 
         const promises = Array.from(this.devices.keys()).map(key => {
             const node = devices.find(el => el.idNetwork.get() == key);
             const device = this.devices.get(key);
 
-            return device.createStructureNodes(networkService, node);
+            return device.createStructureNodes(networkService, node, network.id);
 
         })
 

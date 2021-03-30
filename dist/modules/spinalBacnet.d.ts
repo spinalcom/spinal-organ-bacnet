@@ -11,7 +11,11 @@ export declare class SpinalBacnet extends EventEmitter {
     private config;
     constructor(config: any);
     discoverDevices(): Promise<void>;
-    createDevicesNodes(networkService: NetworkService): Promise<unknown[]>;
+    createDevicesNodes(networkService: NetworkService, network: {
+        id: string;
+        name: string;
+        type: string;
+    }): Promise<unknown[]>;
     closeClient(): void;
     private getDevices;
 }

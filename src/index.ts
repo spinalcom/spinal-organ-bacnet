@@ -1,56 +1,90 @@
 require("json5/lib/register");
 
-import { spinalCore } from "spinal-core-connectorjs_type";
+import { spinalCore, File } from "spinal-core-connectorjs_type";
+import { SpinalDisoverModel, SpinalOrganConfigModel, STATES } from "spinal-model-bacnet";
+import { waitModelReady, SpinalDisoverModelConnectionSuccessCallback, SpinalDeviceConnectionSuccessCallback, connectionErrorCallback } from './utilities/Utilities'
+
 import { SpinalBacnet } from "./modules/spinalBacnet";
 import { NetworkService } from "spinal-model-bmsnetwork";
-import { SpinalContextCreation } from "./modules/SpinalContextCreation";
-import { SpinalDeviceListener } from "./modules/SpinalDeviceListener";
-import { waitModelReady } from './utilities/Utilities'
-import { STATES } from 'spinal-model-bacnet';
-
 
 const config = require("../config.json5");
 const url = `http://${config.spinalConnector.userId}:${config.spinalConnector.password}@${config.spinalConnector.host}:${config.spinalConnector.port}/`;
 const connect = spinalCore.connect(url);
+const path = config.spinalConnector.path;
+const name = config.spinalConnector.name;
 
-const bacnet: SpinalBacnet = new SpinalBacnet(config.network);
-const networkService: NetworkService = new NetworkService(false);
 
 
-const connectionErrorCallback = (err?) => {
-   if (!err) console.error('Error Connect');
-   else console.error('Error Connect', err)
-   process.exit(0);
-}
+const createOrganConfigFile = () => {
+   return new Promise((resolve, reject) => {
+      connect.load_or_make_dir(`${path}`, (directory) => {
 
-const SpinalDisoverModelConnectionSuccessCallback = (graph: any) => {
-   waitModelReady(graph).then((model: any) => {
-      console.log(model)
-      const minute = 2 * (60 * 1000)
-      const time = Date.now();
-      const creation = model.creation ? model.creation.get() : 0
-      if ((time - creation) >= minute || model.state.get() === STATES.created) {
-         model.remove();
-         return;
-      }
-      new SpinalContextCreation(model);
-   }).catch((err) => {
-      console.error(err)
+         for (let index = 0; index < directory.length; index++) {
+            const element = directory[index];
+            if (element.name.get() === `${name}.conf`) {
+               console.log("element found")
+               return element.load(file => resolve(file));
+            }
+         }
+
+
+         console.log("file not found")
+         const model = new SpinalOrganConfigModel(name);
+         waitModelReady(model).then(() => {
+            const file = new File(`${name}.conf`, model, undefined)
+            directory.push(file);
+            return resolve(model);
+         })
+
+         // spinalCore.load(connect, `${path}/${name}`, (file) => {
+         //    waitModelReady(file).then((model) => {
+         //       resolve(model)
+         //    })
+
+         // }, () => {
+         //    const model = new SpinalOrganConfigModel(name);
+         //    waitModelReady(model).then(() => {
+         //       spinalCore.store(connect, model, `${path}/${name}.conf`, () => {
+         //          resolve(model)
+         //       })
+         //    })
+
+         // })
+      })
+
+      // spinalCore.load(connect, `${path}/${name}`, (file) => {
+      //    // waitModelReady(file).then(() => {
+      //    console.log("file found", file);
+      //    return resolve(file)
+      //    // })
+      // })
+
+      //    connect.load_or_make_dir(`${path}`, (dir) => {
+      //       spinalCore.load(connect, `${path}/${name}`, (file) => {
+      //          waitModelReady(file).then((model) => {
+      //             resolve(model)
+      //          })
+
+      //       }, () => {
+      //          const model = new SpinalOrganConfigModel(name);
+      //          waitModelReady(model).then(() => {
+      //             spinalCore.store(connect, model, `${path}/${name}.conf`, () => {
+      //                resolve(model)
+      //             })
+      //          })
+
+      //       })
+      //    })
    });
 }
 
-const SpinalDeviceConnectionSuccessCallback = (graph: any) => {
-   waitModelReady(graph).then((model: any) => {
-      new SpinalDeviceListener(model);
-   }).catch((err) => {
-      console.error(err)
-   });
-}
 
-spinalCore.load_type(connect, 'SpinalDisoverModel', SpinalDisoverModelConnectionSuccessCallback, connectionErrorCallback);
-// spinalCore.load_type(connect, 'SpinalListenerModel', SpinalDeviceConnectionSuccessCallback, connectionErrorCallback);
+createOrganConfigFile().then((organModel: SpinalOrganConfigModel) => {
+   spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel: SpinalDisoverModel) => {
+      SpinalDisoverModelConnectionSuccessCallback(spinalDisoverModel, organModel)
+   }, connectionErrorCallback);
 
-
-
+   // spinalCore.load_type(connect, 'SpinalListenerModel', SpinalDeviceConnectionSuccessCallback, connectionErrorCallback);
+})
 
 

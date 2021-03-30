@@ -35,17 +35,17 @@ export class SpinalDevice extends EventEmitter {
 
 
    private networkService: NetworkService;
-
    private updateInterval: number;
 
    constructor(device: IDevice, client: any, updateTime?: number) {
       super();
       this.device = device;
       this.client = client;
+      this.updateInterval = updateTime || 15000;
+
       // this.networkService = networkService;
       // this.node = node;
       this.init();
-      this.updateInterval = updateTime || 15000;
    }
 
 
@@ -79,7 +79,7 @@ export class SpinalDevice extends EventEmitter {
       })
    }
 
-   public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef) {
+   public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string) {
       this.networkService = networkService;
 
       if (node) {
@@ -88,7 +88,7 @@ export class SpinalDevice extends EventEmitter {
          return saveAsFile(this);
       };
 
-      return this._createDevice(networkService).then(device => {
+      return this._createDevice(networkService, parentId).then(device => {
          this.node = device;
          return saveAsFile(this).then((result) => {
             const deviceId = device.id.get();
@@ -180,8 +180,8 @@ export class SpinalDevice extends EventEmitter {
    //    });
    // }
 
-   private _createDevice(networkService: NetworkService): Promise<any> {
-      const parentId = (<any>networkService).networkId;
+   private _createDevice(networkService: NetworkService, parentId: string): Promise<any> {
+      // const parentId = (<any>networkService).networkId;
       return networkService.createNewBmsDevice(parentId, this.info);
    }
 

@@ -1,4 +1,4 @@
-import { SpinalGraph } from "spinal-env-viewer-graph-service";
+import { SpinalGraph, SpinalGraphService } from "spinal-env-viewer-graph-service";
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { SpinalBacnet } from "./spinalBacnet";
 import { IDevice } from './SpinalDevice';
@@ -10,43 +10,22 @@ export class SpinalContextCreation {
 
    private bindSateProcess: any;
    private bindDevicesProcess: any;
-   // private bacnet: SpinalBacnet = new SpinalBacnet(config.network);
    private bacnet: SpinalBacnet;
    private networkService: NetworkService = new NetworkService(false);
    private discoverModel: any;
 
    constructor(model) {
-      // this.graph = graph;
-      // this.initialize();
-      // this.discoverModel = this.graph.info.discover;
       this.bacnet = new SpinalBacnet(model.network.get())
       this.discoverModel = model;
 
+      this.init();
+   }
+
+   public init() {
       this.listenEvents();
       this.bindItem();
       this.bindDevices();
    }
-
-   // private initialize() {
-   //    this.listenEvents();
-
-   //    // if (this.graph.info.discover) {
-   //    //    this.graph.info.discover.status.set(STATES.reseted);
-   //    //    this.graph.info.discover.context.set({})
-   //    //    this.graph.info.discover.network.set({})
-   //    //    this.graph.info.discover.devices.set(new Lst())
-   //    // } else {
-   //    //    const discover = {
-   //    //       status: STATES.reseted,
-   //    //       context: {},
-   //    //       netwinitork: {},
-   //    //       devices: new Lst()
-   //    //    }
-
-   //    //    this.graph.info.add_attr({ discover })
-   //    // }
-
-   // }
 
    private bindItem() {
       this.bindSateProcess = this.discoverModel.state.bind(() => {
@@ -79,6 +58,10 @@ export class SpinalContextCreation {
       }
    }
 
+   /**
+    * Methods
+    */
+
    private async discover() {
       console.log("Discovering...");
 
@@ -90,13 +73,19 @@ export class SpinalContextCreation {
       const organ = {
          contextName: this.discoverModel.context.name.get(),
          contextType: this.discoverModel.context.type.get(),
-         networkType: this.discoverModel.network.type.get(),
-         networkName: this.discoverModel.network.name.get()
+         networkType: this.discoverModel.organ.type.get(),
+         networkName: this.discoverModel.organ.name.get()
+         // networkType: this.discoverModel.network.type.get(),
+         // networkName: this.discoverModel.network.name.get()
       };
       const graph = await this.getGraph();
       await this.networkService.init(graph, organ);
+      const net = this.discoverModel.network.get();
 
-      this.bacnet.createDevicesNodes(this.networkService).then((result) => {
+      const networkNodeInfo = await this.getOrCreateNetNode(net);
+      console.log(networkNodeInfo)
+
+      this.bacnet.createDevicesNodes(this.networkService, networkNodeInfo.get()).then((result) => {
          this.discoverModel.setCreatedMode();
          this.discoverModel.state.unbind(this.bindSateProcess);
          this.discoverModel.remove();
@@ -105,6 +94,22 @@ export class SpinalContextCreation {
       }).catch((err) => {
 
       });
+   }
+
+   private async getOrCreateNetNode(net) {
+      const organId = (<any>this.networkService).networkId;
+      const contextId = (<any>this.networkService).contextId;
+
+      const children = await SpinalGraphService.getChildrenInContext(organId, contextId);
+
+      for (const child of children) {
+         if (child.name.get() === net.name) {
+            return child;
+         }
+      }
+
+      return this.networkService.createNewBmsNetwork(organId, net.type, net.name);
+
    }
 
    private listenEvents() {

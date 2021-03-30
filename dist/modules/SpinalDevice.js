@@ -29,10 +29,10 @@ class SpinalDevice extends events_1.EventEmitter {
         this.children = [];
         this.device = device;
         this.client = client;
+        this.updateInterval = updateTime || 15000;
         // this.networkService = networkService;
         // this.node = node;
         this.init();
-        this.updateInterval = updateTime || 15000;
     }
     init() {
         // this.on("createNodes", this.createStructureNodes);
@@ -59,7 +59,7 @@ class SpinalDevice extends events_1.EventEmitter {
             // });
         }));
     }
-    createStructureNodes(networkService, node) {
+    createStructureNodes(networkService, node, parentId) {
         this.networkService = networkService;
         if (node) {
             this.node = node;
@@ -67,7 +67,7 @@ class SpinalDevice extends events_1.EventEmitter {
             return Utilities_1.saveAsFile(this);
         }
         ;
-        return this._createDevice(networkService).then(device => {
+        return this._createDevice(networkService, parentId).then(device => {
             this.node = device;
             return Utilities_1.saveAsFile(this).then((result) => {
                 const deviceId = device.id.get();
@@ -139,8 +139,8 @@ class SpinalDevice extends events_1.EventEmitter {
     //       })
     //    });
     // }
-    _createDevice(networkService) {
-        const parentId = networkService.networkId;
+    _createDevice(networkService, parentId) {
+        // const parentId = (<any>networkService).networkId;
         return networkService.createNewBmsDevice(parentId, this.info);
     }
     _createEndpointsGroup(networkService, deviceId, groupName) {

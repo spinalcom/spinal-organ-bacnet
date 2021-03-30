@@ -62,13 +62,13 @@ class SpinalBacnet extends events_1.EventEmitter {
             this.client.whoIs();
         });
     }
-    createDevicesNodes(networkService) {
+    createDevicesNodes(networkService, network) {
         return __awaiter(this, void 0, void 0, function* () {
-            const devices = yield this.getDevices(networkService.networkId);
+            const devices = yield this.getDevices(network.id);
             const promises = Array.from(this.devices.keys()).map(key => {
                 const node = devices.find(el => el.idNetwork.get() == key);
                 const device = this.devices.get(key);
-                return device.createStructureNodes(networkService, node);
+                return device.createStructureNodes(networkService, node, network.id);
             });
             return Promise.all(promises);
         });

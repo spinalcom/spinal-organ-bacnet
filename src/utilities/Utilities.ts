@@ -1,13 +1,11 @@
 import { FileSystem } from "spinal-core-connectorjs_type";
-// import { SpinalBacnet } from "../modules/spinalBacnet";
 import { SpinalDevice } from "../modules/SpinalDevice";
 
 import { writeFile, existsSync, mkdirSync, createReadStream } from "fs";
-import bigJSON from "big-json";
+import { SpinalDisoverModel, SpinalOrganConfigModel, STATES } from "spinal-model-bacnet";
 
-// import { Transform } from "stream";
-// import { inherits } from "util";
-
+import { SpinalContextCreation } from "../modules/SpinalContextCreation";
+import { SpinalDeviceListener } from "../modules/SpinalDeviceListener";
 
 const Q = require('q');
 
@@ -27,6 +25,47 @@ export const waitModelReady = (spinalContext: any) => {
 };
 
 
+
+export const SpinalDisoverModelConnectionSuccessCallback = (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel) => {
+   waitModelReady(spinalDisoverModel).then(() => {
+      // console.log(spinalDisoverModel.organ._server_id, organModel._server_id);
+
+      if (organModel._server_id === spinalDisoverModel.organ._server_id) {
+         const minute = 2 * (60 * 1000)
+         const time = Date.now();
+         const creation = spinalDisoverModel.creation ? spinalDisoverModel.creation.get() : 0
+         if ((time - creation) >= minute || spinalDisoverModel.state.get() === STATES.created) {
+            spinalDisoverModel.remove();
+            return;
+         }
+         new SpinalContextCreation(spinalDisoverModel);
+      }
+
+
+   }).catch((err) => {
+      console.error(err)
+   });
+}
+
+export const SpinalDeviceConnectionSuccessCallback = (graph: any) => {
+   waitModelReady(graph).then((model: any) => {
+      new SpinalDeviceListener(model);
+   }).catch((err) => {
+      console.error(err)
+   });
+}
+
+export const connectionErrorCallback = (err?) => {
+   if (!err) console.error('Error Connect');
+   else console.error('Error Connect', err)
+   process.exit(0);
+}
+
+
+
+////////////////////////////////////////////////
+////                 FILES                    //
+////////////////////////////////////////////////
 export const saveAsFile = (obj: SpinalDevice) => {
 
    const data = obj.convertToString();

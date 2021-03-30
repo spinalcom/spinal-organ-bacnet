@@ -21,7 +21,7 @@ export declare class SpinalDevice extends EventEmitter {
     private updateInterval;
     constructor(device: IDevice, client: any, updateTime?: number);
     init(): Promise<void>;
-    createStructureNodes(networkService: NetworkService, node: SpinalNodeRef): Promise<unknown>;
+    createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<unknown>;
     convertToString(): string;
     private _createDevice;
     private _createEndpointsGroup;

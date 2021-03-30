@@ -1,19 +1,20 @@
 {
    spinalConnector : {
+      name : "spinal-organ-bacnet",
       userId: 168, // user id - process.env.SPINAL_USER_ID
       password: "HBOJRtNPAm5E", // user password - process.env.SPINAL_USER_ID 
       host: "localhost", // can be an ip address - process.env.SPINALHUB_IP
-      digitalTwinPath: "/__users__/admin/Digital twin 2",
-      port: 7777
+      port: 7777, // hub port
+      path: '/__users__/admin/organs'
    },
-   organ : {
-      contextName: "Network",
-      contextType: "Network",
-      networkType: "NetworkVirtual",
-      networkName: "NetworkVirtual"
-   },
-   network : {
-      port: 47808,
-      timeout : 45000, // time in milisecond to connect to the bacnet 
-   }    
+   // organ : {
+   //    contextName: "Network",
+   //    contextType: "Network",
+   //    networkType: "NetworkVirtual",
+   //    networkName: "NetworkVirtual"
+   // },
+   // network : {
+   //    port: 47808,
+   //    timeout : 45000, // time in milisecond to connect to the bacnet 
+   // }    
 }
