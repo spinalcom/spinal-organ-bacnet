@@ -77,12 +77,11 @@ class SpinalContextCreation {
             yield this.networkService.init(graph, organ);
             const net = this.discoverModel.network.get();
             const networkNodeInfo = yield this.getOrCreateNetNode(net);
-            console.log(networkNodeInfo);
             this.bacnet.createDevicesNodes(this.networkService, networkNodeInfo.get()).then((result) => {
-                //    //    this.discoverModel.setCreatedMode();
-                //    //    this.discoverModel.state.unbind(this.bindSateProcess);
-                //    //    this.discoverModel.remove();
-                //    //    console.log("nodes created!");
+                this.discoverModel.setCreatedMode();
+                this.discoverModel.state.unbind(this.bindSateProcess);
+                this.discoverModel.remove();
+                console.log("nodes created!");
             }).catch((err) => {
             });
         });

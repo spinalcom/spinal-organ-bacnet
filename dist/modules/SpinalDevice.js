@@ -13,7 +13,6 @@ exports.SpinalDevice = void 0;
 const lodash = require("lodash");
 const globalVariables_1 = require("../utilities/globalVariables");
 const events_1 = require("events");
-const Utilities_1 = require("../utilities/Utilities");
 // export interface IEndpoint {
 //    id: string;
 //    objectId: { type: number, instance: number };
@@ -63,23 +62,24 @@ class SpinalDevice extends events_1.EventEmitter {
         this.networkService = networkService;
         if (node) {
             this.node = node;
-            // emit("nodeCreated")
-            return Utilities_1.saveAsFile(this);
+            // // emit("nodeCreated")
+            // return saveAsFile(this);
+            return;
         }
         ;
         return this._createDevice(networkService, parentId).then(device => {
             this.node = device;
-            return Utilities_1.saveAsFile(this).then((result) => {
-                const deviceId = device.id.get();
-                const promises = Array.from(this.endpointGroups.keys()).map(el => {
-                    return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
-                        const groupId = endpointGroup.id.get();
-                        return this._createEndpointByArray(networkService, groupId, this.endpointGroups.get(el));
-                    });
+            // return saveAsFile(this).then((result) => {
+            const deviceId = device.id.get();
+            const promises = Array.from(this.endpointGroups.keys()).map(el => {
+                return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
+                    const groupId = endpointGroup.id.get();
+                    return this._createEndpointByArray(networkService, groupId, this.endpointGroups.get(el));
                 });
-                return Promise.all(promises).then(() => this.emit("nodeCreated"));
             });
-            // const node = device;
+            return Promise.all(promises).then(() => this.emit("nodeCreated"));
+            // })
+            // // const node = device;
         });
     }
     convertToString() {
@@ -160,6 +160,7 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const obj = {
                 id: endpointObj.id,
+                typeId: endpointObj.typeId,
                 name: endpointObj.object_name,
                 path: "",
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
@@ -310,6 +311,7 @@ class SpinalDevice extends events_1.EventEmitter {
             const obj = {
                 objectId: objectId,
                 id: objectId.instance,
+                typeId: objectId.type,
                 type: this._getObjectTypeByCode(objectId.type),
                 instance: objectId.instance,
                 deviceId: deviceId

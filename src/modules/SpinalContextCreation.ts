@@ -83,7 +83,6 @@ export class SpinalContextCreation {
       const net = this.discoverModel.network.get();
 
       const networkNodeInfo = await this.getOrCreateNetNode(net);
-      console.log(networkNodeInfo)
 
       this.bacnet.createDevicesNodes(this.networkService, networkNodeInfo.get()).then((result) => {
          this.discoverModel.setCreatedMode();

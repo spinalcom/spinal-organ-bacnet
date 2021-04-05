@@ -84,24 +84,25 @@ export class SpinalDevice extends EventEmitter {
 
       if (node) {
          this.node = node;
-         // emit("nodeCreated")
-         return saveAsFile(this);
+         // // emit("nodeCreated")
+         // return saveAsFile(this);
+         return;
       };
 
       return this._createDevice(networkService, parentId).then(device => {
          this.node = device;
-         return saveAsFile(this).then((result) => {
-            const deviceId = device.id.get();
-            const promises = Array.from(this.endpointGroups.keys()).map(el => {
-               return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
-                  const groupId = endpointGroup.id.get();
-                  return this._createEndpointByArray(networkService, groupId, this.endpointGroups.get(el));
-               })
+         // return saveAsFile(this).then((result) => {
+         const deviceId = device.id.get();
+         const promises = Array.from(this.endpointGroups.keys()).map(el => {
+            return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
+               const groupId = endpointGroup.id.get();
+               return this._createEndpointByArray(networkService, groupId, this.endpointGroups.get(el));
             })
-
-            return Promise.all(promises).then(() => this.emit("nodeCreated"));
          })
-         // const node = device;
+
+         return Promise.all(promises).then(() => this.emit("nodeCreated"));
+         // })
+         // // const node = device;
 
       })
    }
@@ -205,6 +206,7 @@ export class SpinalDevice extends EventEmitter {
 
       const obj: any = {
          id: endpointObj.id,
+         typeId: endpointObj.typeId,
          name: endpointObj.object_name,
          path: "",
          currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
@@ -387,6 +389,7 @@ export class SpinalDevice extends EventEmitter {
          const obj = {
             objectId: objectId,
             id: objectId.instance,
+            typeId: objectId.type,
             type: this._getObjectTypeByCode(objectId.type),
             instance: objectId.instance,
             deviceId: deviceId

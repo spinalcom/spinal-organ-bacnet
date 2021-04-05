@@ -18,7 +18,6 @@ export class SpinalBacnet extends EventEmitter {
 
     constructor(config) {
         super();
-        console.log("config", config)
         this.CONNECTION_TIME_OUT = config.timeout || 45000;
         this.config = config;
         // this.client = new bacnet({
@@ -44,8 +43,6 @@ export class SpinalBacnet extends EventEmitter {
             port: this.config.port,
             // adpuTimeout: this.CONNECTION_TIME_OUT
         });
-
-        console.log("discoverDevice", this.count)
 
         const timeOutId = setTimeout(() => {
             console.error("[TIMEOUT] - Cannot establish connection with BACnet server.");

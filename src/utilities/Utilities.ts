@@ -2,7 +2,7 @@ import { FileSystem } from "spinal-core-connectorjs_type";
 import { SpinalDevice } from "../modules/SpinalDevice";
 
 import { writeFile, existsSync, mkdirSync, createReadStream } from "fs";
-import { SpinalDisoverModel, SpinalOrganConfigModel, STATES } from "spinal-model-bacnet";
+import { SpinalDisoverModel, SpinalListenerModel, SpinalOrganConfigModel, STATES } from "spinal-model-bacnet";
 
 import { SpinalContextCreation } from "../modules/SpinalContextCreation";
 import { SpinalDeviceListener } from "../modules/SpinalDeviceListener";
@@ -47,9 +47,13 @@ export const SpinalDisoverModelConnectionSuccessCallback = (spinalDisoverModel: 
    });
 }
 
-export const SpinalDeviceConnectionSuccessCallback = (graph: any) => {
-   waitModelReady(graph).then((model: any) => {
-      new SpinalDeviceListener(model);
+export const SpinalDeviceConnectionSuccessCallback = (spinalListenerModel: SpinalListenerModel, organModel: SpinalOrganConfigModel) => {
+   waitModelReady(spinalListenerModel).then(() => {
+      // new SpinalDeviceListener(model);
+      if (spinalListenerModel.organ._server_id === organModel._server_id) {
+         new SpinalDeviceListener(spinalListenerModel);
+      }
+
    }).catch((err) => {
       console.error(err)
    });

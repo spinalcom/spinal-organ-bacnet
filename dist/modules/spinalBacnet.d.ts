@@ -15,7 +15,7 @@ export declare class SpinalBacnet extends EventEmitter {
         id: string;
         name: string;
         type: string;
-    }): Promise<unknown[]>;
+    }): Promise<boolean[]>;
     closeClient(): void;
     private getDevices;
 }

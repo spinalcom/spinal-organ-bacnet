@@ -15,34 +15,32 @@ const globalVariables_1 = require("../utilities/globalVariables");
 const events_1 = require("events");
 const bacnet = require("bacstack");
 const lodash = require("lodash");
-const SpinalMonitoring_1 = require("./SpinalMonitoring");
+const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 class SpinalDeviceListener extends events_1.EventEmitter {
     constructor(listenerModel) {
         super();
         this.client = new bacnet();
         this.networkService = new spinal_model_bmsnetwork_1.default(false);
-        this.spinalMonitors = [];
         this.listenerModel = listenerModel;
-        this.init();
-        this.on("initialize", () => {
-            this._bindListen();
-            // this._bindTimeInterval();
-        });
+        console.log("listenerModel", listenerModel);
+        // this.init();
+        // this.on("initialize", () => {
+        //    this._bindListen();
+        //    this._bindTimeInterval();
+        // });
     }
     init() {
         return __awaiter(this, void 0, void 0, function* () {
             // loadFile(this.listenerModel.deviceId.get()).then(async (data: { device: IDevice, children: Array<Array<{ type: number, instance: number }>> }) => {
             const graph = yield this._getGraph();
             // this.children = data.children;
-            this.device = yield this._getDeviceInfo();
-            this.networkNode = yield this._getNetworkNode();
-            this.contextNode = yield this._getContextNode();
-            this.organ = yield this._getOrganInfo();
+            this.device = this.listenerModel.device.get();
+            this.networkNode = spinal_env_viewer_graph_service_1.SpinalGraphService.getRealNode(this.listenerModel.network.id.get());
             yield this.networkService.init(graph, {
-                contextName: this.contextNode.getName().get(),
-                contextType: this.contextNode.getType().get(),
-                networkType: this.organ.type.get(),
-                networkName: this.organ.name.get()
+                contextName: this.listenerModel.context.name.get(),
+                contextType: this.listenerModel.context.type.get(),
+                networkType: this.listenerModel.organ.type.get(),
+                networkName: this.listenerModel.organ.name.get()
                 // // networkType: this.listenerModel.network.type.get(),
                 // // networkName: this.listenerModel.network.networkName.get()
             });
@@ -55,64 +53,39 @@ class SpinalDeviceListener extends events_1.EventEmitter {
     }
     _bindListen() {
         this.listenerModel.listen.bind(() => {
-            if (this.listenerModel.listen.get()) {
-                for (let i = 0; i < this.listenerModel.monitor.length; i++) {
-                    const model = this.listenerModel.monitor[i];
-                    const spinalMonitoring = new SpinalMonitoring_1.default(model, (children) => this._updateEndpoints(children));
-                    spinalMonitoring.start();
-                    this.spinalMonitors.push(spinalMonitoring);
-                }
-                return;
-            }
-            for (const spinalMonitoring of this.spinalMonitors) {
-                spinalMonitoring.stop();
-            }
-            this.spinalMonitors = [];
-            // this.timeIntervalDebounced()
+            this.timeIntervalDebounced();
         });
         // setInterval(() => {
         //    this._updateEndpoints();
         // }, 15000);
     }
-    // private bindMonitoring(monitorModel) {
-    // }
-    // private _bindTimeInterval() {
-    //    this.listenerModel.timeInterval.bind(() => {
-    //       this.timeIntervalDebounced()
-    //    })
-    // }
-    // private _createTimeInterval() {
-    //    if (this.timeIntervalId) {
-    //       clearInterval(this.timeIntervalId);
-    //    }
-    //    if (this.listenerModel.listen.get()) {
-    //       this.timeIntervalId = setInterval(() => this._updateEndpoints(), this.listenerModel.timeInterval.get());
-    //    }
-    // }
-    _updateEndpoints(children) {
+    _bindTimeInterval() {
+        this.listenerModel.timeInterval.bind(() => {
+            this.timeIntervalDebounced();
+        });
+    }
+    _createTimeInterval() {
+        if (this.timeIntervalId) {
+            clearInterval(this.timeIntervalId);
+        }
+        if (this.listenerModel.listen.get()) {
+            this.timeIntervalId = setInterval(() => this._updateEndpoints(), this.listenerModel.timeInterval.get());
+        }
+    }
+    _updateEndpoints() {
         console.log("update");
-        this._getChildrenNewValue(children).then((objectListDetails) => {
-            // console.log("objectListDetails", objectListDetails);
-            console.log("new values", objectListDetails);
+        const objectListDetails = [];
+        this.children.map(object => {
+            return () => {
+                return this._getChildrenNewValue(object).then((g) => objectListDetails.push(g));
+            };
+        }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => {
             const obj = {
                 id: this.device.deviceId,
                 children: this._groupByType(lodash.flattenDeep(objectListDetails))
             };
-            console.log("this.networkNode", this.networkNode);
             this.networkService.updateData(obj, null, this.networkNode);
         });
-        // const objectListDetails = [];
-        // this.children.map(object => {
-        //    return () => {
-        //       return this._getChildrenNewValue(object).then((g) => objectListDetails.push(g))
-        //    }
-        // }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
-        //    const obj: any = {
-        //       id: this.device.deviceId,
-        //       children: this._groupByType(lodash.flattenDeep(objectListDetails))
-        //    }
-        //    this.networkService.updateData(obj, null, this.networkNode);
-        // })
     }
     _getChildrenNewValue(children) {
         const requestArray = children.map(el => {
@@ -170,47 +143,6 @@ class SpinalDeviceListener extends events_1.EventEmitter {
             this.listenerModel.graph.load((graph) => resolve(graph));
         });
     }
-    _getNetworkNode() {
-        return new Promise((resolve, reject) => {
-            this.listenerModel.network.load((networkNode) => {
-                resolve(networkNode);
-            });
-        });
-        // console.log(contextId, nodeId);
-        // const realNode = SpinalGraphService.getRealNode(nodeId);
-        // if (realNode) return realNode;
-        // const found = await SpinalGraphService.findInContext(contextId, contextId, (node) => {
-        //    console.log("node", node)
-        //    if (node.getId().get() === nodeId) return true;
-        //    return false;
-        // });
-        // console.log("found", found)
-        // if (found.length > 0) {
-        //    return found[0];
-        // }
-    }
-    _getContextNode() {
-        return new Promise((resolve, reject) => {
-            this.listenerModel.context.load((contextNode) => {
-                resolve(contextNode);
-            });
-        });
-    }
-    _getDeviceInfo() {
-        return new Promise((resolve, reject) => {
-            this.listenerModel.device.load((deviceNode) => {
-                const info = deviceNode.info.get();
-                resolve(info);
-            });
-        });
-    }
-    _getOrganInfo() {
-        return new Promise((resolve, reject) => {
-            this.listenerModel.organ.load((organ) => {
-                resolve(organ);
-            });
-        });
-    }
 }
 exports.SpinalDeviceListener = SpinalDeviceListener;
-//# sourceMappingURL=SpinalDeviceListener.js.map
+//# sourceMappingURL=SpinalDeviceListener%20copy.js.map
