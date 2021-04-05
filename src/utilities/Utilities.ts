@@ -49,10 +49,15 @@ export const SpinalDisoverModelConnectionSuccessCallback = (spinalDisoverModel: 
 
 export const SpinalDeviceConnectionSuccessCallback = (spinalListenerModel: SpinalListenerModel, organModel: SpinalOrganConfigModel) => {
    waitModelReady(spinalListenerModel).then(() => {
-      // new SpinalDeviceListener(model);
-      if (spinalListenerModel.organ._server_id === organModel._server_id) {
-         new SpinalDeviceListener(spinalListenerModel);
-      }
+
+      spinalListenerModel.organ.load((organ) => {
+         waitModelReady(organ).then((result) => {
+            if (organ._server_id === organModel._server_id) {
+               new SpinalDeviceListener(spinalListenerModel);
+            }
+         })
+      })
+
 
    }).catch((err) => {
       console.error(err)

@@ -43,10 +43,13 @@ const SpinalDisoverModelConnectionSuccessCallback = (spinalDisoverModel, organMo
 exports.SpinalDisoverModelConnectionSuccessCallback = SpinalDisoverModelConnectionSuccessCallback;
 const SpinalDeviceConnectionSuccessCallback = (spinalListenerModel, organModel) => {
     exports.waitModelReady(spinalListenerModel).then(() => {
-        // new SpinalDeviceListener(model);
-        if (spinalListenerModel.organ._server_id === organModel._server_id) {
-            new SpinalDeviceListener_1.SpinalDeviceListener(spinalListenerModel);
-        }
+        spinalListenerModel.organ.load((organ) => {
+            exports.waitModelReady(organ).then((result) => {
+                if (organ._server_id === organModel._server_id) {
+                    new SpinalDeviceListener_1.SpinalDeviceListener(spinalListenerModel);
+                }
+            });
+        });
     }).catch((err) => {
         console.error(err);
     });

@@ -17,7 +17,8 @@ const Utilities_1 = require("./utilities/Utilities");
 // import { NetworkService } from "spinal-model-bmsnetwork";
 const pm2 = require("pm2");
 const config = require("../config.json5");
-const url = `http://${config.spinalConnector.userId}:${config.spinalConnector.password}@${config.spinalConnector.host}:${config.spinalConnector.port}/`;
+// const url = `${config.spinalConnector.protocol}://${config.spinalConnector.userId}:${config.spinalConnector.password}@${config.spinalConnector.host}/`;
+const url = `${config.spinalConnector.protocol}://${config.spinalConnector.userId}:${config.spinalConnector.password}@${config.spinalConnector.host}:${config.spinalConnector.port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
 const path = config.spinalConnector.path;
 const name = config.spinalConnector.name;
@@ -95,23 +96,6 @@ const getPm2Instance = (organName) => {
         // });
     });
 };
-// const restartPm2 = (apps) => {
-//    console.log("restart pm2")
-//    const appsIds = apps.map(app => {
-//       return app.pm_id
-//    });
-//    return new Promise((resolve, reject) => {
-//       pm2.restart(appsIds, (err) => {
-//          if (err) {
-//             console.error(err);
-//             resolve(false)
-//             return;
-//          }
-//          resolve(true);
-//       })
-//    });
-//    // return Promise.all(promises);
-// }
 createOrganConfigFile().then((organModel) => {
     organModel.restart.bind(() => {
         const restart = organModel.restart.get();
