@@ -1,6 +1,5 @@
 import * as bacnet from 'bacstack';
 
-
 export const ObjectTypes = bacnet.enum.ObjectTypes;
 // const PROP_DESCRIPTION = bacnet.enum.PropertyIds.PROP_DESCRIPTION;
 export const PropertyIds = bacnet.enum.PropertyIds;
@@ -24,8 +23,6 @@ export const SENSOR_TYPES = [
    ObjectTypes.OBJECT_MULTI_STATE_VALUE,
 
    //NETWORK
-
-
 ]
 
 export const PropertyNames = (function swap(json) {

@@ -3,8 +3,9 @@ import { SpinalGraphService, SpinalNodeRef } from 'spinal-env-viewer-graph-servi
 import { NetworkService, SpinalBmsDevice } from "spinal-model-bmsnetwork";
 import { SpinalDevice } from "./SpinalDevice";
 import { EventEmitter } from "events";
-import { saveAsFile } from "../utilities/Utilities";
 
+// import { saveAsFile } from "../utilities/Utilities";
+// import { ObjectTypes } from '../utilities/globalVariables';
 
 export class SpinalBacnet extends EventEmitter {
 
@@ -20,28 +21,47 @@ export class SpinalBacnet extends EventEmitter {
         super();
         this.CONNECTION_TIME_OUT = config.timeout || 45000;
         this.config = config;
-        // this.client = new bacnet({
-        //     port: config.port,
-        //     // adpuTimeout: this.CONNECTION_TIME_OUT
-        // });
-
-        // this.client.on('error', (err) => {
-        //     console.log('Error occurred: ', err);
-        //     this.client.close();
-        // });
     }
 
-    // public getDevices() {
-    //     return this.devices;
-    // }
-
     public async discoverDevices(): Promise<void> {
-        this.count = 0;
 
+        this.count = 0;
+        if (this.config.useBroadcast) {
+            console.log("useBroadcast");
+            this.useBroadcast();
+        } else {
+            console.log("useUnicast");
+            this.useUnicast();
+        }
+
+    }
+
+    public async createDevicesNodes(networkService: NetworkService, network: { id: string, name: string, type: string }) {
+        const devices = await this.getDevices(network.id);
+
+        const iterator = this.convertListToIterator(Array.from(this.devices.keys()));
+        this.createDeviceRecursively(iterator, devices, iterator.next(), networkService, network);
+
+        // const promises = Array.from(this.devices.keys()).map(key => {
+        //     const node = devices.find(el => el.idNetwork.get() == key);
+        //     const device = this.devices.get(key);
+
+        //     return device.createStructureNodes(networkService, node, network.id);
+
+        // })
+
+        // return Promise.all(promises).then(res => console.log("created")).catch(err => { console.error(err); throw new Error('error') })
+    }
+
+    public useBroadcast() {
         this.client = new bacnet({
             address: this.config.address,
             port: this.config.port,
-            // adpuTimeout: this.CONNECTION_TIME_OUT
+        });
+
+        this.client.on('error', (err) => {
+            console.log('Error occurred: ', err);
+            this.client.close();
         });
 
         const timeOutId = setTimeout(() => {
@@ -52,36 +72,31 @@ export class SpinalBacnet extends EventEmitter {
         }, this.CONNECTION_TIME_OUT);
 
         this.client.on('iAm', (device) => {
+            console.log("deviceFound", device);
             clearTimeout(timeOutId);
             this.count++;
 
-            const spinalDevice = new SpinalDevice(device, this.client);
-            spinalDevice.on("initialized", (res) => {
-                this.devices.set(res.device.deviceId, res);
-                this.emit("deviceFound", res.device);
-            })
-
+            this.getDeviceInformation(device);
         })
 
         this.client.whoIs();
     }
 
+    public useUnicast() {
+        this.client = new bacnet();
 
-
-    public async createDevicesNodes(networkService: NetworkService, network: { id: string, name: string, type: string }) {
-        const devices = await this.getDevices(network.id);
-
-        const promises = Array.from(this.devices.keys()).map(key => {
-            const node = devices.find(el => el.idNetwork.get() == key);
-            const device = this.devices.get(key);
-
-            return device.createStructureNodes(networkService, node, network.id);
-
+        const devices = this.config.ips.map(({ address, deviceId }) => {
+            return { address, deviceId: parseInt(deviceId) }
         })
 
-        return Promise.all(promises);
-    }
+        this.count = devices.length;
 
+        const iterator = this.convertListToIterator(devices);
+
+
+        this.discoverRecursively(iterator, iterator.next());
+
+    }
 
 
     public closeClient() {
@@ -89,140 +104,68 @@ export class SpinalBacnet extends EventEmitter {
             this.client.close();
         }
     }
-
-    // public on(eventName: string, listener: Function) {
-    //     if (!this.events[eventName]) {
-    //         this.events[eventName] = []
-    //     }
-    //     this.events[eventName].push(listener);
-    // }
-
-    // private emit(eventName: string, data: any) {
-    //     if (!this.events[eventName]) {
-    //         return;
-    //     }
-
-    //     this.events[eventName].forEach((callback) => {
-    //         if (typeof callback === "function") callback(data);
-    //     })
-
-    // }
-
     /////////////////////////////////////////////////////////////////////////////
     //                                  PRIVATES                               //
     /////////////////////////////////////////////////////////////////////////////
+
+
+    private createDeviceRecursively(iterator, devices, next, networkService, network) {
+        if (!next.done) {
+            const value = next.value;
+            const node = devices.find(el => el.idNetwork.get() == value);
+            const device = this.devices.get(value);
+            device.createStructureNodes(networkService, node, network.id).then((result) => {
+                this.createDeviceRecursively(iterator, devices, iterator.next(), networkService, network);
+            }).catch((err) => {
+                this.createDeviceRecursively(iterator, devices, iterator.next(), networkService, network);
+            });
+        } else {
+            this.emit("created");
+        }
+
+    }
+
+    private getDeviceInformation(device) {
+
+        return new Promise((resolve, reject) => {
+            const spinalDevice = new SpinalDevice(device, this.client);
+
+            spinalDevice.on("initialized", (res) => {
+                this.devices.set(res.device.deviceId, res);
+                this.emit("deviceFound", res.info);
+                resolve(true);
+            })
+
+            spinalDevice.on("error", (error) => {
+                this.count--;
+                resolve(true);
+                this.emit("noResponse")
+                if (this.count === 0) {
+                    this.emit("timeout");
+                    this.closeClient();
+                }
+            })
+
+            spinalDevice.init();
+        });
+
+    }
+
+    private discoverRecursively(iterator, next) {
+        if (!next.done) {
+            this.getDeviceInformation(next.value).then(() => {
+                this.discoverRecursively(iterator, iterator.next())
+            })
+        } else {
+            this.emit("discovered")
+        }
+    }
 
     private getDevices(id: string): Promise<SpinalNodeRef[]> {
         return SpinalGraphService.getChildren(id, [SpinalBmsDevice.relationName])
     }
 
-
-    // private _getDeviceObjectList(device: any): Promise<Array<Array<{ type: string, instance: number }>>> {
-    //     return new Promise((resolve, reject) => {
-
-    //         const checkIfDeviceExist = this.devices.get(device.deviceId)
-    //         if (checkIfDeviceExist && checkIfDeviceExist.itemsList) {
-    //             return resolve(checkIfDeviceExist.itemsList)
-    //         }
-
-    //         const sensor = []
-    //         this.client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
-    //             if (err) {
-    //                 reject(err);
-    //                 return;
-    //             }
-
-    //             for (const item of res.values) {
-    //                 if (SENSOR_TYPES.indexOf(item.value.type) !== -1)
-    //                     sensor.push(item.value);
-    //             }
-
-    //             return resolve(this.useQueuing(sensor, this.queueSize));
-    //         })
-    //     });
-    // }
-
-    // private _getObjectDetail(device, objects: Array<{ type: string, instance: number }>) {
-
-    //     const requestArray = objects.map(el => ({
-    //         objectId: JSON.parse(JSON.stringify(el)),
-    //         properties: [
-    //             // { id: PropertyIds.PROP_ALL }
-    //             { id: PropertyIds.PROP_OBJECT_NAME },
-    //             { id: PropertyIds.PROP_PRESENT_VALUE },
-    //             { id: PropertyIds.PROP_OBJECT_TYPE },
-    //             { id: PropertyIds.PROP_UNITS },
-    //         ]
-    //     }))
-
-    //     return new Promise((resolve, reject) => {
-    //         this.client.readPropertyMultiple(device.address, requestArray, (err, data) => {
-    //             if (err) {
-    //                 reject(err);
-    //                 return;
-    //             }
-
-    //             const dataFormated = data.values.map(el => this.formatProperty(device, el))
-    //             resolve(dataFormated);
-    //         })
-    //     });
-    // }
-
-    // private useQueuing(liste, queueSize): Array<Array<{ type: string, instance: number }>> {
-    //     const queue = [];
-    //     for (let i = 0; i < liste.length; i++) {
-    //         const last = queue[queue.length - 1];
-    //         if (!last || last.length === queueSize) {
-    //             queue.push([liste[i]]);
-    //         } else {
-    //             last.push(liste[i]);
-    //         }
-    //     }
-    //     return queue;
-    // }
-
-    // private formatProperty(device, object) {
-
-    //     const { objectId, values } = object;
-
-
-    //     const obj = {
-    //         id: `${objectId.type}_${objectId.instance}`,
-    //         type: objectId.type,
-    //         instance: objectId.instance,
-    //         deviceId: device.deviceId
-    //     }
-
-    //     for (const { id, value } of values) {
-    //         const propertyName = this._getPropertyName(id);
-
-    //         if (propertyName) {
-    //             obj[propertyName] = this.getObjValue(value);
-    //         }
-
-    //     }
-
-    //     return obj;
-    // }
-
-    // private getObjValue(value) {
-    //     if (Array.isArray(value)) {
-    //         if (value.length === 0) return [];
-    //         // if(value.length === 1) return value[0].value;
-
-    //         return value.map(el => el.value);
-    //     }
-    //     // if(Array.isArray(value)) return value[0].value;
-
-    //     return value.value;
-    // }
-
-    // private _getPropertyName(type: number): string {
-    //     for (const [key, value] of Object.entries(PropertyIds)) {
-    //         if (value === type) return key.toLocaleLowerCase().replace('prop_', '');
-    //     }
-
-    //     return;
-    // }
-
+    private *convertListToIterator(devices: Array<any>) {
+        yield* devices;
+    }
 }

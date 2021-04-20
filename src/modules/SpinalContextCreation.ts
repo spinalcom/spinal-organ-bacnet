@@ -31,7 +31,6 @@ export class SpinalContextCreation {
       this.bindSateProcess = this.discoverModel.state.bind(() => {
          this.binFunc()
       })
-      // this.graph.info.discover.context.bind(lodash.debounce(this.binFunc.bind(this), 1000))
    }
 
    private bindDevices() {
@@ -91,7 +90,9 @@ export class SpinalContextCreation {
          console.log("nodes created!");
 
       }).catch((err) => {
-
+         this.discoverModel.setErrorMode();
+         this.discoverModel.state.unbind(this.bindSateProcess);
+         this.discoverModel.remove();
       });
    }
 
@@ -114,6 +115,14 @@ export class SpinalContextCreation {
    private listenEvents() {
       this.bacnet.on("deviceFound", (device) => this.addDeviceFound(device));
       this.bacnet.on("timeout", () => this.timeOutEvent());
+
+      this.bacnet.on("noResponse", () => {
+         if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
+            this.discoverModel.setDiscoveredMode();
+            this.bacnet.closeClient();
+            this.discoverModel.devices.unbind(this.bindDevicesProcess);
+         }
+      })
    }
 
    private addDeviceFound(device: IDevice) {
