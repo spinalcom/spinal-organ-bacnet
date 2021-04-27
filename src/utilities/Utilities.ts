@@ -73,10 +73,15 @@ export const SpinalListnerCallback = (spinalListenerModel: SpinalListenerModel, 
 
 export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBacnetValueModel) => {
    waitModelReady(spinalBacnetValueModel).then(async () => {
-      console.log("creation");
 
+      if (spinalBacnetValueModel.state.get() !== 'normal') {
+         return spinalBacnetValueModel.remToNode();
+      }
+
+      console.log("creation");
       const networkService: NetworkService = new NetworkService(false);
       const { node, context, graph, network } = await spinalBacnetValueModel.getAllItem();
+      const sensors = spinalBacnetValueModel.sensor.get();
 
       (<any>SpinalGraphService)._addNode(node);
       (<any>SpinalGraphService)._addNode(context);
@@ -89,7 +94,7 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
          contextName: (<any>context).getName().get(),
          contextType: (<any>context).getType().get(),
          networkType: (<any>network).getType().get(),
-         networkName: (<any>network).getType().get()
+         networkName: (<any>network).getName().get()
       };
 
       const client = new bacnet();
@@ -97,10 +102,11 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
 
 
       const spinalDevice = new SpinalDevice(device, client);
-      spinalDevice.createDeviceItemList(networkService, (<any>node)).then(() => {
-         spinalBacnetValueModel.remToNode();
+      spinalDevice.createDeviceItemList(networkService, (<any>node), sensors).then(() => {
+         spinalBacnetValueModel.state.set('success');
          console.log("success");
       }).catch((err) => {
+         spinalBacnetValueModel.state.set('error');
          console.error(err);
       });
    })

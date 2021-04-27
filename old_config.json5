@@ -8,7 +8,7 @@
       // host: "vinci-archipel-b1.spinalcom.com", // can be an ip address - process.env.SPINALHUB_IP
       host: "51.178.36.180", // can be an ip address - process.env.SPINALHUB_IP
       
-      port: 8044, // hub port
+      port: 10104, // hub port
       path: '/__users__/admin/organs'
    },
 

@@ -1,11 +1,11 @@
 import * as lodash from "lodash";
 import * as bacnet from "bacstack";
 
-import NetworkService from "spinal-model-bmsnetwork";
-import { ObjectTypes, SENSOR_TYPES, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
+import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
+import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
 import { EventEmitter } from "events";
 import { SpinalEndpoint } from "./SpinalEndpoint";
-import { SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { saveAsFile } from "../utilities/Utilities";
 // import { store } from "../store";
 
@@ -92,15 +92,14 @@ export class SpinalDevice extends EventEmitter {
       */
    }
 
-
-   public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef): Promise<any> {
+   public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, sensors: Array<number>): Promise<any> {
 
       // return saveAsFile(this).then((result) => {
 
       const deviceId = node.getId().get();
 
 
-      return this._getDeviceObjectList(this.device).then((objectLists) => {
+      return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
          const objectListDetails = [];
 
          return objectLists.map(object => {
@@ -142,10 +141,15 @@ export class SpinalDevice extends EventEmitter {
       return networkService.createNewBmsDevice(parentId, this.info);
    }
 
-   private _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
+   private async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
+      const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
+
+      const exist = await this._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
+      if (exist) return exist;
+
       const obj: any = {
          name: groupName,
-         id: ObjectTypes[`object_${groupName}`.toUpperCase()],
+         id: networkId,
          type: groupName,
          path: ""
       }
@@ -158,9 +162,12 @@ export class SpinalDevice extends EventEmitter {
    }
 
    private async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
+      const networkId = endpointObj.id;
+      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
+      if (exist) return exist;
 
       const obj: any = {
-         id: endpointObj.id,
+         id: networkId,
          typeId: endpointObj.typeId,
          name: endpointObj.object_name,
          path: "",
@@ -172,7 +179,7 @@ export class SpinalDevice extends EventEmitter {
       return networkService.createNewBmsEndpoint(groupId, obj);;
    }
 
-   private _getDeviceObjectList(device: any): Promise<Array<Array<{ type: string, instance: number }>>> {
+   private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>): Promise<Array<Array<{ type: string, instance: number }>>> {
       return new Promise((resolve, reject) => {
 
          this.client = new bacnet({ adpuTimeout: 45000 });
@@ -328,6 +335,13 @@ export class SpinalDevice extends EventEmitter {
 
       return value;
 
+   }
+
+   private async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number) {
+      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
+      const found = children.find(el => el.idNetwork.get() == childNetworkId);
+
+      return found;
    }
 
 }

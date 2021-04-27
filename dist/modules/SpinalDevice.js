@@ -12,8 +12,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalDevice = void 0;
 const lodash = require("lodash");
 const bacnet = require("bacstack");
+const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const globalVariables_1 = require("../utilities/globalVariables");
 const events_1 = require("events");
+const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 class SpinalDevice extends events_1.EventEmitter {
     constructor(device, client, updateTime) {
         super();
@@ -73,10 +75,10 @@ class SpinalDevice extends events_1.EventEmitter {
            })
         */
     }
-    createDeviceItemList(networkService, node) {
+    createDeviceItemList(networkService, node, sensors) {
         // return saveAsFile(this).then((result) => {
         const deviceId = node.getId().get();
-        return this._getDeviceObjectList(this.device).then((objectLists) => {
+        return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
             const objectListDetails = [];
             return objectLists.map(object => {
                 return () => {
@@ -108,13 +110,19 @@ class SpinalDevice extends events_1.EventEmitter {
         return networkService.createNewBmsDevice(parentId, this.info);
     }
     _createEndpointsGroup(networkService, deviceId, groupName) {
-        const obj = {
-            name: groupName,
-            id: globalVariables_1.ObjectTypes[`object_${groupName}`.toUpperCase()],
-            type: groupName,
-            path: ""
-        };
-        return networkService.createNewBmsEndpointGroup(deviceId, obj);
+        return __awaiter(this, void 0, void 0, function* () {
+            const networkId = globalVariables_1.ObjectTypes[`object_${groupName}`.toUpperCase()];
+            const exist = yield this._itemExistInChild(deviceId, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, networkId);
+            if (exist)
+                return exist;
+            const obj = {
+                name: groupName,
+                id: networkId,
+                type: groupName,
+                path: ""
+            };
+            return networkService.createNewBmsEndpointGroup(deviceId, obj);
+        });
     }
     _createEndpointByArray(networkService, groupId, endpointArray) {
         const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
@@ -122,8 +130,12 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _createEndpoint(networkService, groupId, endpointObj) {
         return __awaiter(this, void 0, void 0, function* () {
+            const networkId = endpointObj.id;
+            const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, networkId);
+            if (exist)
+                return exist;
             const obj = {
-                id: endpointObj.id,
+                id: networkId,
                 typeId: endpointObj.typeId,
                 name: endpointObj.object_name,
                 path: "",
@@ -135,7 +147,7 @@ class SpinalDevice extends events_1.EventEmitter {
             ;
         });
     }
-    _getDeviceObjectList(device) {
+    _getDeviceObjectList(device, SENSOR_TYPES) {
         return new Promise((resolve, reject) => {
             this.client = new bacnet({ adpuTimeout: 45000 });
             const sensor = [];
@@ -145,7 +157,7 @@ class SpinalDevice extends events_1.EventEmitter {
                     return;
                 }
                 for (const item of res.values) {
-                    if (globalVariables_1.SENSOR_TYPES.indexOf(item.value.type) !== -1) {
+                    if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
                         sensor.push(item.value);
                     }
                 }
@@ -261,6 +273,13 @@ class SpinalDevice extends events_1.EventEmitter {
             return value ? true : false;
         }
         return value;
+    }
+    _itemExistInChild(parentId, relationName, childNetworkId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
+            const found = children.find(el => el.idNetwork.get() == childNetworkId);
+            return found;
+        });
     }
 }
 exports.SpinalDevice = SpinalDevice;

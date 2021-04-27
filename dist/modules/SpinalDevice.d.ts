@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import NetworkService from "spinal-model-bmsnetwork";
+import { NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNodeRef } from "spinal-env-viewer-graph-service";
 export interface IDevice {
@@ -22,7 +22,7 @@ export declare class SpinalDevice extends EventEmitter {
     constructor(device: IDevice, client: any, updateTime?: number);
     init(): Promise<boolean | void>;
     createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<any>;
-    createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef): Promise<any>;
+    createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, sensors: Array<number>): Promise<any>;
     convertToString(): string;
     private _createDevice;
     private _createEndpointsGroup;
@@ -37,4 +37,5 @@ export declare class SpinalDevice extends EventEmitter {
     private _formatProperty;
     private _getObjValue;
     private _formatCurrentValue;
+    private _itemExistInChild;
 }
