@@ -101,10 +101,12 @@ const SpinalBacnetValueModelCallback = (spinalBacnetValueModel) => {
         spinalDevice.createDeviceItemList(networkService, node, sensors).then(() => {
             spinalBacnetValueModel.state.set('success');
             console.log(`success ==> ${node.getName().get()}`);
+            return spinalBacnetValueModel.remToNode();
         }).catch((err) => {
             spinalBacnetValueModel.state.set('error');
-            // console.error(err);
             console.log(`error ===> ${node.getName().get()}`);
+            return spinalBacnetValueModel.remToNode();
+            // console.error(err);
         });
     }));
 };

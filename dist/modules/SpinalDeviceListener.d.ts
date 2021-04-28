@@ -23,4 +23,6 @@ export declare class SpinalDeviceListener extends EventEmitter {
     private _getContextNode;
     private _getDeviceInfo;
     private _getOrganInfo;
+    private checkIfItemExist;
+    private _createObjectIfNotExit;
 }

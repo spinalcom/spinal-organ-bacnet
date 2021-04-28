@@ -25,17 +25,6 @@ export declare class SpinalDevice extends EventEmitter {
     createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, sensors: Array<number>): Promise<any>;
     convertToString(): string;
     private _createDevice;
-    private _createEndpointsGroup;
-    private _createEndpointByArray;
-    private _createEndpoint;
     private _getDeviceObjectList;
-    private _getObjectDetail;
     private _getDeviceInfo;
-    private _getPropertyNameByCode;
-    private _getObjectTypeByCode;
-    private _getUnitsByCode;
-    private _formatProperty;
-    private _getObjValue;
-    private _formatCurrentValue;
-    private _itemExistInChild;
 }

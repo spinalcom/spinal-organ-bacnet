@@ -9,6 +9,7 @@ import * as lodash from "lodash";
 import { SpinalGraph } from "spinal-model-graph";
 import { SpinalGraphService, SpinalNode } from "spinal-env-viewer-graph-service";
 import SpinalMonitoring from "./SpinalMonitoring";
+import BacnetUtilities from "../utilities/bacnetUtilities";
 
 
 export class SpinalDeviceListener extends EventEmitter {
@@ -60,13 +61,11 @@ export class SpinalDeviceListener extends EventEmitter {
          // // networkName: this.listenerModel.network.networkName.get()
       })
 
-      // this.timeIntervalDebounced = lodash.debounce(() => { console.log("call inside debounce"); this._createTimeInterval() }, 500);
-
+      if (this.listenerModel.listen.get()) {
+         await this.checkIfItemExist(this.networkService, (<any>this.device).id);
+      }
 
       this.emit("initialize");
-      // }).catch((err) => {
-      //    console.error(err)
-      // });
    }
 
 
@@ -82,6 +81,8 @@ export class SpinalDeviceListener extends EventEmitter {
             }
             return;
          }
+         console.log(`stop ${(<any>this.device).name}`);
+
          for (const spinalMonitoring of this.spinalMonitors) {
             spinalMonitoring.stop()
          }
@@ -94,57 +95,20 @@ export class SpinalDeviceListener extends EventEmitter {
       // }, 15000);
    }
 
-   // private bindMonitoring(monitorModel) {
-
-
-
-
-
-
-   // }
-
-   // private _bindTimeInterval() {
-   //    this.listenerModel.timeInterval.bind(() => {
-   //       this.timeIntervalDebounced()
-   //    })
-   // }
-
-   // private _createTimeInterval() {
-   //    if (this.timeIntervalId) {
-   //       clearInterval(this.timeIntervalId);
-   //    }
-
-   //    if (this.listenerModel.listen.get()) {
-   //       this.timeIntervalId = setInterval(() => this._updateEndpoints(), this.listenerModel.timeInterval.get());
-   //    }
-   // }
 
    private _updateEndpoints(children) {
+
       console.log(`update ${(<any>this.device).name}`)
       this._getChildrenNewValue(children).then((objectListDetails) => {
-         // console.log("objectListDetails", objectListDetails);
+
          console.log("new values", objectListDetails);
          const obj: any = {
-            id: this.device.deviceId,
+            id: (<any>this.device).idNetwork,
             children: this._groupByType(lodash.flattenDeep(objectListDetails))
          }
 
          this.networkService.updateData(obj, null, this.networkNode);
       }).catch(() => { })
-      // const objectListDetails = [];
-
-      // this.children.map(object => {
-      //    return () => {
-      //       return this._getChildrenNewValue(object).then((g) => objectListDetails.push(g))
-      //    }
-      // }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
-      //    const obj: any = {
-      //       id: this.device.deviceId,
-      //       children: this._groupByType(lodash.flattenDeep(objectListDetails))
-      //    }
-
-      //    this.networkService.updateData(obj, null, this.networkNode);
-      // })
    }
 
    private _getChildrenNewValue(children: Array<{ type: number, instance: number }>) {
@@ -263,5 +227,45 @@ export class SpinalDeviceListener extends EventEmitter {
             resolve(organ);
          })
       });
+   }
+
+
+   private checkIfItemExist(networkService, deviceId) {
+      if (this.listenerModel.monitor) {
+         let children = []
+         console.log((<any>this.device).name);
+
+         for (let i = 0; i < this.listenerModel.monitor.length; i++) {
+            children.push(...this.listenerModel.monitor[i].children.get());
+         }
+
+
+
+         const objectListDetails = [];
+
+         lodash.chunk(children, 60).map(object => {
+            return () => {
+               return BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g)).catch(() => { })
+            }
+         })
+            .reduce((previous, current) => { return previous.then(current).catch(current) }, Promise.resolve()).then(async () => {
+               const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
+
+               const promises = Array.from(Object.keys(children)).map((el: string) => {
+                  return BacnetUtilities._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
+                     const groupId = endpointGroup.id.get();
+                     return BacnetUtilities._createEndpointByArray(networkService, groupId, children[el]);
+                  })
+               })
+
+               return Promise.all(promises);
+
+            }).catch(() => { })
+      }
+
+   }
+
+   private _createObjectIfNotExit(children) {
+
    }
 }

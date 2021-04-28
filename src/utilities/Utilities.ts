@@ -104,13 +104,16 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
 
 
       const spinalDevice = new SpinalDevice(device, client);
+
       spinalDevice.createDeviceItemList(networkService, (<any>node), sensors).then(() => {
          spinalBacnetValueModel.state.set('success');
          console.log(`success ==> ${(<any>node).getName().get()}`);
+         return spinalBacnetValueModel.remToNode();
       }).catch((err) => {
          spinalBacnetValueModel.state.set('error');
-         // console.error(err);
          console.log(`error ===> ${(<any>node).getName().get()}`);
+         return spinalBacnetValueModel.remToNode();
+         // console.error(err);
 
       });
    })
@@ -121,6 +124,7 @@ export const connectionErrorCallback = (err?) => {
    else console.error('Error Connect', err)
    process.exit(0);
 }
+
 
 
 ////////////////////////////////////////////////

@@ -9,6 +9,8 @@ import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-servi
 import { saveAsFile } from "../utilities/Utilities";
 // import { store } from "../store";
 
+import { BacnetUtilities } from "../utilities/bacnetUtilities";
+
 export interface IDevice {
    address?: string;
    deviceId: number;
@@ -52,68 +54,31 @@ export class SpinalDevice extends EventEmitter {
       this.networkService = networkService;
 
       if (node) {
-         // this.node = node;
-         // return Promise.resolve(true);
          return;
       };
 
       return this._createDevice(networkService, parentId);
-      /*
-         .then(device => {
-            this.node = device;
-            // return saveAsFile(this).then((result) => {
-            const deviceId = device.id.get();
-
-
-            return this._getDeviceObjectList(this.device).then((objectLists) => {
-               const objectListDetails = [];
-
-               return objectLists.map(object => {
-                  return () => {
-                     return this._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g))
-                  }
-               }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
-                  const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
-
-
-                  const promises = Array.from(Object.keys(children)).map((el: string) => {
-                     return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
-                        const groupId = endpointGroup.id.get();
-                        return this._createEndpointByArray(networkService, groupId, children[el]);
-                     })
-                  })
-
-                  return Promise.all(promises)
-
-               })
-
-            })
-         })
-      */
    }
 
    public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, sensors: Array<number>): Promise<any> {
 
-      // return saveAsFile(this).then((result) => {
-
       const deviceId = node.getId().get();
-
 
       return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
          const objectListDetails = [];
 
          return objectLists.map(object => {
             return () => {
-               return this._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g))
+               return BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g))
             }
          }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(async () => {
             const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
 
 
             const promises = Array.from(Object.keys(children)).map((el: string) => {
-               return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
+               return BacnetUtilities._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
                   const groupId = endpointGroup.id.get();
-                  return this._createEndpointByArray(networkService, groupId, children[el]);
+                  return BacnetUtilities._createEndpointByArray(networkService, groupId, children[el]);
                })
             })
 
@@ -141,43 +106,7 @@ export class SpinalDevice extends EventEmitter {
       return networkService.createNewBmsDevice(parentId, this.info);
    }
 
-   private async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
-      const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
 
-      const exist = await this._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
-      if (exist) return exist;
-
-      const obj: any = {
-         name: groupName,
-         id: networkId,
-         type: groupName,
-         path: ""
-      }
-      return networkService.createNewBmsEndpointGroup(deviceId, obj);
-   }
-
-   private _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray) {
-      const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el))
-      return Promise.all(promises);
-   }
-
-   private async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
-      const networkId = endpointObj.id;
-      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
-      if (exist) return exist;
-
-      const obj: any = {
-         id: networkId,
-         typeId: endpointObj.typeId,
-         name: endpointObj.object_name,
-         path: "",
-         currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
-         unit: endpointObj.units,
-         type: endpointObj.type,
-      }
-
-      return networkService.createNewBmsEndpoint(groupId, obj);;
-   }
 
    private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>): Promise<Array<Array<{ type: string, instance: number }>>> {
       return new Promise((resolve, reject) => {
@@ -206,38 +135,6 @@ export class SpinalDevice extends EventEmitter {
       });
    }
 
-   private _getObjectDetail(device: IDevice, objects: Array<{ type: string, instance: number }>) {
-
-      const requestArray = objects.map(el => ({
-         objectId: JSON.parse(JSON.stringify(el)),
-         properties: [
-            { id: PropertyIds.PROP_OBJECT_NAME },
-            { id: PropertyIds.PROP_PRESENT_VALUE },
-            { id: PropertyIds.PROP_OBJECT_TYPE },
-            { id: PropertyIds.PROP_UNITS },
-         ]
-      }))
-
-      return new Promise((resolve, reject) => {
-         this.client.readPropertyMultiple(device.address, requestArray, (err, data) => {
-            if (err) {
-               console.error(err)
-               reject(err);
-               return;
-            }
-
-            const dataFormated = data.values.map(el => {
-               const formated: any = this._formatProperty(device.deviceId, el);
-
-               if (typeof formated.units === "object") formated.units = "";
-               else formated.units = this._getUnitsByCode(formated.units);
-               return formated;
-            })
-            resolve(dataFormated);
-         })
-      });
-   }
-
    private _getDeviceInfo(device: IDevice): Promise<any> {
 
       const requestArray = [
@@ -257,13 +154,13 @@ export class SpinalDevice extends EventEmitter {
                return;
             }
 
-            const dataFormated = data.values.map(el => this._formatProperty(device.deviceId, el))
+            const dataFormated = data.values.map(el => BacnetUtilities._formatProperty(device.deviceId, el))
 
             const obj = {
                id: device.deviceId,
                deviceId: device.deviceId,
                address: device.address,
-               name: dataFormated[0][this._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
+               name: dataFormated[0][BacnetUtilities._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
                type: dataFormated[0].type
             }
 
@@ -272,76 +169,149 @@ export class SpinalDevice extends EventEmitter {
       });
    }
 
-   private _getPropertyNameByCode(type: number): string {
-      const property = PropertyNames[type];
-      if (property) return property.toLocaleLowerCase().replace('prop_', '');
-      return;
+
+   /*
+   private async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
+      const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
+
+      const exist = await BacnetUtilities._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
+      if (exist) return exist;
+
+      const obj: any = {
+         name: groupName,
+         id: networkId,
+         type: groupName,
+         path: ""
+      }
+      return networkService.createNewBmsEndpointGroup(deviceId, obj);
    }
 
-   private _getObjectTypeByCode(typeCode: number): string {
-      const property = ObjectTypesCode[typeCode];
-      if (property) return property.toLocaleLowerCase().replace('object_', '');
-      return;
+   private _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray) {
+      const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el))
+      return Promise.all(promises);
    }
 
-   private _getUnitsByCode(typeCode: number): string {
-      const property = UNITS_TYPES[typeCode];
-      if (property) return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
-      return;
+   private async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
+      const networkId = endpointObj.id;
+      const exist = await BacnetUtilities._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
+      if (exist) return exist;
+
+      const obj: any = {
+         id: networkId,
+         typeId: endpointObj.typeId,
+         name: endpointObj.object_name,
+         path: "",
+         currentValue: BacnetUtilities._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
+         unit: endpointObj.units,
+         type: endpointObj.type,
+      }
+
+      return networkService.createNewBmsEndpoint(groupId, obj);;
    }
 
-   private _formatProperty(deviceId, object) {
-
-      if (object) {
-         const { objectId, values } = object;
-
-         const obj = {
-            objectId: objectId,
-            id: objectId.instance,
-            typeId: objectId.type,
-            type: this._getObjectTypeByCode(objectId.type),
-            instance: objectId.instance,
-            deviceId: deviceId
+   
+      private _getObjectDetail(device: IDevice, objects: Array<{ type: string, instance: number }>) {
+      
+            const requestArray = objects.map(el => ({
+               objectId: JSON.parse(JSON.stringify(el)),
+               properties: [
+                  { id: PropertyIds.PROP_OBJECT_NAME },
+                  { id: PropertyIds.PROP_PRESENT_VALUE },
+                  { id: PropertyIds.PROP_OBJECT_TYPE },
+                  { id: PropertyIds.PROP_UNITS },
+               ]
+            }))
+      
+            return new Promise((resolve, reject) => {
+               this.client.readPropertyMultiple(device.address, requestArray, (err, data) => {
+                  if (err) {
+                     console.error(err)
+                     reject(err);
+                     return;
+                  }
+      
+                  const dataFormated = data.values.map(el => {
+                     const formated: any = this._formatProperty(device.deviceId, el);
+      
+                     if (typeof formated.units === "object") formated.units = "";
+                     else formated.units = this._getUnitsByCode(formated.units);
+                     return formated;
+                  })
+                  resolve(dataFormated);
+               })
+            });
          }
-
-         for (const { id, value } of values) {
-            const propertyName = this._getPropertyNameByCode(id);
-
-            if (propertyName) {
-               obj[propertyName] = this._getObjValue(value);
+         
+         private _getPropertyNameByCode(type: number): string {
+            const property = PropertyNames[type];
+            if (property) return property.toLocaleLowerCase().replace('prop_', '');
+            return;
+         }
+      
+         private _getObjectTypeByCode(typeCode: number): string {
+            const property = ObjectTypesCode[typeCode];
+            if (property) return property.toLocaleLowerCase().replace('object_', '');
+            return;
+         }
+      
+         private _getUnitsByCode(typeCode: number): string {
+            const property = UNITS_TYPES[typeCode];
+            if (property) return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
+            return;
+         }
+      
+         private _formatProperty(deviceId, object) {
+      
+            if (object) {
+               const { objectId, values } = object;
+      
+               const obj = {
+                  objectId: objectId,
+                  id: objectId.instance,
+                  typeId: objectId.type,
+                  type: this._getObjectTypeByCode(objectId.type),
+                  instance: objectId.instance,
+                  deviceId: deviceId
+               }
+      
+               for (const { id, value } of values) {
+                  const propertyName = this._getPropertyNameByCode(id);
+      
+                  if (propertyName) {
+                     obj[propertyName] = this._getObjValue(value);
+                  }
+      
+               }
+      
+               return obj;
             }
-
+      
          }
-
-         return obj;
-      }
-
-   }
-
-   private _getObjValue(value: any) {
-      if (Array.isArray(value)) {
-         if (value.length === 0) return "";
-         return value[0].value;
-      }
-
-      return value.value;
-   }
-
-   private _formatCurrentValue(value: any, type: number) {
-
-      if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
-         return value ? true : false;
-      }
-
-      return value;
-
-   }
-
+      
+         private _getObjValue(value: any) {
+            if (Array.isArray(value)) {
+               if (value.length === 0) return "";
+               return value[0].value;
+            }
+      
+            return value.value;
+         }
+      
+         private _formatCurrentValue(value: any, type: number) {
+      
+            if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
+               return value ? true : false;
+            }
+      
+            return value;
+      
+         }
+     
    private async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number) {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
       const found = children.find(el => el.idNetwork.get() == childNetworkId);
 
       return found;
    }
-
+ */
 }
