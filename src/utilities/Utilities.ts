@@ -78,7 +78,7 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
          return spinalBacnetValueModel.remToNode();
       }
 
-      console.log("creation");
+
       const networkService: NetworkService = new NetworkService(false);
       const { node, context, graph, network } = await spinalBacnetValueModel.getAllItem();
       const sensors = spinalBacnetValueModel.sensor.get();
@@ -87,6 +87,8 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
       (<any>SpinalGraphService)._addNode(context);
       (<any>SpinalGraphService)._addNode(graph);
       (<any>SpinalGraphService)._addNode(network);
+
+      console.log(`get ${(<any>node).getName().get()} bacnet values`);
 
       const device = { address: (<any>node).info.address.get(), deviceId: (<any>node).info.idNetwork.get() }
 
@@ -104,10 +106,12 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
       const spinalDevice = new SpinalDevice(device, client);
       spinalDevice.createDeviceItemList(networkService, (<any>node), sensors).then(() => {
          spinalBacnetValueModel.state.set('success');
-         console.log("success");
+         console.log(`success ==> ${(<any>node).getName().get()}`);
       }).catch((err) => {
          spinalBacnetValueModel.state.set('error');
-         console.error(err);
+         // console.error(err);
+         console.log(`error ===> ${(<any>node).getName().get()}`);
+
       });
    })
 }

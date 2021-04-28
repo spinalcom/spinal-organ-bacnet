@@ -84,7 +84,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 return () => {
                     return this._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g));
                 };
-            }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => {
+            }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => __awaiter(this, void 0, void 0, function* () {
                 const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
                 const promises = Array.from(Object.keys(children)).map((el) => {
                     return this._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
@@ -93,7 +93,7 @@ class SpinalDevice extends events_1.EventEmitter {
                     });
                 });
                 return Promise.all(promises);
-            });
+            }));
         });
     }
     convertToString() {

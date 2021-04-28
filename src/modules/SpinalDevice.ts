@@ -106,7 +106,7 @@ export class SpinalDevice extends EventEmitter {
             return () => {
                return this._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g))
             }
-         }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
+         }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(async () => {
             const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
 
 
@@ -117,7 +117,7 @@ export class SpinalDevice extends EventEmitter {
                })
             })
 
-            return Promise.all(promises)
+            return Promise.all(promises);
 
          })
 

@@ -115,14 +115,14 @@ class SpinalBacnet extends events_1.EventEmitter {
                 this.emit("deviceFound", res.info);
                 resolve(true);
             });
-            spinalDevice.on("error", (error) => {
+            spinalDevice.on("error", () => {
                 this.count--;
-                resolve(true);
                 this.emit("noResponse");
                 if (this.count === 0) {
                     this.emit("timeout");
                     this.closeClient();
                 }
+                resolve(true);
             });
             spinalDevice.init();
         });

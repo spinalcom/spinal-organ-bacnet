@@ -73,7 +73,7 @@ export class SpinalDeviceListener extends EventEmitter {
 
    private _bindListen() {
       this.listenerModel.listen.bind(() => {
-         if (this.listenerModel.listen.get()) {
+         if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
             for (let i = 0; i < this.listenerModel.monitor.length; i++) {
                const model = this.listenerModel.monitor[i];
                const spinalMonitoring = new SpinalMonitoring(model, (children) => this._updateEndpoints(children));
@@ -120,7 +120,7 @@ export class SpinalDeviceListener extends EventEmitter {
    // }
 
    private _updateEndpoints(children) {
-      console.log("update")
+      console.log(`update ${(<any>this.device).name}`)
       this._getChildrenNewValue(children).then((objectListDetails) => {
          // console.log("objectListDetails", objectListDetails);
          console.log("new values", objectListDetails);
@@ -129,10 +129,8 @@ export class SpinalDeviceListener extends EventEmitter {
             children: this._groupByType(lodash.flattenDeep(objectListDetails))
          }
 
-         console.log("this.networkNode", this.networkNode);
-
          this.networkService.updateData(obj, null, this.networkNode);
-      })
+      }).catch(() => { })
       // const objectListDetails = [];
 
       // this.children.map(object => {
@@ -159,7 +157,7 @@ export class SpinalDeviceListener extends EventEmitter {
       return new Promise((resolve, reject) => {
          this.client.readPropertyMultiple(this.device.address, requestArray, (err, data) => {
             if (err) {
-               console.error(err)
+               // console.error(err)
                reject(err);
                return;
             }
