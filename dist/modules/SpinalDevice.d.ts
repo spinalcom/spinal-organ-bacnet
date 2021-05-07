@@ -2,6 +2,7 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { SpinalBacnetValueModel } from "../../../../studio/recloisonnement/spinal-model-bacnet/dist";
 export interface IDevice {
     address?: string;
     deviceId: number;
@@ -22,8 +23,9 @@ export declare class SpinalDevice extends EventEmitter {
     constructor(device: IDevice, client: any, updateTime?: number);
     init(): Promise<boolean | void>;
     createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<any>;
-    createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, sensors: Array<number>): Promise<any>;
+    createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any>;
     convertToString(): string;
+    private createItemRecur;
     private _createDevice;
     private _getDeviceObjectList;
     private _getDeviceInfo;

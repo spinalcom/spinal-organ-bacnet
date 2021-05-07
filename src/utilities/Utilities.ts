@@ -74,14 +74,14 @@ export const SpinalListnerCallback = (spinalListenerModel: SpinalListenerModel, 
 export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBacnetValueModel) => {
    waitModelReady(spinalBacnetValueModel).then(async () => {
 
-      if (spinalBacnetValueModel.state.get() !== 'normal') {
-         return spinalBacnetValueModel.remToNode();
-      }
+      // if (spinalBacnetValueModel.state.get() !== '') {
+      //    return spinalBacnetValueModel.remToNode();
+      // }
 
 
       const networkService: NetworkService = new NetworkService(false);
       const { node, context, graph, network } = await spinalBacnetValueModel.getAllItem();
-      const sensors = spinalBacnetValueModel.sensor.get();
+
 
       (<any>SpinalGraphService)._addNode(node);
       (<any>SpinalGraphService)._addNode(context);
@@ -105,12 +105,12 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
 
       const spinalDevice = new SpinalDevice(device, client);
 
-      spinalDevice.createDeviceItemList(networkService, (<any>node), sensors).then(() => {
-         spinalBacnetValueModel.state.set('success');
+      spinalDevice.createDeviceItemList(networkService, (<any>node), spinalBacnetValueModel).then(() => {
+         spinalBacnetValueModel.setSuccessState();
          console.log(`success ==> ${(<any>node).getName().get()}`);
          return spinalBacnetValueModel.remToNode();
       }).catch((err) => {
-         spinalBacnetValueModel.state.set('error');
+         spinalBacnetValueModel.setErrorState();
          console.log(`error ===> ${(<any>node).getName().get()}`);
          return spinalBacnetValueModel.remToNode();
          // console.error(err);

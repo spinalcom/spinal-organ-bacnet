@@ -13,12 +13,12 @@ exports.SENSOR_TYPES = [
     exports.ObjectTypes.OBJECT_ANALOG_VALUE,
     // BINARY
     exports.ObjectTypes.OBJECT_BINARY_INPUT,
-    // ObjectTypes.OBJECT_BINARY_OUTPUT,
+    exports.ObjectTypes.OBJECT_BINARY_OUTPUT,
     exports.ObjectTypes.OBJECT_BINARY_VALUE,
-    // ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT,
+    exports.ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT,
     // MULTI_STATE
     exports.ObjectTypes.OBJECT_MULTI_STATE_INPUT,
-    // ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
+    exports.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_VALUE,
 ];
 exports.PropertyNames = (function swap(json) {

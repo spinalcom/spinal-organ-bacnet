@@ -41,8 +41,17 @@ class SpinalDevice extends events_1.EventEmitter {
         ;
         return this._createDevice(networkService, parentId);
     }
-    createDeviceItemList(networkService, node, sensors) {
+    createDeviceItemList(networkService, node, spinalBacnetValueModel) {
         const deviceId = node.getId().get();
+        let sensors;
+        if (spinalBacnetValueModel) {
+            console.log("sensors", spinalBacnetValueModel.sensor.get());
+            sensors = spinalBacnetValueModel.sensor.get();
+            spinalBacnetValueModel.setRecoverState();
+        }
+        else {
+            sensors = globalVariables_1.SENSOR_TYPES;
+        }
         return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
             const objectListDetails = [];
             return objectLists.map(object => {
@@ -50,14 +59,14 @@ class SpinalDevice extends events_1.EventEmitter {
                     return bacnetUtilities_1.BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g));
                 };
             }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => __awaiter(this, void 0, void 0, function* () {
+                spinalBacnetValueModel.setProgressState();
                 const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
-                const promises = Array.from(Object.keys(children)).map((el) => {
-                    return bacnetUtilities_1.BacnetUtilities._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
-                        const groupId = endpointGroup.id.get();
-                        return bacnetUtilities_1.BacnetUtilities._createEndpointByArray(networkService, groupId, children[el]);
-                    });
+                const listes = Array.from(Object.keys(children)).map((el) => {
+                    return [el, children[el]];
                 });
-                return Promise.all(promises);
+                return new Promise((resolve, reject) => {
+                    this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel.progress, resolve);
+                });
             }));
         });
     }
@@ -71,12 +80,33 @@ class SpinalDevice extends events_1.EventEmitter {
     //////////////////////////////////////////////////////////////////////////////
     ////                      PRIVATES                                        ////
     //////////////////////////////////////////////////////////////////////////////
+    createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve) {
+        const item = liste.shift();
+        if (item) {
+            const [key, value] = item;
+            bacnetUtilities_1.BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then(endpointGroup => {
+                const groupId = endpointGroup.id.get();
+                return bacnetUtilities_1.BacnetUtilities._createEndpointByArray(networkService, groupId, value);
+            }).then(() => {
+                const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength);
+                progress.set(percent);
+                this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve);
+            }).catch(() => {
+                const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength);
+                progress.set(percent);
+                this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve);
+            });
+        }
+        else {
+            resolve(true);
+        }
+    }
     _createDevice(networkService, parentId) {
         return networkService.createNewBmsDevice(parentId, this.info);
     }
     _getDeviceObjectList(device, SENSOR_TYPES) {
         return new Promise((resolve, reject) => {
-            this.client = new bacnet({ adpuTimeout: 45000 });
+            this.client = new bacnet();
             const sensor = [];
             this.client.readProperty(device.address, { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, globalVariables_1.PropertyIds.PROP_OBJECT_LIST, (err, res) => {
                 if (err) {

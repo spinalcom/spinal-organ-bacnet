@@ -86,7 +86,6 @@ export default class BacnetUtilities {
 
    }
 
-
    public static _getPropertyNameByCode(type: number) {
       const property = PropertyNames[type];
       if (property) return property.toLocaleLowerCase().replace('prop_', '');

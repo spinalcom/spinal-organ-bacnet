@@ -2,7 +2,7 @@ import * as lodash from "lodash";
 import * as bacnet from "bacstack";
 
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
-import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
+import { ObjectTypes, PropertyIds, SENSOR_TYPES, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
 import { EventEmitter } from "events";
 import { SpinalEndpoint } from "./SpinalEndpoint";
 import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
@@ -10,6 +10,7 @@ import { saveAsFile } from "../utilities/Utilities";
 // import { store } from "../store";
 
 import { BacnetUtilities } from "../utilities/bacnetUtilities";
+import { SpinalBacnetValueModel } from "../../../../studio/recloisonnement/spinal-model-bacnet/dist";
 
 export interface IDevice {
    address?: string;
@@ -60,9 +61,20 @@ export class SpinalDevice extends EventEmitter {
       return this._createDevice(networkService, parentId);
    }
 
-   public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, sensors: Array<number>): Promise<any> {
+   public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any> {
 
       const deviceId = node.getId().get();
+      let sensors;
+      if (spinalBacnetValueModel) {
+         console.log("sensors", spinalBacnetValueModel.sensor.get());
+
+         sensors = spinalBacnetValueModel.sensor.get();
+         spinalBacnetValueModel.setRecoverState();
+      } else {
+         sensors = SENSOR_TYPES;
+      }
+
+
 
       return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
          const objectListDetails = [];
@@ -72,17 +84,18 @@ export class SpinalDevice extends EventEmitter {
                return BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g))
             }
          }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(async () => {
+            spinalBacnetValueModel.setProgressState();
+
             const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
 
 
-            const promises = Array.from(Object.keys(children)).map((el: string) => {
-               return BacnetUtilities._createEndpointsGroup(networkService, deviceId, el).then(endpointGroup => {
-                  const groupId = endpointGroup.id.get();
-                  return BacnetUtilities._createEndpointByArray(networkService, groupId, children[el]);
-               })
+            const listes = Array.from(Object.keys(children)).map((el: string) => {
+               return [el, children[el]];
             })
 
-            return Promise.all(promises);
+            return new Promise((resolve, reject) => {
+               this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel.progress, resolve);
+            });
 
          })
 
@@ -102,16 +115,37 @@ export class SpinalDevice extends EventEmitter {
    ////                      PRIVATES                                        ////
    //////////////////////////////////////////////////////////////////////////////
 
+   private createItemRecur(liste: Array<Array<any>>, networkService: NetworkService, deviceId: string, maxLength: number, progress: spinal.Model, resolve: Function) {
+      const item = liste.shift();
+      if (item) {
+         const [key, value] = item;
+
+         BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then(endpointGroup => {
+            const groupId = endpointGroup.id.get();
+            return BacnetUtilities._createEndpointByArray(networkService, groupId, value);
+         }).then(() => {
+            const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
+            progress.set(percent)
+            this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve)
+         }).catch(() => {
+            const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
+            progress.set(percent)
+            this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve)
+         });
+      } else {
+         resolve(true)
+      }
+
+   }
+
    private _createDevice(networkService: NetworkService, parentId: string): Promise<any> {
       return networkService.createNewBmsDevice(parentId, this.info);
    }
 
-
-
    private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>): Promise<Array<Array<{ type: string, instance: number }>>> {
       return new Promise((resolve, reject) => {
 
-         this.client = new bacnet({ adpuTimeout: 45000 });
+         this.client = new bacnet();
 
 
          const sensor = []
