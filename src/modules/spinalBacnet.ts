@@ -53,6 +53,7 @@ export class SpinalBacnet extends EventEmitter {
         // return Promise.all(promises).then(res => console.log("created")).catch(err => { console.error(err); throw new Error('error') })
     }
 
+
     public useBroadcast() {
         this.client = new bacnet({
             address: this.config.address,
@@ -97,7 +98,6 @@ export class SpinalBacnet extends EventEmitter {
         this.discoverRecursively(iterator, iterator.next());
 
     }
-
 
     public closeClient() {
         if (this.client) {

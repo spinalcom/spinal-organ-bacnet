@@ -25,6 +25,7 @@ export class SpinalDeviceListener extends EventEmitter {
    private contextNode: SpinalNode<any>;
    private organ: any;
 
+   private monitorBind: any;
 
    private spinalMonitors: SpinalMonitoring[] = [];
 
@@ -68,31 +69,44 @@ export class SpinalDeviceListener extends EventEmitter {
       this.emit("initialize");
    }
 
-
-
    private _bindListen() {
       this.listenerModel.listen.bind(() => {
          if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
-            for (let i = 0; i < this.listenerModel.monitor.length; i++) {
-               const model = this.listenerModel.monitor[i];
-               const spinalMonitoring = new SpinalMonitoring(model, (children) => this._updateEndpoints(children));
-               spinalMonitoring.start();
-               this.spinalMonitors.push(spinalMonitoring);
-            }
+            this.monitorBind = this.listenerModel.monitor.bind(() => {
+               this._stopMonitors();
+
+               for (let i = 0; i < this.listenerModel.monitor.length; i++) {
+                  const model = this.listenerModel.monitor[i];
+                  const spinalMonitoring = new SpinalMonitoring(model, (children) => this._updateEndpoints(children));
+                  spinalMonitoring.start();
+                  this.spinalMonitors.push(spinalMonitoring);
+               }
+            })
+
             return;
+         } else if (!this.listenerModel.listen.get()) {
+            if (this.monitorBind) {
+               this.listenerModel.monitor.unbind(this.monitorBind);
+            }
+            console.log(`${(<any>this.device).name} is stopped`);
+            this._stopMonitors();
          }
-         console.log(`stop ${(<any>this.device).name}`);
 
-         for (const spinalMonitoring of this.spinalMonitors) {
-            spinalMonitoring.stop()
-         }
 
-         this.spinalMonitors = [];
+
          // this.timeIntervalDebounced()
       })
       // setInterval(() => {
       //    this._updateEndpoints();
       // }, 15000);
+   }
+
+   private _stopMonitors() {
+      for (const spinalMonitoring of this.spinalMonitors) {
+         spinalMonitoring.stop()
+      }
+
+      this.spinalMonitors = [];
    }
 
 

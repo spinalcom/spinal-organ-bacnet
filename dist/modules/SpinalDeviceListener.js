@@ -56,24 +56,35 @@ class SpinalDeviceListener extends events_1.EventEmitter {
     _bindListen() {
         this.listenerModel.listen.bind(() => {
             if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
-                for (let i = 0; i < this.listenerModel.monitor.length; i++) {
-                    const model = this.listenerModel.monitor[i];
-                    const spinalMonitoring = new SpinalMonitoring_1.default(model, (children) => this._updateEndpoints(children));
-                    spinalMonitoring.start();
-                    this.spinalMonitors.push(spinalMonitoring);
-                }
+                this.monitorBind = this.listenerModel.monitor.bind(() => {
+                    this._stopMonitors();
+                    for (let i = 0; i < this.listenerModel.monitor.length; i++) {
+                        const model = this.listenerModel.monitor[i];
+                        const spinalMonitoring = new SpinalMonitoring_1.default(model, (children) => this._updateEndpoints(children));
+                        spinalMonitoring.start();
+                        this.spinalMonitors.push(spinalMonitoring);
+                    }
+                });
                 return;
             }
-            console.log(`stop ${this.device.name}`);
-            for (const spinalMonitoring of this.spinalMonitors) {
-                spinalMonitoring.stop();
+            else if (!this.listenerModel.listen.get()) {
+                if (this.monitorBind) {
+                    this.listenerModel.monitor.unbind(this.monitorBind);
+                }
+                console.log(`${this.device.name} is stopped`);
+                this._stopMonitors();
             }
-            this.spinalMonitors = [];
             // this.timeIntervalDebounced()
         });
         // setInterval(() => {
         //    this._updateEndpoints();
         // }, 15000);
+    }
+    _stopMonitors() {
+        for (const spinalMonitoring of this.spinalMonitors) {
+            spinalMonitoring.stop();
+        }
+        this.spinalMonitors = [];
     }
     _updateEndpoints(children) {
         console.log(`update ${this.device.name}`);

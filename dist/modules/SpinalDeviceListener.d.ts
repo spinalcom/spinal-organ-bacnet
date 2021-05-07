@@ -9,10 +9,12 @@ export declare class SpinalDeviceListener extends EventEmitter {
     private device;
     private contextNode;
     private organ;
+    private monitorBind;
     private spinalMonitors;
     constructor(listenerModel: any);
     init(): Promise<void>;
     private _bindListen;
+    private _stopMonitors;
     private _updateEndpoints;
     private _getChildrenNewValue;
     private _getObjValue;
