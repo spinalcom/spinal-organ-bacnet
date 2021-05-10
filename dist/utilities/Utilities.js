@@ -17,7 +17,6 @@ const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalContextCreation_1 = require("../modules/SpinalContextCreation");
 const SpinalDeviceListener_1 = require("../modules/SpinalDeviceListener");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const bacnet = require("bacstack");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const Q = require('q');
 const waitModelReady = (spinalContext) => {
@@ -64,7 +63,7 @@ const SpinalListnerCallback = (spinalListenerModel, organModel) => {
     Promise.all(promises).then(() => __awaiter(void 0, void 0, void 0, function* () {
         yield exports.waitModelReady(spinalListenerModel.organ);
         spinalListenerModel.organ.load((organ) => {
-            exports.waitModelReady(organ).then((result) => {
+            exports.waitModelReady(organ).then(() => {
                 if (organ._server_id === organModel._server_id) {
                     new SpinalDeviceListener_1.SpinalDeviceListener(spinalListenerModel);
                 }
@@ -75,28 +74,32 @@ const SpinalListnerCallback = (spinalListenerModel, organModel) => {
     });
 };
 exports.SpinalListnerCallback = SpinalListnerCallback;
-const SpinalBacnetValueModelCallback = (spinalBacnetValueModel) => {
-    exports.waitModelReady(spinalBacnetValueModel).then(() => __awaiter(void 0, void 0, void 0, function* () {
+const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => {
+    const promises = [exports.waitModelReady(organModel), exports.waitModelReady(spinalBacnetValueModel)];
+    Promise.all(promises).then(() => __awaiter(void 0, void 0, void 0, function* () {
+        const { node, context, graph, network, organ } = yield spinalBacnetValueModel.getAllItem();
+        if (organ._server_id !== organModel._server_id)
+            return;
         // if (spinalBacnetValueModel.state.get() !== '') {
         //    return spinalBacnetValueModel.remToNode();
         // }
         const networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
-        const { node, context, graph, network } = yield spinalBacnetValueModel.getAllItem();
         spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(node);
         spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
         spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
         spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
         console.log(`get ${node.getName().get()} bacnet values`);
         const device = { address: node.info.address.get(), deviceId: node.info.idNetwork.get() };
-        const organ = {
+        const organNetwork = {
             contextName: context.getName().get(),
             contextType: context.getType().get(),
             networkType: network.getType().get(),
             networkName: network.getName().get()
         };
-        const client = new bacnet();
-        yield networkService.init(graph, organ);
-        const spinalDevice = new SpinalDevice_1.SpinalDevice(device, client);
+        // const client = new bacnet();
+        yield networkService.init(graph, organNetwork);
+        // const spinalDevice = new SpinalDevice(device, client);
+        const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
         spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel).then(() => {
             // spinalBacnetValueModel.setSuccessState();
             // console.log(`success ==> ${(<any>node).getName().get()}`);

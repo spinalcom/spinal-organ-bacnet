@@ -67,7 +67,7 @@ const listenLoadType = (connect, organModel) => {
             Utilities_1.SpinalListnerCallback(spinalListenerModel, organModel);
         }, Utilities_1.connectionErrorCallback);
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
-            Utilities_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel);
+            Utilities_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
         }, Utilities_1.connectionErrorCallback);
     });
 };

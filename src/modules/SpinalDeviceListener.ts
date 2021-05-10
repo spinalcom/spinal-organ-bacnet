@@ -16,7 +16,7 @@ export class SpinalDeviceListener extends EventEmitter {
 
    private listenerModel: any;
    private children: Array<Array<{ type: number, instance: number }>>;
-   private client: bacnet = new bacnet();
+   // private client: bacnet = new bacnet();
    private networkService: NetworkService = new NetworkService(false);
    // private timeIntervalId: any;
    // private timeIntervalDebounced;
@@ -126,6 +126,8 @@ export class SpinalDeviceListener extends EventEmitter {
    }
 
    private _getChildrenNewValue(children: Array<{ type: number, instance: number }>) {
+      const client = new bacnet();
+
       const requestArray = children.map(el => {
          return {
             objectId: el,
@@ -133,7 +135,7 @@ export class SpinalDeviceListener extends EventEmitter {
          }
       })
       return new Promise((resolve, reject) => {
-         this.client.readPropertyMultiple(this.device.address, requestArray, (err, data) => {
+         client.readPropertyMultiple(this.device.address, requestArray, (err, data) => {
             if (err) {
                // console.error(err)
                reject(err);
@@ -148,6 +150,8 @@ export class SpinalDeviceListener extends EventEmitter {
                   currentValue: this._formatCurrentValue(value, el.objectId.type)
                }
             })
+
+            client.close();
             resolve(dataFormated);
          })
       });

@@ -74,7 +74,7 @@ const listenLoadType = (connect, organModel) => {
       }, connectionErrorCallback);
 
       spinalCore.load_type(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel: SpinalBacnetValueModel) => {
-         SpinalBacnetValueModelCallback(spinalBacnetValueModel);
+         SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
       }, connectionErrorCallback);
    });
 

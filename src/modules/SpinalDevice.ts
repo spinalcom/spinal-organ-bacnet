@@ -31,13 +31,13 @@ export class SpinalDevice extends EventEmitter {
    private node: SpinalNodeRef;
 
    private networkService: NetworkService;
-   private updateInterval: number;
+   // private updateInterval: number;
 
-   constructor(device: IDevice, client: any, updateTime?: number) {
+   constructor(device: IDevice, client?: any) {
       super();
       this.device = device;
       this.client = client;
-      this.updateInterval = updateTime || 15000;
+      // this.updateInterval = updateTime || 15000;
 
       // this.init();
    }
@@ -150,13 +150,13 @@ export class SpinalDevice extends EventEmitter {
    private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>): Promise<Array<Array<{ type: string, instance: number }>>> {
       return new Promise((resolve, reject) => {
 
-         this.client = new bacnet();
+         const client = new bacnet();
 
 
          const sensor = []
 
 
-         this.client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
+         client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
             if (err) {
                reject(err);
                return;
@@ -169,13 +169,15 @@ export class SpinalDevice extends EventEmitter {
             }
 
             this.children = lodash.chunk(sensor, this.chunkLength)
-            this.client.close();
+            client.close();
             resolve(this.children);
          })
       });
    }
 
    private _getDeviceInfo(device: IDevice): Promise<any> {
+
+      const client = this.client || new bacnet();
 
       const requestArray = [
          {
@@ -188,7 +190,7 @@ export class SpinalDevice extends EventEmitter {
       ]
 
       return new Promise((resolve, reject) => {
-         this.client.readPropertyMultiple(device.address, requestArray, (err, data) => {
+         client.readPropertyMultiple(device.address, requestArray, (err, data) => {
             if (err) {
                reject(err);
                return;

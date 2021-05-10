@@ -19,8 +19,7 @@ export declare class SpinalDevice extends EventEmitter {
     private children;
     private node;
     private networkService;
-    private updateInterval;
-    constructor(device: IDevice, client: any, updateTime?: number);
+    constructor(device: IDevice, client?: any);
     init(): Promise<boolean | void>;
     createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<any>;
     createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any>;

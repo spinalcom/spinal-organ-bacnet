@@ -17,14 +17,15 @@ const events_1 = require("events");
 // import { store } from "../store";
 const bacnetUtilities_1 = require("../utilities/bacnetUtilities");
 class SpinalDevice extends events_1.EventEmitter {
-    constructor(device, client, updateTime) {
+    // private updateInterval: number;
+    constructor(device, client) {
         super();
         this.chunkLength = 60;
         this.endpointGroups = new Map();
         this.children = [];
         this.device = device;
         this.client = client;
-        this.updateInterval = updateTime || 15000;
+        // this.updateInterval = updateTime || 15000;
         // this.init();
     }
     init() {
@@ -110,9 +111,9 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getDeviceObjectList(device, SENSOR_TYPES) {
         return new Promise((resolve, reject) => {
-            this.client = new bacnet();
+            const client = new bacnet();
             const sensor = [];
-            this.client.readProperty(device.address, { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, globalVariables_1.PropertyIds.PROP_OBJECT_LIST, (err, res) => {
+            client.readProperty(device.address, { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, globalVariables_1.PropertyIds.PROP_OBJECT_LIST, (err, res) => {
                 if (err) {
                     reject(err);
                     return;
@@ -123,12 +124,13 @@ class SpinalDevice extends events_1.EventEmitter {
                     }
                 }
                 this.children = lodash.chunk(sensor, this.chunkLength);
-                this.client.close();
+                client.close();
                 resolve(this.children);
             });
         });
     }
     _getDeviceInfo(device) {
+        const client = this.client || new bacnet();
         const requestArray = [
             {
                 objectId: { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
@@ -138,7 +140,7 @@ class SpinalDevice extends events_1.EventEmitter {
             }
         ];
         return new Promise((resolve, reject) => {
-            this.client.readPropertyMultiple(device.address, requestArray, (err, data) => {
+            client.readPropertyMultiple(device.address, requestArray, (err, data) => {
                 if (err) {
                     reject(err);
                     return;

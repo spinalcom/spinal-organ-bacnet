@@ -3,7 +3,6 @@ import { EventEmitter } from "events";
 export declare class SpinalDeviceListener extends EventEmitter {
     private listenerModel;
     private children;
-    private client;
     private networkService;
     private networkNode;
     private device;

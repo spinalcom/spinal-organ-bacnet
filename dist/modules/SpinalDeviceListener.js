@@ -20,7 +20,7 @@ const bacnetUtilities_1 = require("../utilities/bacnetUtilities");
 class SpinalDeviceListener extends events_1.EventEmitter {
     constructor(listenerModel) {
         super();
-        this.client = new bacnet();
+        // private client: bacnet = new bacnet();
         this.networkService = new spinal_model_bmsnetwork_1.default(false);
         this.spinalMonitors = [];
         this.listenerModel = listenerModel;
@@ -98,6 +98,7 @@ class SpinalDeviceListener extends events_1.EventEmitter {
         }).catch(() => { });
     }
     _getChildrenNewValue(children) {
+        const client = new bacnet();
         const requestArray = children.map(el => {
             return {
                 objectId: el,
@@ -105,7 +106,7 @@ class SpinalDeviceListener extends events_1.EventEmitter {
             };
         });
         return new Promise((resolve, reject) => {
-            this.client.readPropertyMultiple(this.device.address, requestArray, (err, data) => {
+            client.readPropertyMultiple(this.device.address, requestArray, (err, data) => {
                 if (err) {
                     // console.error(err)
                     reject(err);
@@ -119,6 +120,7 @@ class SpinalDeviceListener extends events_1.EventEmitter {
                         currentValue: this._formatCurrentValue(value, el.objectId.type)
                     };
                 });
+                client.close();
                 resolve(dataFormated);
             });
         });
