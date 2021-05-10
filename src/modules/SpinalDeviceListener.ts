@@ -259,7 +259,7 @@ export class SpinalDeviceListener extends EventEmitter {
 
          lodash.chunk(children, 60).map(object => {
             return () => {
-               return BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g)).catch(() => { })
+               return BacnetUtilities._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g)).catch(() => { })
             }
          })
             .reduce((previous, current) => { return previous.then(current).catch(current) }, Promise.resolve()).then(async () => {

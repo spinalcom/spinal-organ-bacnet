@@ -52,20 +52,20 @@ class SpinalDevice extends events_1.EventEmitter {
         else {
             sensors = globalVariables_1.SENSOR_TYPES;
         }
+        spinalBacnetValueModel.setProgressState();
         return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
             const objectListDetails = [];
             return objectLists.map(object => {
                 return () => {
-                    return bacnetUtilities_1.BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g));
+                    return bacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g));
                 };
             }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => __awaiter(this, void 0, void 0, function* () {
-                spinalBacnetValueModel.setProgressState();
                 const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
                 const listes = Array.from(Object.keys(children)).map((el) => {
                     return [el, children[el]];
                 });
                 return new Promise((resolve, reject) => {
-                    this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel.progress, resolve);
+                    this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel, resolve);
                 });
             }));
         });
@@ -80,7 +80,7 @@ class SpinalDevice extends events_1.EventEmitter {
     //////////////////////////////////////////////////////////////////////////////
     ////                      PRIVATES                                        ////
     //////////////////////////////////////////////////////////////////////////////
-    createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve) {
+    createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve) {
         const item = liste.shift();
         if (item) {
             const [key, value] = item;
@@ -89,16 +89,20 @@ class SpinalDevice extends events_1.EventEmitter {
                 return bacnetUtilities_1.BacnetUtilities._createEndpointByArray(networkService, groupId, value);
             }).then(() => {
                 const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength);
-                progress.set(percent);
-                this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve);
+                spinalBacnetValueModel.progress.set(percent);
+                this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve);
             }).catch(() => {
                 const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength);
-                progress.set(percent);
-                this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve);
+                spinalBacnetValueModel.progress.set(percent);
+                this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve);
             });
         }
         else {
-            resolve(true);
+            spinalBacnetValueModel.setSuccessState();
+            console.log("success");
+            return spinalBacnetValueModel.remToNode().then(() => {
+                resolve(true);
+            });
         }
     }
     _createDevice(networkService, parentId) {
@@ -119,6 +123,7 @@ class SpinalDevice extends events_1.EventEmitter {
                     }
                 }
                 this.children = lodash.chunk(sensor, this.chunkLength);
+                this.client.close();
                 resolve(this.children);
             });
         });

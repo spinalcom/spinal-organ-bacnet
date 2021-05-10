@@ -75,16 +75,17 @@ export class SpinalDevice extends EventEmitter {
       }
 
 
+      spinalBacnetValueModel.setProgressState();
+
 
       return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
          const objectListDetails = [];
 
          return objectLists.map(object => {
             return () => {
-               return BacnetUtilities._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g))
+               return BacnetUtilities._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g))
             }
          }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(async () => {
-            spinalBacnetValueModel.setProgressState();
 
             const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
 
@@ -94,7 +95,7 @@ export class SpinalDevice extends EventEmitter {
             })
 
             return new Promise((resolve, reject) => {
-               this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel.progress, resolve);
+               this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel, resolve);
             });
 
          })
@@ -115,7 +116,7 @@ export class SpinalDevice extends EventEmitter {
    ////                      PRIVATES                                        ////
    //////////////////////////////////////////////////////////////////////////////
 
-   private createItemRecur(liste: Array<Array<any>>, networkService: NetworkService, deviceId: string, maxLength: number, progress: spinal.Model, resolve: Function) {
+   private createItemRecur(liste: Array<Array<any>>, networkService: NetworkService, deviceId: string, maxLength: number, spinalBacnetValueModel: SpinalBacnetValueModel, resolve: Function) {
       const item = liste.shift();
       if (item) {
          const [key, value] = item;
@@ -125,15 +126,19 @@ export class SpinalDevice extends EventEmitter {
             return BacnetUtilities._createEndpointByArray(networkService, groupId, value);
          }).then(() => {
             const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
-            progress.set(percent)
-            this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve)
+            spinalBacnetValueModel.progress.set(percent)
+            this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
          }).catch(() => {
             const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
-            progress.set(percent)
-            this.createItemRecur(liste, networkService, deviceId, maxLength, progress, resolve)
+            spinalBacnetValueModel.progress.set(percent)
+            this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
          });
       } else {
-         resolve(true)
+         spinalBacnetValueModel.setSuccessState();
+         console.log("success");
+         return spinalBacnetValueModel.remToNode().then(() => {
+            resolve(true)
+         })
       }
 
    }
@@ -164,6 +169,7 @@ export class SpinalDevice extends EventEmitter {
             }
 
             this.children = lodash.chunk(sensor, this.chunkLength)
+            this.client.close();
             resolve(this.children);
          })
       });

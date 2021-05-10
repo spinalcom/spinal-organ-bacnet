@@ -1,7 +1,7 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
 export default class BacnetUtilities {
     constructor();
-    static _getObjectDetail(client: any, device: any, objects: Array<{
+    static _getObjectDetail(device: any, objects: Array<{
         type: string;
         instance: number;
     }>): Promise<unknown>;

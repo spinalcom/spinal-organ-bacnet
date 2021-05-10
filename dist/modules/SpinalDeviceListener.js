@@ -204,7 +204,7 @@ class SpinalDeviceListener extends events_1.EventEmitter {
             const objectListDetails = [];
             lodash.chunk(children, 60).map(object => {
                 return () => {
-                    return bacnetUtilities_1.default._getObjectDetail(this.client, this.device, object).then((g) => objectListDetails.push(g)).catch(() => { });
+                    return bacnetUtilities_1.default._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g)).catch(() => { });
                 };
             })
                 .reduce((previous, current) => { return previous.then(current).catch(current); }, Promise.resolve()).then(() => __awaiter(this, void 0, void 0, function* () {

@@ -10,12 +10,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BacnetUtilities = void 0;
+const bacnet = require("bacstack");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const globalVariables_1 = require("./globalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 class BacnetUtilities {
     constructor() { }
-    static _getObjectDetail(client, device, objects) {
+    static _getObjectDetail(device, objects) {
+        const client = new bacnet();
         const requestArray = objects.map(el => ({
             objectId: JSON.parse(JSON.stringify(el)),
             properties: [
@@ -29,6 +31,7 @@ class BacnetUtilities {
             client.readPropertyMultiple(device.address, requestArray, (err, data) => {
                 if (err) {
                     console.error(err);
+                    client.close();
                     reject(err);
                     return;
                 }
@@ -40,6 +43,7 @@ class BacnetUtilities {
                         formated.units = this._getUnitsByCode(formated.units);
                     return formated;
                 });
+                client.close();
                 resolve(dataFormated);
             });
         });
