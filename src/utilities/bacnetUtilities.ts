@@ -7,9 +7,9 @@ import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spina
 export default class BacnetUtilities {
    constructor() { }
 
-   public static _getObjectDetail(device: any, objects: Array<{ type: string, instance: number }>) {
+   public static _getObjectDetail(device: any, objects: Array<{ type: string, instance: number }>, argClient?: any) {
 
-      const client = new bacnet();
+      const client = argClient || new bacnet();
 
       const requestArray = objects.map(el => ({
          objectId: JSON.parse(JSON.stringify(el)),
@@ -20,6 +20,8 @@ export default class BacnetUtilities {
             { id: PropertyIds.PROP_UNITS },
          ]
       }))
+
+      console.log(device, requestArray);
 
       return new Promise((resolve, reject) => {
          client.readPropertyMultiple(device.address, requestArray, (err, data) => {
@@ -37,7 +39,7 @@ export default class BacnetUtilities {
                else formated.units = this._getUnitsByCode(formated.units);
                return formated;
             })
-            client.close()
+
             resolve(dataFormated);
          })
       });

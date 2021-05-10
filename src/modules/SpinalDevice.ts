@@ -62,6 +62,7 @@ export class SpinalDevice extends EventEmitter {
    }
 
    public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any> {
+      const client = new bacnet();
 
       const deviceId = node.getId().get();
       let sensors;
@@ -78,12 +79,12 @@ export class SpinalDevice extends EventEmitter {
       spinalBacnetValueModel.setProgressState();
 
 
-      return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
+      return this._getDeviceObjectList(this.device, sensors, client).then((objectLists) => {
          const objectListDetails = [];
 
          return objectLists.map(object => {
             return () => {
-               return BacnetUtilities._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g))
+               return BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g))
             }
          }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(async () => {
 
@@ -147,31 +148,71 @@ export class SpinalDevice extends EventEmitter {
       return networkService.createNewBmsDevice(parentId, this.info);
    }
 
-   private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>): Promise<Array<Array<{ type: string, instance: number }>>> {
+   private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>, argClient?: any): Promise<Array<Array<{ type: string, instance: number }>>> {
       return new Promise((resolve, reject) => {
 
-         const client = new bacnet();
+         const client = argClient || new bacnet();
+
+         const sensor = [];
+
+         // client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
+         //    if (err) {
+         //       reject(err);
+         //       return;
+         //    }
+
+         //    for (const item of res.values) {
+         //       if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
+         //          sensor.push(item.value);
+         //       }
+         //    }
+
+         //    this.children = lodash.chunk(sensor, this.chunkLength)
+         //    client.close();
+         //    resolve(this.children);
+         // })
+
+         const requestArray = [
+            {
+               objectId: { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
+               properties: [
+                  { id: PropertyIds.PROP_OBJECT_LIST },
+               ]
+            }
+         ]
 
 
-         const sensor = []
-
-
-         client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
+         client.readPropertyMultiple(device.address, requestArray, (err, data) => {
             if (err) {
                reject(err);
                return;
             }
 
-            for (const item of res.values) {
+            const values = this._formatMultipleProperty(data.values)
+
+            for (const item of values) {
                if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
                   sensor.push(item.value);
                }
             }
-
             this.children = lodash.chunk(sensor, this.chunkLength)
-            client.close();
+            // client.close();
             resolve(this.children);
-         })
+
+
+            // const dataFormated = data.values.map(el => BacnetUtilities._formatProperty(device.deviceId, el))
+
+            // const obj = {
+            //    id: device.deviceId,
+            //    deviceId: device.deviceId,
+            //    address: device.address,
+            //    name: dataFormated[0][BacnetUtilities._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
+            //    type: dataFormated[0].type
+            // }
+
+         });
+
+
       });
    }
 
@@ -212,6 +253,15 @@ export class SpinalDevice extends EventEmitter {
    }
 
 
+   private _formatMultipleProperty(data: any) {
+      return lodash.flattenDeep(data.map(object => {
+         const { objectId, values } = object;
+
+         return values.map(({ id, value }) => {
+            return value
+         })
+      }))
+   }
    /*
    private async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
       const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]

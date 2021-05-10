@@ -16,8 +16,8 @@ const globalVariables_1 = require("./globalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 class BacnetUtilities {
     constructor() { }
-    static _getObjectDetail(device, objects) {
-        const client = new bacnet();
+    static _getObjectDetail(device, objects, argClient) {
+        const client = argClient || new bacnet();
         const requestArray = objects.map(el => ({
             objectId: JSON.parse(JSON.stringify(el)),
             properties: [
@@ -27,6 +27,7 @@ class BacnetUtilities {
                 { id: globalVariables_1.PropertyIds.PROP_UNITS },
             ]
         }));
+        console.log(device, requestArray);
         return new Promise((resolve, reject) => {
             client.readPropertyMultiple(device.address, requestArray, (err, data) => {
                 if (err) {
@@ -43,7 +44,6 @@ class BacnetUtilities {
                         formated.units = this._getUnitsByCode(formated.units);
                     return formated;
                 });
-                client.close();
                 resolve(dataFormated);
             });
         });

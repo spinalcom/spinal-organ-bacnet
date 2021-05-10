@@ -43,6 +43,7 @@ class SpinalDevice extends events_1.EventEmitter {
         return this._createDevice(networkService, parentId);
     }
     createDeviceItemList(networkService, node, spinalBacnetValueModel) {
+        const client = new bacnet();
         const deviceId = node.getId().get();
         let sensors;
         if (spinalBacnetValueModel) {
@@ -54,11 +55,11 @@ class SpinalDevice extends events_1.EventEmitter {
             sensors = globalVariables_1.SENSOR_TYPES;
         }
         spinalBacnetValueModel.setProgressState();
-        return this._getDeviceObjectList(this.device, sensors).then((objectLists) => {
+        return this._getDeviceObjectList(this.device, sensors, client).then((objectLists) => {
             const objectListDetails = [];
             return objectLists.map(object => {
                 return () => {
-                    return bacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, object).then((g) => objectListDetails.push(g));
+                    return bacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g));
                 };
             }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => __awaiter(this, void 0, void 0, function* () {
                 const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
@@ -109,23 +110,54 @@ class SpinalDevice extends events_1.EventEmitter {
     _createDevice(networkService, parentId) {
         return networkService.createNewBmsDevice(parentId, this.info);
     }
-    _getDeviceObjectList(device, SENSOR_TYPES) {
+    _getDeviceObjectList(device, SENSOR_TYPES, argClient) {
         return new Promise((resolve, reject) => {
-            const client = new bacnet();
+            const client = argClient || new bacnet();
             const sensor = [];
-            client.readProperty(device.address, { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, globalVariables_1.PropertyIds.PROP_OBJECT_LIST, (err, res) => {
+            // client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
+            //    if (err) {
+            //       reject(err);
+            //       return;
+            //    }
+            //    for (const item of res.values) {
+            //       if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
+            //          sensor.push(item.value);
+            //       }
+            //    }
+            //    this.children = lodash.chunk(sensor, this.chunkLength)
+            //    client.close();
+            //    resolve(this.children);
+            // })
+            const requestArray = [
+                {
+                    objectId: { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
+                    properties: [
+                        { id: globalVariables_1.PropertyIds.PROP_OBJECT_LIST },
+                    ]
+                }
+            ];
+            client.readPropertyMultiple(device.address, requestArray, (err, data) => {
                 if (err) {
                     reject(err);
                     return;
                 }
-                for (const item of res.values) {
+                const values = this._formatMultipleProperty(data.values);
+                for (const item of values) {
                     if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
                         sensor.push(item.value);
                     }
                 }
                 this.children = lodash.chunk(sensor, this.chunkLength);
-                client.close();
+                // client.close();
                 resolve(this.children);
+                // const dataFormated = data.values.map(el => BacnetUtilities._formatProperty(device.deviceId, el))
+                // const obj = {
+                //    id: device.deviceId,
+                //    deviceId: device.deviceId,
+                //    address: device.address,
+                //    name: dataFormated[0][BacnetUtilities._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
+                //    type: dataFormated[0].type
+                // }
             });
         });
     }
@@ -156,6 +188,14 @@ class SpinalDevice extends events_1.EventEmitter {
                 resolve(obj);
             });
         });
+    }
+    _formatMultipleProperty(data) {
+        return lodash.flattenDeep(data.map(object => {
+            const { objectId, values } = object;
+            return values.map(({ id, value }) => {
+                return value;
+            });
+        }));
     }
 }
 exports.SpinalDevice = SpinalDevice;

@@ -4,7 +4,7 @@ export default class BacnetUtilities {
     static _getObjectDetail(device: any, objects: Array<{
         type: string;
         instance: number;
-    }>): Promise<unknown>;
+    }>, argClient?: any): Promise<unknown>;
     static _formatProperty(deviceId: any, object: any): {
         objectId: any;
         id: any;
