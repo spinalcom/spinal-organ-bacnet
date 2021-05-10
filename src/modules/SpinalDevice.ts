@@ -10,7 +10,7 @@ import { saveAsFile } from "../utilities/Utilities";
 // import { store } from "../store";
 
 import { BacnetUtilities } from "../utilities/bacnetUtilities";
-import { SpinalBacnetValueModel } from "../../../../studio/recloisonnement/spinal-model-bacnet/dist";
+import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
 export interface IDevice {
    address?: string;

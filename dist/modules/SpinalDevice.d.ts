@@ -2,7 +2,7 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNodeRef } from "spinal-env-viewer-graph-service";
-import { SpinalBacnetValueModel } from "../../../../studio/recloisonnement/spinal-model-bacnet/dist";
+import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 export interface IDevice {
     address?: string;
     deviceId: number;
