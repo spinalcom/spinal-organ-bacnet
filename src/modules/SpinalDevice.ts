@@ -127,10 +127,14 @@ export class SpinalDevice extends EventEmitter {
             return BacnetUtilities._createEndpointByArray(networkService, groupId, value);
          }).then(() => {
             const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
+            console.log("percent", percent);
+
             spinalBacnetValueModel.progress.set(percent)
             this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
          }).catch(() => {
             const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
+            console.log("percent", percent);
+
             spinalBacnetValueModel.progress.set(percent)
             this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
          });
@@ -138,6 +142,8 @@ export class SpinalDevice extends EventEmitter {
          spinalBacnetValueModel.setSuccessState();
          console.log("success");
          return spinalBacnetValueModel.remToNode().then(() => {
+            console.log("removed");
+
             resolve(true)
          })
       }

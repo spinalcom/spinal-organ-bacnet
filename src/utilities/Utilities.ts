@@ -113,6 +113,7 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
          // spinalBacnetValueModel.setSuccessState();
          // console.log(`success ==> ${(<any>node).getName().get()}`);
          // return spinalBacnetValueModel.remToNode();
+         console.log("hello world")
       }).catch((err) => {
          spinalBacnetValueModel.setErrorState();
          console.log(`error ===> ${(<any>node).getName().get()}`);

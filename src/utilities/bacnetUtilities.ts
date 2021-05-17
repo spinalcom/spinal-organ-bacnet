@@ -21,7 +21,7 @@ export default class BacnetUtilities {
          ]
       }))
 
-      console.log(device, requestArray);
+      // console.log(device, requestArray);
 
       return new Promise((resolve, reject) => {
          client.readPropertyMultiple(device.address, requestArray, (err, data) => {
