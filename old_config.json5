@@ -3,10 +3,10 @@
       name : "spinal-organ-bacnet",
       userId: "168", // user id - process.env.SPINAL_USER_ID
       // password: "HBOJRtNPAm5E", // user password - process.env.SPINAL_USER_ID 
-      password : "gVG69c3Tv",
-      protocol : "https",
+      password : "",
+      protocol : "",
       // host: "vinci-archipel-b1.spinalcom.com", // can be an ip address - process.env.SPINALHUB_IP
-      host: "51.178.36.180", // can be an ip address - process.env.SPINALHUB_IP
+      host: "", // can be an ip address - process.env.SPINALHUB_IP
       
       port: 10104, // hub port
       path: '/__users__/admin/organs'
