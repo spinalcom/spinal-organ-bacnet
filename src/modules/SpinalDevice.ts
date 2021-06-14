@@ -61,47 +61,89 @@ export class SpinalDevice extends EventEmitter {
       return this._createDevice(networkService, parentId);
    }
 
-   public createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any> {
+   public async createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any> {
       const client = new bacnet();
 
       const deviceId = node.getId().get();
       let sensors;
-      if (spinalBacnetValueModel) {
-         console.log("sensors", spinalBacnetValueModel.sensor.get());
 
+      if (spinalBacnetValueModel) {
+         // console.log("sensors", spinalBacnetValueModel.sensor.get());
          sensors = spinalBacnetValueModel.sensor.get();
          spinalBacnetValueModel.setRecoverState();
       } else {
          sensors = SENSOR_TYPES;
       }
 
+      const objectLists = await this._getDeviceObjectList(this.device, sensors, client);
+      const objectListDetails = await this._getAllObjectDetails(objectLists, client);
+      const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
+      const listes = Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
+      const maxLength = listes.length;
+      let isError = false;
 
-      spinalBacnetValueModel.setProgressState();
+      if (spinalBacnetValueModel) {
+         console.log("set progress mode")
+         spinalBacnetValueModel.setProgressState();
+      }
 
+      while (!isError && listes.length > 0) {
+         const item = listes.shift();
+         if (item) {
+            const [key, value] = item;
 
-      return this._getDeviceObjectList(this.device, sensors, client).then((objectLists) => {
-         const objectListDetails = [];
-
-         return objectLists.map(object => {
-            return () => {
-               return BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g))
+            try {
+               await BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
+               if (spinalBacnetValueModel) {
+                  const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
+                  spinalBacnetValueModel.progress.set(percent)
+               }
+            } catch (error) {
+               isError = true;
             }
-         }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(async () => {
+         }
+      }
 
-            const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
+      if (spinalBacnetValueModel) {
+         if (isError) {
+            spinalBacnetValueModel.setErrorState();
+            return;
+         }
+
+         spinalBacnetValueModel.setSuccessState();
+      }
 
 
-            const listes = Array.from(Object.keys(children)).map((el: string) => {
-               return [el, children[el]];
-            })
+      // // return spinalBacnetValueModel.remToNode().then(() => {
+      // //    console.log("removed");
 
-            return new Promise((resolve, reject) => {
-               this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel, resolve);
-            });
+      // //    resolve(true)
+      // // })
 
-         })
 
-      })
+      // return this._getDeviceObjectList(this.device, sensors, client).then((objectLists) => {
+      //    // const objectListDetails = [];
+      //    console.log("object list found", objectLists);
+
+      //    return this._getAllObjectDetails(objectLists, client).then((objectListDetails) => {
+
+      //       console.log("objectDetails Found", objectListDetails);
+
+      //       const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
+
+      //       const listes = Array.from(Object.keys(children)).map((el: string) => {
+      //          return [el, children[el]];
+      //       })
+
+      //       return new Promise((resolve, reject) => {
+      //          this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel, resolve);
+      //       });
+
+      //    })
+
+      // })
+
+
 
    }
 
@@ -122,18 +164,21 @@ export class SpinalDevice extends EventEmitter {
       if (item) {
          const [key, value] = item;
 
-         BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then(endpointGroup => {
+         BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then(async endpointGroup => {
             const groupId = endpointGroup.id.get();
-            return BacnetUtilities._createEndpointByArray(networkService, groupId, value);
+            await BacnetUtilities._createEndpointByArray(networkService, groupId, value);
+            return;
          }).then(() => {
             const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
-            console.log("percent", percent);
+            console.log("percent inside success", percent);
 
             spinalBacnetValueModel.progress.set(percent)
             this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
-         }).catch(() => {
+         }).catch((err) => {
+            console.log(err);
+
             const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
-            console.log("percent", percent);
+            console.log("percent inside catch", percent);
 
             spinalBacnetValueModel.progress.set(percent)
             this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
@@ -141,11 +186,13 @@ export class SpinalDevice extends EventEmitter {
       } else {
          spinalBacnetValueModel.setSuccessState();
          console.log("success");
-         return spinalBacnetValueModel.remToNode().then(() => {
-            console.log("removed");
+         resolve(true);
 
-            resolve(true)
-         })
+         // return spinalBacnetValueModel.remToNode().then(() => {
+         //    console.log("removed");
+
+         //    resolve(true)
+         // })
       }
 
    }
@@ -155,6 +202,7 @@ export class SpinalDevice extends EventEmitter {
    }
 
    private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>, argClient?: any): Promise<Array<Array<{ type: string, instance: number }>>> {
+      console.log("getting object list");
       return new Promise((resolve, reject) => {
 
          const client = argClient || new bacnet();
@@ -258,7 +306,6 @@ export class SpinalDevice extends EventEmitter {
       });
    }
 
-
    private _formatMultipleProperty(data: any) {
       return lodash.flattenDeep(data.map(object => {
          const { objectId, values } = object;
@@ -268,6 +315,25 @@ export class SpinalDevice extends EventEmitter {
          })
       }))
    }
+
+   private _getAllObjectDetails(objectLists: any, client) {
+      console.log("getting object details");
+
+      const objectListDetails = [];
+
+      return new Promise((resolve, reject) => {
+         objectLists.map(object => {
+            return () => {
+               return BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g))
+            }
+         }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
+            resolve(objectListDetails);
+         })
+      })
+
+
+   }
+
    /*
    private async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
       const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]

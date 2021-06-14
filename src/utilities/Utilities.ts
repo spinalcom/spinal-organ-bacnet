@@ -16,7 +16,7 @@ export const waitModelReady = (spinalContext: any) => {
       if (FileSystem._sig_server === false) {
          setTimeout(() => {
             defer.resolve(waitModelReadyLoop(f, defer));
-         }, 100);
+         }, 200);
       } else {
          defer.resolve(f);
       }
@@ -36,6 +36,7 @@ export const SpinalDiscoverCallback = (spinalDisoverModel: SpinalDisoverModel, o
    Promise.all(promises).then(async () => {
       // console.log(spinalDisoverModel.organ._server_id, organModel._server_id);
       await waitModelReady(spinalDisoverModel.organ);
+      console.log(organModel._server_id, spinalDisoverModel.organ._server_id);
 
       if (organModel._server_id === spinalDisoverModel.organ._server_id) {
          const minute = 2 * (60 * 1000)
@@ -61,11 +62,14 @@ export const SpinalListnerCallback = (spinalListenerModel: SpinalListenerModel, 
       await waitModelReady(spinalListenerModel.organ);
 
       spinalListenerModel.organ.load((organ) => {
-         waitModelReady(organ).then(() => {
-            if (organ._server_id === organModel._server_id) {
-               new SpinalDeviceListener(spinalListenerModel);
-            }
-         })
+         if (organ) {
+            waitModelReady(organ).then(() => {
+               if (organ._server_id === organModel._server_id) {
+                  new SpinalDeviceListener(spinalListenerModel);
+               }
+            })
+         }
+
       })
    }).catch((err) => {
       console.error(err)
@@ -77,50 +81,55 @@ export const SpinalBacnetValueModelCallback = (spinalBacnetValueModel: SpinalBac
    Promise.all(promises).then(async () => {
       const { node, context, graph, network, organ } = await spinalBacnetValueModel.getAllItem();
 
-      if ((<any>organ)._server_id !== organModel._server_id) return;
-      // if (spinalBacnetValueModel.state.get() !== '') {
-      //    return spinalBacnetValueModel.remToNode();
-      // }
+      if (organ && (<any>organ)._server_id !== organModel._server_id) return;
+
+      if (spinalBacnetValueModel.state.get() === 'wait' && node && context && graph && network && organ) {
+         (<any>SpinalGraphService)._addNode(node);
+         (<any>SpinalGraphService)._addNode(context);
+         (<any>SpinalGraphService)._addNode(graph);
+         (<any>SpinalGraphService)._addNode(network);
+
+         const networkService: NetworkService = new NetworkService(false);
+
+         const organNetwork = {
+            contextName: (<any>context).getName().get(),
+            contextType: (<any>context).getType().get(),
+            networkType: (<any>network).getType().get(),
+            networkName: (<any>network).getName().get()
+         };
+
+         // const client = new bacnet();
+         console.log("listener graph", graph);
+
+         await networkService.init((<any>graph), organNetwork);
 
 
-      const networkService: NetworkService = new NetworkService(false);
+         console.log(`get ${(<any>node).getName().get()} bacnet values`);
+
+         const device = { address: (<any>node).info.address.get(), deviceId: (<any>node).info.idNetwork.get() }
 
 
-      (<any>SpinalGraphService)._addNode(node);
-      (<any>SpinalGraphService)._addNode(context);
-      (<any>SpinalGraphService)._addNode(graph);
-      (<any>SpinalGraphService)._addNode(network);
-
-      console.log(`get ${(<any>node).getName().get()} bacnet values`);
-
-      const device = { address: (<any>node).info.address.get(), deviceId: (<any>node).info.idNetwork.get() }
-
-      const organNetwork = {
-         contextName: (<any>context).getName().get(),
-         contextType: (<any>context).getType().get(),
-         networkType: (<any>network).getType().get(),
-         networkName: (<any>network).getName().get()
-      };
-
-      // const client = new bacnet();
-      await networkService.init((<any>graph), organNetwork);
 
 
-      // const spinalDevice = new SpinalDevice(device, client);
-      const spinalDevice = new SpinalDevice(device);
+         // const spinalDevice = new SpinalDevice(device, client);
+         const spinalDevice = new SpinalDevice(device);
 
-      spinalDevice.createDeviceItemList(networkService, (<any>node), spinalBacnetValueModel).then(() => {
-         // spinalBacnetValueModel.setSuccessState();
-         // console.log(`success ==> ${(<any>node).getName().get()}`);
-         // return spinalBacnetValueModel.remToNode();
-         console.log("hello world")
-      }).catch((err) => {
-         spinalBacnetValueModel.setErrorState();
-         console.log(`error ===> ${(<any>node).getName().get()}`);
+         spinalDevice.createDeviceItemList(networkService, (<any>node), spinalBacnetValueModel).then(() => {
+            // spinalBacnetValueModel.setSuccessState();
+            // console.log(`success ==> ${(<any>node).getName().get()}`);
+            // return spinalBacnetValueModel.remToNode();
+            console.log("hello world")
+         }).catch((err) => {
+            spinalBacnetValueModel.setErrorState();
+            console.log(`error ===> ${(<any>node).getName().get()}`);
+            // return spinalBacnetValueModel.remToNode();
+            // console.error(err);
+
+         });
+      } else {
          return spinalBacnetValueModel.remToNode();
-         // console.error(err);
+      }
 
-      });
    })
 }
 

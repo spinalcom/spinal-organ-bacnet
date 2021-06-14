@@ -8,5 +8,10 @@ const name = config.spinalConnector.name;
 pm2.start({
    name,
    script: "index.js",
-   cwd: "./dist/"
+   cwd: "./dist/",
+   error_file: 'err.log',
+   out_file: 'out.log',
+   log_file: 'combined.log',
+   time: true
 })
+

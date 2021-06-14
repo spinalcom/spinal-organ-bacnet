@@ -35,8 +35,6 @@ export class SpinalContextCreation {
 
    private bindDevices() {
       this.bindDevicesProcess = this.discoverModel.devices.bind(() => {
-         console.log("inside if", this.discoverModel.devices.length, this.bacnet.count)
-
          if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
             this.discoverModel.setDiscoveredMode();
             this.bacnet.closeClient();

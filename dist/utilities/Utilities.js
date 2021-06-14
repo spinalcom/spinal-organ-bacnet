@@ -23,9 +23,10 @@ const waitModelReady = (spinalContext) => {
     const deferred = Q.defer();
     const waitModelReadyLoop = (f, defer) => {
         if (spinal_core_connectorjs_type_1.FileSystem._sig_server === false) {
+            // if (typeof f._server_id === "undefined") {
             setTimeout(() => {
                 defer.resolve(waitModelReadyLoop(f, defer));
-            }, 100);
+            }, 200);
         }
         else {
             defer.resolve(f);
@@ -43,6 +44,7 @@ const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => {
     Promise.all(promises).then(() => __awaiter(void 0, void 0, void 0, function* () {
         // console.log(spinalDisoverModel.organ._server_id, organModel._server_id);
         yield exports.waitModelReady(spinalDisoverModel.organ);
+        console.log(organModel._server_id, spinalDisoverModel.organ._server_id);
         if (organModel._server_id === spinalDisoverModel.organ._server_id) {
             const minute = 2 * (60 * 1000);
             const time = Date.now();
@@ -80,9 +82,9 @@ const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => {
         const { node, context, graph, network, organ } = yield spinalBacnetValueModel.getAllItem();
         if (organ._server_id !== organModel._server_id)
             return;
-        // if (spinalBacnetValueModel.state.get() !== '') {
-        //    return spinalBacnetValueModel.remToNode();
-        // }
+        if (spinalBacnetValueModel.state.get() !== 'wait') {
+            return spinalBacnetValueModel.remToNode();
+        }
         const networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
         spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(node);
         spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
@@ -104,10 +106,11 @@ const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => {
             // spinalBacnetValueModel.setSuccessState();
             // console.log(`success ==> ${(<any>node).getName().get()}`);
             // return spinalBacnetValueModel.remToNode();
+            console.log("hello world");
         }).catch((err) => {
             spinalBacnetValueModel.setErrorState();
             console.log(`error ===> ${node.getName().get()}`);
-            return spinalBacnetValueModel.remToNode();
+            // return spinalBacnetValueModel.remToNode();
             // console.error(err);
         });
     }));

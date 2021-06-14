@@ -19,6 +19,7 @@ export default class BacnetUtilities {
     static _getObjectTypeByCode(typeCode: number): any;
     static _getUnitsByCode(typeCode: number): string;
     static _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<import("spinal-env-viewer-graph-service/declarations/GraphManagerService").SpinalNodeRef>;
+    static createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown]>;
     static _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<any>;
     static _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown]>;
     static _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<any>;

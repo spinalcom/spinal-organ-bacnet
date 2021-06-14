@@ -27,10 +27,8 @@ export class SpinalBacnet extends EventEmitter {
 
         this.count = 0;
         if (this.config.useBroadcast) {
-            console.log("useBroadcast");
             this.useBroadcast();
         } else {
-            console.log("useUnicast");
             this.useUnicast();
         }
 

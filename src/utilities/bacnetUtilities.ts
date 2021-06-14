@@ -117,6 +117,12 @@ export default class BacnetUtilities {
       return found;
    }
 
+   public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any) {
+      const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
+      const groupId = endpointGroup.id.get();
+      return this._createEndpointByArray(networkService, groupId, endpointArray);
+   }
+
 
    public static async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
       const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
@@ -130,17 +136,19 @@ export default class BacnetUtilities {
          type: groupName,
          path: ""
       }
-      return networkService.createNewBmsEndpointGroup(deviceId, obj);
+      const endpointGroup = await networkService.createNewBmsEndpointGroup(deviceId, obj);
+      return endpointGroup;
    }
 
-   public static _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray) {
+   public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any) {
       const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el))
-      return Promise.all(promises);
+      const endpoints = await Promise.all(promises);
+      return endpoints;
    }
 
    public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
       const networkId = endpointObj.id;
-      const exist = await BacnetUtilities._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
+      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
       if (exist) return exist;
 
       const obj: any = {
@@ -148,13 +156,16 @@ export default class BacnetUtilities {
          typeId: endpointObj.typeId,
          name: endpointObj.object_name,
          path: "",
-         currentValue: BacnetUtilities._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
+         currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
          unit: endpointObj.units,
          type: endpointObj.type,
       }
 
-      return networkService.createNewBmsEndpoint(groupId, obj);;
+      return networkService.createNewBmsEndpoint(groupId, obj);
+
    }
+
+
 
 }
 

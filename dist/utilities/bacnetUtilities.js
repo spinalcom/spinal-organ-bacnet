@@ -27,7 +27,7 @@ class BacnetUtilities {
                 { id: globalVariables_1.PropertyIds.PROP_UNITS },
             ]
         }));
-        console.log(device, requestArray);
+        // console.log(device, requestArray);
         return new Promise((resolve, reject) => {
             client.readPropertyMultiple(device.address, requestArray, (err, data) => {
                 if (err) {
@@ -107,6 +107,13 @@ class BacnetUtilities {
             return found;
         });
     }
+    static createEndpointsInGroup(networkService, deviceId, groupName, endpointArray) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const endpointGroup = yield this._createEndpointsGroup(networkService, deviceId, groupName);
+            const groupId = endpointGroup.id.get();
+            return this._createEndpointByArray(networkService, groupId, endpointArray);
+        });
+    }
     static _createEndpointsGroup(networkService, deviceId, groupName) {
         return __awaiter(this, void 0, void 0, function* () {
             const networkId = globalVariables_1.ObjectTypes[`object_${groupName}`.toUpperCase()];
@@ -119,17 +126,21 @@ class BacnetUtilities {
                 type: groupName,
                 path: ""
             };
-            return networkService.createNewBmsEndpointGroup(deviceId, obj);
+            const endpointGroup = yield networkService.createNewBmsEndpointGroup(deviceId, obj);
+            return endpointGroup;
         });
     }
     static _createEndpointByArray(networkService, groupId, endpointArray) {
-        const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
-        return Promise.all(promises);
+        return __awaiter(this, void 0, void 0, function* () {
+            const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
+            const endpoints = yield Promise.all(promises);
+            return endpoints;
+        });
     }
     static _createEndpoint(networkService, groupId, endpointObj) {
         return __awaiter(this, void 0, void 0, function* () {
             const networkId = endpointObj.id;
-            const exist = yield BacnetUtilities._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, networkId);
+            const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, networkId);
             if (exist)
                 return exist;
             const obj = {
@@ -137,12 +148,11 @@ class BacnetUtilities {
                 typeId: endpointObj.typeId,
                 name: endpointObj.object_name,
                 path: "",
-                currentValue: BacnetUtilities._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
+                currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,
                 type: endpointObj.type,
             };
             return networkService.createNewBmsEndpoint(groupId, obj);
-            ;
         });
     }
 }

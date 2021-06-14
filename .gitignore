@@ -3,3 +3,4 @@ node_modules
 db
 spinal-model-bmsnetwork
 old_config.json5
+logs
