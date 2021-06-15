@@ -6,16 +6,17 @@ import { STATES } from 'spinal-model-bacnet';
 
 
 
-export class SpinalContextCreation {
+export class SpinalDiscover {
 
    private bindSateProcess: any;
    private bindDevicesProcess: any;
+
    private bacnet: SpinalBacnet;
    private networkService: NetworkService = new NetworkService(false);
    private discoverModel: any;
 
    constructor(model) {
-      this.bacnet = new SpinalBacnet(model.network.get())
+      // this.bacnet = new SpinalBacnet(model.network.get())
       this.discoverModel = model;
 
       this.init();
@@ -55,6 +56,19 @@ export class SpinalContextCreation {
       }
    }
 
+
+   private listenEvents() {
+      this.bacnet.on("deviceFound", (device) => this.addDeviceFound(device));
+      this.bacnet.on("timeout", () => this.timeOutEvent());
+
+      this.bacnet.on("noResponse", () => {
+         if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
+            this.discoverModel.setDiscoveredMode();
+            this.bacnet.closeClient();
+            this.discoverModel.devices.unbind(this.bindDevicesProcess);
+         }
+      })
+   }
    /**
     * Methods
     */
@@ -110,24 +124,8 @@ export class SpinalContextCreation {
 
    }
 
-   private listenEvents() {
-      this.bacnet.on("deviceFound", (device) => this.addDeviceFound(device));
-      this.bacnet.on("timeout", () => this.timeOutEvent());
-
-      this.bacnet.on("noResponse", () => {
-         if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
-            this.discoverModel.setDiscoveredMode();
-            this.bacnet.closeClient();
-            this.discoverModel.devices.unbind(this.bindDevicesProcess);
-         }
-      })
-   }
-
    private addDeviceFound(device: IDevice) {
       console.log("device found", device.address);
-
-      // const device: IDevice = (<any>spinalDevice).device
-      // this.devicesFound.set(device.deviceId, spinalDevice);
       this.discoverModel.devices.push(device);
    }
 

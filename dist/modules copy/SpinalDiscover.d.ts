@@ -1,4 +1,4 @@
-export declare class SpinalContextCreation {
+export declare class SpinalDiscover {
     private bindSateProcess;
     private bindDevicesProcess;
     private bacnet;
@@ -9,13 +9,13 @@ export declare class SpinalContextCreation {
     private bindItem;
     private bindDevices;
     private binFunc;
+    private listenEvents;
     /**
      * Methods
      */
     private discover;
     private createNodes;
     private getOrCreateNetNode;
-    private listenEvents;
     private addDeviceFound;
     private timeOutEvent;
     private getGraph;

@@ -1,7 +1,9 @@
 import * as bacnet from "bacstack";
 import { SpinalGraphService } from "spinal-env-viewer-graph-service";
-import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./globalVariables";
+import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
+
+
 
 
 export default class BacnetUtilities {
@@ -164,8 +166,6 @@ export default class BacnetUtilities {
       return networkService.createNewBmsEndpoint(groupId, obj);
 
    }
-
-
 
 }
 

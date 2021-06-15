@@ -12,19 +12,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalDevice = void 0;
 const lodash = require("lodash");
 const bacnet = require("bacstack");
-const globalVariables_1 = require("../utilities/globalVariables");
+const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const events_1 = require("events");
 // import { store } from "../store";
-const bacnetUtilities_1 = require("../utilities/bacnetUtilities");
+const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalDevice extends events_1.EventEmitter {
     // private updateInterval: number;
     constructor(device, client) {
         super();
         this.chunkLength = 60;
-        this.endpointGroups = new Map();
         this.children = [];
         this.device = device;
-        this.client = client;
+        this.client = client || new bacnet();
         // this.updateInterval = updateTime || 15000;
         // this.init();
     }
@@ -53,7 +52,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 spinalBacnetValueModel.setRecoverState();
             }
             else {
-                sensors = globalVariables_1.SENSOR_TYPES;
+                sensors = GlobalVariables_1.SENSOR_TYPES;
             }
             const objectLists = yield this._getDeviceObjectList(this.device, sensors, client);
             const objectListDetails = yield this._getAllObjectDetails(objectLists, client);
@@ -70,7 +69,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 if (item) {
                     const [key, value] = item;
                     try {
-                        yield bacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
+                        yield BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
                         if (spinalBacnetValueModel) {
                             const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                             spinalBacnetValueModel.progress.set(percent);
@@ -122,9 +121,9 @@ class SpinalDevice extends events_1.EventEmitter {
         const item = liste.shift();
         if (item) {
             const [key, value] = item;
-            bacnetUtilities_1.BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then((endpointGroup) => __awaiter(this, void 0, void 0, function* () {
+            BacnetUtilities_1.BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then((endpointGroup) => __awaiter(this, void 0, void 0, function* () {
                 const groupId = endpointGroup.id.get();
-                yield bacnetUtilities_1.BacnetUtilities._createEndpointByArray(networkService, groupId, value);
+                yield BacnetUtilities_1.BacnetUtilities._createEndpointByArray(networkService, groupId, value);
                 return;
             })).then(() => {
                 const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength);
@@ -173,9 +172,9 @@ class SpinalDevice extends events_1.EventEmitter {
             // })
             const requestArray = [
                 {
-                    objectId: { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
+                    objectId: { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
                     properties: [
-                        { id: globalVariables_1.PropertyIds.PROP_OBJECT_LIST },
+                        { id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST },
                     ]
                 }
             ];
@@ -208,9 +207,9 @@ class SpinalDevice extends events_1.EventEmitter {
         const client = this.client || new bacnet();
         const requestArray = [
             {
-                objectId: { type: globalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
+                objectId: { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
                 properties: [
-                    { id: globalVariables_1.PropertyIds.PROP_OBJECT_NAME },
+                    { id: GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME },
                 ]
             }
         ];
@@ -220,12 +219,12 @@ class SpinalDevice extends events_1.EventEmitter {
                     reject(err);
                     return;
                 }
-                const dataFormated = data.values.map(el => bacnetUtilities_1.BacnetUtilities._formatProperty(device.deviceId, el));
+                const dataFormated = data.values.map(el => BacnetUtilities_1.BacnetUtilities._formatProperty(device.deviceId, el));
                 const obj = {
                     id: device.deviceId,
                     deviceId: device.deviceId,
                     address: device.address,
-                    name: dataFormated[0][bacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(globalVariables_1.PropertyIds.PROP_OBJECT_NAME)],
+                    name: dataFormated[0][BacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME)],
                     type: dataFormated[0].type
                 };
                 resolve(obj);
@@ -246,7 +245,7 @@ class SpinalDevice extends events_1.EventEmitter {
         return new Promise((resolve, reject) => {
             objectLists.map(object => {
                 return () => {
-                    return bacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g));
+                    return BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g));
                 };
             }).reduce((previous, current) => { return previous.then(current); }, Promise.resolve()).then(() => {
                 resolve(objectListDetails);

@@ -2,14 +2,14 @@ import * as lodash from "lodash";
 import * as bacnet from "bacstack";
 
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
-import { ObjectTypes, PropertyIds, SENSOR_TYPES, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/globalVariables";
+import { ObjectTypes, PropertyIds, SENSOR_TYPES, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/GlobalVariables";
 import { EventEmitter } from "events";
 import { SpinalEndpoint } from "./SpinalEndpoint";
 import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
-import { saveAsFile } from "../utilities/Utilities";
+
 // import { store } from "../store";
 
-import { BacnetUtilities } from "../utilities/bacnetUtilities";
+import { BacnetUtilities } from "../utilities/BacnetUtilities";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
 export interface IDevice {
@@ -25,21 +25,15 @@ export class SpinalDevice extends EventEmitter {
    private info;
    private client;
    private chunkLength: number = 60;
-   private endpointGroups: Map<string, Array<any>> = new Map();
    private children: Array<{ type: string, instance: number }[]> = [];
-
    private node: SpinalNodeRef;
-
    private networkService: NetworkService;
-   // private updateInterval: number;
+
 
    constructor(device: IDevice, client?: any) {
       super();
       this.device = device;
-      this.client = client;
-      // this.updateInterval = updateTime || 15000;
-
-      // this.init();
+      this.client = client || new bacnet();
    }
 
 
@@ -51,7 +45,6 @@ export class SpinalDevice extends EventEmitter {
    }
 
    public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<any> {
-
       this.networkService = networkService;
 
       if (node) {
@@ -62,21 +55,20 @@ export class SpinalDevice extends EventEmitter {
    }
 
    public async createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any> {
-      const client = new bacnet();
 
       const deviceId = node.getId().get();
       let sensors;
 
       if (spinalBacnetValueModel) {
-         // console.log("sensors", spinalBacnetValueModel.sensor.get());
          sensors = spinalBacnetValueModel.sensor.get();
          spinalBacnetValueModel.setRecoverState();
       } else {
          sensors = SENSOR_TYPES;
       }
 
-      const objectLists = await this._getDeviceObjectList(this.device, sensors, client);
-      const objectListDetails = await this._getAllObjectDetails(objectLists, client);
+      const objectLists = await this._getDeviceObjectList(this.device, sensors, this.client);
+      const objectListDetails = await this._getAllObjectDetails(objectLists, this.client);
+
       const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
       const listes = Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
       const maxLength = listes.length;
@@ -112,90 +104,11 @@ export class SpinalDevice extends EventEmitter {
 
          spinalBacnetValueModel.setSuccessState();
       }
-
-
-      // // return spinalBacnetValueModel.remToNode().then(() => {
-      // //    console.log("removed");
-
-      // //    resolve(true)
-      // // })
-
-
-      // return this._getDeviceObjectList(this.device, sensors, client).then((objectLists) => {
-      //    // const objectListDetails = [];
-      //    console.log("object list found", objectLists);
-
-      //    return this._getAllObjectDetails(objectLists, client).then((objectListDetails) => {
-
-      //       console.log("objectDetails Found", objectListDetails);
-
-      //       const children = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
-
-      //       const listes = Array.from(Object.keys(children)).map((el: string) => {
-      //          return [el, children[el]];
-      //       })
-
-      //       return new Promise((resolve, reject) => {
-      //          this.createItemRecur(listes, networkService, deviceId, listes.length, spinalBacnetValueModel, resolve);
-      //       });
-
-      //    })
-
-      // })
-
-
-
-   }
-
-   public convertToString() {
-      return JSON.stringify({
-         children: this.children,
-         id: this.node.id.get(),
-         device: this.device
-      })
    }
 
    //////////////////////////////////////////////////////////////////////////////
    ////                      PRIVATES                                        ////
    //////////////////////////////////////////////////////////////////////////////
-
-   private createItemRecur(liste: Array<Array<any>>, networkService: NetworkService, deviceId: string, maxLength: number, spinalBacnetValueModel: SpinalBacnetValueModel, resolve: Function) {
-      const item = liste.shift();
-      if (item) {
-         const [key, value] = item;
-
-         BacnetUtilities._createEndpointsGroup(networkService, deviceId, key).then(async endpointGroup => {
-            const groupId = endpointGroup.id.get();
-            await BacnetUtilities._createEndpointByArray(networkService, groupId, value);
-            return;
-         }).then(() => {
-            const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
-            console.log("percent inside success", percent);
-
-            spinalBacnetValueModel.progress.set(percent)
-            this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
-         }).catch((err) => {
-            console.log(err);
-
-            const percent = Math.floor((100 * (maxLength - liste.length)) / maxLength)
-            console.log("percent inside catch", percent);
-
-            spinalBacnetValueModel.progress.set(percent)
-            this.createItemRecur(liste, networkService, deviceId, maxLength, spinalBacnetValueModel, resolve)
-         });
-      } else {
-         spinalBacnetValueModel.setSuccessState();
-         console.log("success");
-         resolve(true);
-
-         // return spinalBacnetValueModel.remToNode().then(() => {
-         //    console.log("removed");
-
-         //    resolve(true)
-         // })
-      }
-
-   }
 
    private _createDevice(networkService: NetworkService, parentId: string): Promise<any> {
       return networkService.createNewBmsDevice(parentId, this.info);
@@ -204,69 +117,40 @@ export class SpinalDevice extends EventEmitter {
    private _getDeviceObjectList(device: any, SENSOR_TYPES: Array<number>, argClient?: any): Promise<Array<Array<{ type: string, instance: number }>>> {
       console.log("getting object list");
       return new Promise((resolve, reject) => {
+         try {
+            const client = argClient || new bacnet();
 
-         const client = argClient || new bacnet();
+            const sensor = [];
 
-         const sensor = [];
-
-         // client.readProperty(device.address, { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId }, PropertyIds.PROP_OBJECT_LIST, (err, res) => {
-         //    if (err) {
-         //       reject(err);
-         //       return;
-         //    }
-
-         //    for (const item of res.values) {
-         //       if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
-         //          sensor.push(item.value);
-         //       }
-         //    }
-
-         //    this.children = lodash.chunk(sensor, this.chunkLength)
-         //    client.close();
-         //    resolve(this.children);
-         // })
-
-         const requestArray = [
-            {
-               objectId: { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
-               properties: [
-                  { id: PropertyIds.PROP_OBJECT_LIST },
-               ]
-            }
-         ]
-
-
-         client.readPropertyMultiple(device.address, requestArray, (err, data) => {
-            if (err) {
-               reject(err);
-               return;
-            }
-
-            const values = this._formatMultipleProperty(data.values)
-
-            for (const item of values) {
-               if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
-                  sensor.push(item.value);
+            const requestArray = [
+               {
+                  objectId: { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId },
+                  properties: [
+                     { id: PropertyIds.PROP_OBJECT_LIST },
+                  ]
                }
-            }
-            this.children = lodash.chunk(sensor, this.chunkLength)
-            // client.close();
-            resolve(this.children);
+            ]
 
 
-            // const dataFormated = data.values.map(el => BacnetUtilities._formatProperty(device.deviceId, el))
+            client.readPropertyMultiple(device.address, requestArray, (err, data) => {
+               if (err) {
+                  reject(err);
+                  return;
+               }
 
-            // const obj = {
-            //    id: device.deviceId,
-            //    deviceId: device.deviceId,
-            //    address: device.address,
-            //    name: dataFormated[0][BacnetUtilities._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
-            //    type: dataFormated[0].type
-            // }
+               const values = this._formatMultipleProperty(data.values)
 
-         });
-
-
+               for (const item of values) {
+                  if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
+                     sensor.push(item.value);
+                  }
+               }
+               this.children = lodash.chunk(sensor, this.chunkLength)
+               resolve(this.children);
+            });
+         } catch (error) {
+            reject(error);
+         }
       });
    }
 
@@ -316,166 +200,24 @@ export class SpinalDevice extends EventEmitter {
       }))
    }
 
-   private _getAllObjectDetails(objectLists: any, client) {
+   private async _getAllObjectDetails(objectLists: any, client: any) {
       console.log("getting object details");
 
-      const objectListDetails = [];
+      try {
+         const objectListDetails = [];
 
-      return new Promise((resolve, reject) => {
-         objectLists.map(object => {
-            return () => {
-               return BacnetUtilities._getObjectDetail(this.device, object, client).then((g) => objectListDetails.push(g))
-            }
-         }).reduce((previous, current) => { return previous.then(current) }, Promise.resolve()).then(() => {
-            resolve(objectListDetails);
-         })
-      })
-
-
-   }
-
-   /*
-   private async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
-      const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
-
-      const exist = await BacnetUtilities._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
-      if (exist) return exist;
-
-      const obj: any = {
-         name: groupName,
-         id: networkId,
-         type: groupName,
-         path: ""
-      }
-      return networkService.createNewBmsEndpointGroup(deviceId, obj);
-   }
-
-   private _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray) {
-      const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el))
-      return Promise.all(promises);
-   }
-
-   private async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
-      const networkId = endpointObj.id;
-      const exist = await BacnetUtilities._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
-      if (exist) return exist;
-
-      const obj: any = {
-         id: networkId,
-         typeId: endpointObj.typeId,
-         name: endpointObj.object_name,
-         path: "",
-         currentValue: BacnetUtilities._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
-         unit: endpointObj.units,
-         type: endpointObj.type,
-      }
-
-      return networkService.createNewBmsEndpoint(groupId, obj);;
-   }
-
-   
-      private _getObjectDetail(device: IDevice, objects: Array<{ type: string, instance: number }>) {
-      
-            const requestArray = objects.map(el => ({
-               objectId: JSON.parse(JSON.stringify(el)),
-               properties: [
-                  { id: PropertyIds.PROP_OBJECT_NAME },
-                  { id: PropertyIds.PROP_PRESENT_VALUE },
-                  { id: PropertyIds.PROP_OBJECT_TYPE },
-                  { id: PropertyIds.PROP_UNITS },
-               ]
-            }))
-      
-            return new Promise((resolve, reject) => {
-               this.client.readPropertyMultiple(device.address, requestArray, (err, data) => {
-                  if (err) {
-                     console.error(err)
-                     reject(err);
-                     return;
-                  }
-      
-                  const dataFormated = data.values.map(el => {
-                     const formated: any = this._formatProperty(device.deviceId, el);
-      
-                     if (typeof formated.units === "object") formated.units = "";
-                     else formated.units = this._getUnitsByCode(formated.units);
-                     return formated;
-                  })
-                  resolve(dataFormated);
-               })
-            });
-         }
-         
-         private _getPropertyNameByCode(type: number): string {
-            const property = PropertyNames[type];
-            if (property) return property.toLocaleLowerCase().replace('prop_', '');
-            return;
-         }
-      
-         private _getObjectTypeByCode(typeCode: number): string {
-            const property = ObjectTypesCode[typeCode];
-            if (property) return property.toLocaleLowerCase().replace('object_', '');
-            return;
-         }
-      
-         private _getUnitsByCode(typeCode: number): string {
-            const property = UNITS_TYPES[typeCode];
-            if (property) return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
-            return;
-         }
-      
-         private _formatProperty(deviceId, object) {
-      
+         while (objectLists.length > 0) {
+            const object = objectLists.shift();
             if (object) {
-               const { objectId, values } = object;
-      
-               const obj = {
-                  objectId: objectId,
-                  id: objectId.instance,
-                  typeId: objectId.type,
-                  type: this._getObjectTypeByCode(objectId.type),
-                  instance: objectId.instance,
-                  deviceId: deviceId
-               }
-      
-               for (const { id, value } of values) {
-                  const propertyName = this._getPropertyNameByCode(id);
-      
-                  if (propertyName) {
-                     obj[propertyName] = this._getObjValue(value);
-                  }
-      
-               }
-      
-               return obj;
+               const res = await BacnetUtilities._getObjectDetail(this.device, object, client);
+               objectListDetails.push(res);
             }
-      
          }
-      
-         private _getObjValue(value: any) {
-            if (Array.isArray(value)) {
-               if (value.length === 0) return "";
-               return value[0].value;
-            }
-      
-            return value.value;
-         }
-      
-         private _formatCurrentValue(value: any, type: number) {
-      
-            if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
-               return value ? true : false;
-            }
-      
-            return value;
-      
-         }
-     
-   private async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number) {
-      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
-      const found = children.find(el => el.idNetwork.get() == childNetworkId);
 
-      return found;
+         return objectListDetails;
+      } catch (error) {
+         return []
+      }
    }
- */
+
 }

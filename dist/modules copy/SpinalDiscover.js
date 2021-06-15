@@ -9,15 +9,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalContextCreation = void 0;
+exports.SpinalDiscover = void 0;
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const spinalBacnet_1 = require("./spinalBacnet");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
-class SpinalContextCreation {
+class SpinalDiscover {
     constructor(model) {
         this.networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
-        this.bacnet = new spinalBacnet_1.SpinalBacnet(model.network.get());
+        // this.bacnet = new SpinalBacnet(model.network.get())
         this.discoverModel = model;
         this.init();
     }
@@ -33,7 +32,6 @@ class SpinalContextCreation {
     }
     bindDevices() {
         this.bindDevicesProcess = this.discoverModel.devices.bind(() => {
-            console.log("inside if", this.discoverModel.devices.length, this.bacnet.count);
             if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
                 this.discoverModel.setDiscoveredMode();
                 this.bacnet.closeClient();
@@ -51,6 +49,17 @@ class SpinalContextCreation {
             default:
                 break;
         }
+    }
+    listenEvents() {
+        this.bacnet.on("deviceFound", (device) => this.addDeviceFound(device));
+        this.bacnet.on("timeout", () => this.timeOutEvent());
+        this.bacnet.on("noResponse", () => {
+            if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
+                this.discoverModel.setDiscoveredMode();
+                this.bacnet.closeClient();
+                this.discoverModel.devices.unbind(this.bindDevicesProcess);
+            }
+        });
     }
     /**
      * Methods
@@ -101,21 +110,8 @@ class SpinalContextCreation {
             return this.networkService.createNewBmsNetwork(organId, net.type, net.name);
         });
     }
-    listenEvents() {
-        this.bacnet.on("deviceFound", (device) => this.addDeviceFound(device));
-        this.bacnet.on("timeout", () => this.timeOutEvent());
-        this.bacnet.on("noResponse", () => {
-            if (this.discoverModel.devices.length !== 0 && this.discoverModel.devices.length === this.bacnet.count) {
-                this.discoverModel.setDiscoveredMode();
-                this.bacnet.closeClient();
-                this.discoverModel.devices.unbind(this.bindDevicesProcess);
-            }
-        });
-    }
     addDeviceFound(device) {
         console.log("device found", device.address);
-        // const device: IDevice = (<any>spinalDevice).device
-        // this.devicesFound.set(device.deviceId, spinalDevice);
         this.discoverModel.devices.push(device);
     }
     timeOutEvent() {
@@ -130,5 +126,5 @@ class SpinalContextCreation {
         });
     }
 }
-exports.SpinalContextCreation = SpinalContextCreation;
-//# sourceMappingURL=SpinalContextCreation.js.map
+exports.SpinalDiscover = SpinalDiscover;
+//# sourceMappingURL=SpinalDiscover.js.map

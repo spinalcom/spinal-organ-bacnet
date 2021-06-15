@@ -42,4 +42,4 @@ exports.UNITS_TYPES = (function swap(json) {
     }
     return ret;
 })(bacnet.enum.UnitsId);
-//# sourceMappingURL=globalVariables.js.map
+//# sourceMappingURL=GlobalVariables.js.map

@@ -15,7 +15,6 @@ export declare class SpinalDevice extends EventEmitter {
     private info;
     private client;
     private chunkLength;
-    private endpointGroups;
     private children;
     private node;
     private networkService;

@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BacnetUtilities = void 0;
 const bacnet = require("bacstack");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
-const globalVariables_1 = require("./globalVariables");
+const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 class BacnetUtilities {
     constructor() { }
@@ -21,10 +21,10 @@ class BacnetUtilities {
         const requestArray = objects.map(el => ({
             objectId: JSON.parse(JSON.stringify(el)),
             properties: [
-                { id: globalVariables_1.PropertyIds.PROP_OBJECT_NAME },
-                { id: globalVariables_1.PropertyIds.PROP_PRESENT_VALUE },
-                { id: globalVariables_1.PropertyIds.PROP_OBJECT_TYPE },
-                { id: globalVariables_1.PropertyIds.PROP_UNITS },
+                { id: GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME },
+                { id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE },
+                { id: GlobalVariables_1.PropertyIds.PROP_OBJECT_TYPE },
+                { id: GlobalVariables_1.PropertyIds.PROP_UNITS },
             ]
         }));
         // console.log(device, requestArray);
@@ -77,25 +77,25 @@ class BacnetUtilities {
         return value.value;
     }
     static _formatCurrentValue(value, type) {
-        if ([globalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT, globalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
+        if ([GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT, GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
             return value ? true : false;
         }
         return value;
     }
     static _getPropertyNameByCode(type) {
-        const property = globalVariables_1.PropertyNames[type];
+        const property = GlobalVariables_1.PropertyNames[type];
         if (property)
             return property.toLocaleLowerCase().replace('prop_', '');
         return;
     }
     static _getObjectTypeByCode(typeCode) {
-        const property = globalVariables_1.ObjectTypesCode[typeCode];
+        const property = GlobalVariables_1.ObjectTypesCode[typeCode];
         if (property)
             return property.toLocaleLowerCase().replace('object_', '');
         return;
     }
     static _getUnitsByCode(typeCode) {
-        const property = globalVariables_1.UNITS_TYPES[typeCode];
+        const property = GlobalVariables_1.UNITS_TYPES[typeCode];
         if (property)
             return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
         return;
@@ -116,7 +116,7 @@ class BacnetUtilities {
     }
     static _createEndpointsGroup(networkService, deviceId, groupName) {
         return __awaiter(this, void 0, void 0, function* () {
-            const networkId = globalVariables_1.ObjectTypes[`object_${groupName}`.toUpperCase()];
+            const networkId = GlobalVariables_1.ObjectTypes[`object_${groupName}`.toUpperCase()];
             const exist = yield BacnetUtilities._itemExistInChild(deviceId, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, networkId);
             if (exist)
                 return exist;
@@ -158,4 +158,4 @@ class BacnetUtilities {
 }
 exports.default = BacnetUtilities;
 exports.BacnetUtilities = BacnetUtilities;
-//# sourceMappingURL=bacnetUtilities.js.map
+//# sourceMappingURL=BacnetUtilities.js.map
