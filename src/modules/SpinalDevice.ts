@@ -1,14 +1,11 @@
 import * as lodash from "lodash";
 import * as bacnet from "bacstack";
-
-import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
-import { ObjectTypes, PropertyIds, SENSOR_TYPES, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "../utilities/GlobalVariables";
+import { NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
-import { SpinalEndpoint } from "./SpinalEndpoint";
-import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 
 // import { store } from "../store";
-
+import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVariables";
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
@@ -26,16 +23,17 @@ export class SpinalDevice extends EventEmitter {
    private client;
    private chunkLength: number = 60;
    private children: Array<{ type: string, instance: number }[]> = [];
+
    private node: SpinalNodeRef;
    private networkService: NetworkService;
 
 
-   constructor(device: IDevice, client?: any) {
+   constructor(device: IDevice, client?: any, networkService?: NetworkService) {
       super();
       this.device = device;
       this.client = client || new bacnet();
+      this.networkService = networkService || new NetworkService(false);
    }
-
 
    public init() {
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
@@ -98,13 +96,47 @@ export class SpinalDevice extends EventEmitter {
 
       if (spinalBacnetValueModel) {
          if (isError) {
+            console.log("set error model");
             spinalBacnetValueModel.setErrorState();
             return;
          }
 
+         console.log("set success model");
          spinalBacnetValueModel.setSuccessState();
       }
    }
+
+   public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: number }>) {
+
+      const client = this.client || new bacnet();
+      const children = lodash.chunk(objectIds, 60);
+      const objectListDetails = await this._getAllObjectDetails(children, client);
+
+      const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
+      const promises = Array.from(Object.keys(childrenGroups)).map((el: string) => {
+         return BacnetUtilities.createEndpointsInGroup(networkService, (<any>this.device).id, el, childrenGroups[el]);
+      })
+
+      return Promise.all(promises);
+   }
+
+   public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>) {
+      const client = new bacnet();
+
+      console.log(`${new Date()} ===> update ${(<any>this.device).name}`)
+      const objectListDetails = await BacnetUtilities._getChildrenNewValue(client, this.device.address, children)
+
+      console.log("new values", objectListDetails);
+
+      const obj: any = {
+         id: (<any>this.device).idNetwork,
+         children: this._groupByType(lodash.flattenDeep(objectListDetails))
+      }
+
+      networkService.updateData(obj, null, networkNode);
+
+   }
+
 
    //////////////////////////////////////////////////////////////////////////////
    ////                      PRIVATES                                        ////
@@ -220,4 +252,17 @@ export class SpinalDevice extends EventEmitter {
       }
    }
 
+   private _groupByType(itemList) {
+      const res = []
+      const obj = lodash.groupBy(itemList, (a) => a.type);
+
+      for (const [key, value] of Object.entries(obj)) {
+         res.push({
+            id: parseInt(key),
+            children: obj[key]
+         })
+      }
+
+      return res;
+   }
 }

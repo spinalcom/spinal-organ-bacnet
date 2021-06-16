@@ -14,6 +14,7 @@ class SpinalQueuing extends events_1.EventEmitter {
         this.processed = [];
         this.queueList = [];
         this.percent = 0;
+        this.isProcessing = false;
         this.debounceStart = lodash.debounce(this.begin, 3000);
     }
     addToQueue(obj) {
@@ -38,10 +39,16 @@ class SpinalQueuing extends events_1.EventEmitter {
         return item;
     }
     begin() {
-        this.emit(Events.START);
+        if (!this.isProcessing) {
+            this.isProcessing = true;
+            this.emit(Events.START);
+        }
     }
     finish() {
-        this.emit(Events.FINISH);
+        if (this.isProcessing) {
+            this.isProcessing = false;
+            this.emit(Events.FINISH);
+        }
     }
 }
 exports.SpinalQueuing = SpinalQueuing;

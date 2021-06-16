@@ -138,14 +138,13 @@ export class SpinalDiscover {
       this.discoverModel.devices.push(device);
    }
 
-
    private async createNodes() {
       console.log("creating nodes...");
 
       try {
          const queue = new SpinalQueuing();
          queue.setQueue(Array.from(this.devices.keys()));
-         const { networkService, network } = await SpinalNetworkServiceUtilities.init(this.discoverModel);
+         const { networkService, network } = await SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
          const devices = await this.getDevices(network.id.get());
 
 

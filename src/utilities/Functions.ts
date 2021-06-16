@@ -1,4 +1,4 @@
-import { FileSystem } from "spinal-core-connectorjs_type";
+import { FileSystem, File } from "spinal-core-connectorjs_type";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import {
    SpinalDisoverModel, SpinalListenerModel,
@@ -6,17 +6,12 @@ import {
 } from "spinal-model-bacnet";
 
 import { SpinalDiscover } from "../modules/SpinalDiscover";
-import { SpinalDeviceListener } from "../modules/SpinalDeviceListener";
-import { NetworkService } from "spinal-model-bmsnetwork";
-import { SpinalGraphService, SpinalNode } from "spinal-env-viewer-graph-service";
-import { SpinalQueuing } from "./Queuing";
-import { File } from "spinal-core-connectorjs_type";
+import { spinalMonitoring } from "../modules/SpinalMonitoring";
+
 import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
 
 const Q = require('q');
 const pm2 = require("pm2");
-
-const listenerQueue = new SpinalQueuing();
 
 const WaitModelReady = () => {
    const deferred = Q.defer();
@@ -94,7 +89,6 @@ export const GetPm2Instance = (organName: string) => {
 export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel) => {
 
    await WaitModelReady();
-   console.log("spinalDisoverModel", spinalDisoverModel);
 
    if (organModel.id?.get() === spinalDisoverModel.organ?.id?.get()) {
       const minute = 2 * (60 * 1000)
@@ -117,7 +111,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
    await WaitModelReady();
 
    try {
-      const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.init(spinalBacnetValueModel));
+      const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
 
       if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
 
@@ -143,11 +137,7 @@ export const SpinalListnerCallback = async (spinalListenerModel: SpinalListenerM
    spinalListenerModel.organ.load((organ) => {
       if (organ) {
          if (organ.id?.get() === organModel.id?.get()) {
-
-            listenerQueue.addToQueue({
-               item: spinalListenerModel,
-               callback: (item) => { }
-            })
+            spinalMonitoring.addToMonitoringList(spinalListenerModel);
          }
       }
 

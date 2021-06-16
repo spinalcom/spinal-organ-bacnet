@@ -21,8 +21,6 @@ class SpinalDiscover {
     constructor(model) {
         var _a, _b;
         this.devices = new Map();
-        // private bacnet: SpinalBacnet;
-        this.networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
         this.discoverModel = model;
         this.CONNECTION_TIME_OUT = ((_b = (_a = model.network) === null || _a === void 0 ? void 0 : _a.timeout) === null || _b === void 0 ? void 0 : _b.get()) || 45000;
         this.init(model);
@@ -132,7 +130,7 @@ class SpinalDiscover {
             try {
                 const queue = new Queuing_1.SpinalQueuing();
                 queue.setQueue(Array.from(this.devices.keys()));
-                const { networkService, network } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.init(this.discoverModel);
+                const { networkService, network } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
                 const devices = yield this.getDevices(network.id.get());
                 let isFinish = false;
                 while (!isFinish) {

@@ -26,7 +26,7 @@ export class SpinalDeviceListener extends EventEmitter {
 
    private monitorBind: any;
 
-   private spinalMonitors: SpinalMonitoring[] = [];
+   private spinalMonitors = [];
 
    constructor(listenerModel: any) {
       super()
@@ -64,38 +64,38 @@ export class SpinalDeviceListener extends EventEmitter {
    }
 
    private _bindListen() {
-      this.listenerModel.listen.bind(async () => {
-         if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
-            await this.checkIfItemExist(this.networkService, (<any>this.device).id);
-            this.monitorBind = this.listenerModel.monitor.bind(() => {
-               this._stopMonitors();
+      // this.listenerModel.listen.bind(async () => {
+      //    if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
+      //       await this.checkIfItemExist(this.networkService, (<any>this.device).id);
+      //       this.monitorBind = this.listenerModel.monitor.bind(() => {
+      //          this._stopMonitors();
 
-               for (let i = 0; i < this.listenerModel.monitor.length; i++) {
-                  const model = this.listenerModel.monitor[i];
-                  const spinalMonitoring = new SpinalMonitoring(model, (children) => {
-                     if (children.length > 0) this._updateEndpoints(children);
-                  });
-                  spinalMonitoring.start();
-                  this.spinalMonitors.push(spinalMonitoring);
-               }
-            })
+      //          for (let i = 0; i < this.listenerModel.monitor.length; i++) {
+      //             const model = this.listenerModel.monitor[i];
+      //             const spinalMonitoring = new SpinalMonitoring(model, (children) => {
+      //                if (children.length > 0) this._updateEndpoints(children);
+      //             });
+      //             spinalMonitoring.start();
+      //             this.spinalMonitors.push(spinalMonitoring);
+      //          }
+      //       })
 
-            return;
-         } else if (!this.listenerModel.listen.get()) {
-            if (this.monitorBind) {
-               this.listenerModel.monitor.unbind(this.monitorBind);
-            }
-            // console.log(`${new Date()} ===> ${(<any>this.device).name} is stopped`);
-            this._stopMonitors();
-         }
+      //       return;
+      //    } else if (!this.listenerModel.listen.get()) {
+      //       if (this.monitorBind) {
+      //          this.listenerModel.monitor.unbind(this.monitorBind);
+      //       }
+      //       // console.log(`${new Date()} ===> ${(<any>this.device).name} is stopped`);
+      //       this._stopMonitors();
+      //    }
 
 
 
-         // this.timeIntervalDebounced()
-      })
-      // setInterval(() => {
-      //    this._updateEndpoints();
-      // }, 15000);
+      //    // this.timeIntervalDebounced()
+      // })
+      // // setInterval(() => {
+      // //    this._updateEndpoints();
+      // // }, 15000);
    }
 
    private _stopMonitors() {
@@ -244,7 +244,6 @@ export class SpinalDeviceListener extends EventEmitter {
          })
       });
    }
-
 
    private async checkIfItemExist(networkService, deviceId) {
       console.log(new Date(), "===> checking if items exists", (<any>this.device).name);

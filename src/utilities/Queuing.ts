@@ -16,7 +16,9 @@ export class SpinalQueuing extends EventEmitter {
 
    public percent: number = 0;
    public length: number;
-   public debounceStart = lodash.debounce(this.begin, 3000);
+   public isProcessing: boolean = false;
+
+   private debounceStart = lodash.debounce(this.begin, 3000);
 
    constructor() {
       super();
@@ -48,11 +50,17 @@ export class SpinalQueuing extends EventEmitter {
 
 
    private begin() {
-      this.emit(Events.START)
+      if (!this.isProcessing) {
+         this.isProcessing = true;
+         this.emit(Events.START)
+      }
    }
 
    private finish() {
-      this.emit(Events.FINISH);
+      if (this.isProcessing) {
+         this.isProcessing = false;
+         this.emit(Events.FINISH);
+      }
    }
 }
 

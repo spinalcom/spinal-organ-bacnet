@@ -11,17 +11,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalNetworkServiceUtilities = void 0;
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
+const SpinalDevice_1 = require("../modules/SpinalDevice");
 class SpinalNetworkServiceUtilities {
     constructor() { }
-    static init(spinalModel) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (spinalModel instanceof spinal_model_bacnet_1.SpinalDisoverModel) {
-                return this.initSpinalDiscoverNetwork(spinalModel);
-            }
-        });
-    }
     static initSpinalDiscoverNetwork(spinalModel) {
         return __awaiter(this, void 0, void 0, function* () {
             const data = yield this._getSpinalDiscoverModel(spinalModel);
@@ -33,12 +26,67 @@ class SpinalNetworkServiceUtilities {
             };
         });
     }
+    static initSpinalBacnetValueModel(spinalModel) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { node, context, graph, network, organ } = yield spinalModel.getAllItem();
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(node);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
+            const networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
+            const organNetwork = {
+                contextName: context.getName().get(),
+                contextType: context.getType().get(),
+                networkType: network.getType().get(),
+                networkName: network.getName().get()
+            };
+            yield networkService.init(graph, organNetwork);
+            const device = { address: node.info.address.get(), deviceId: node.info.idNetwork.get() };
+            return {
+                networkService,
+                device,
+                organ,
+                node
+            };
+        });
+    }
+    static initSpinalListenerModel(spinalModel) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            const saveTimeSeries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
+            const networkService = new spinal_model_bmsnetwork_1.NetworkService(saveTimeSeries);
+            const [graph, device, network, context, organ] = yield Promise.all([
+                this.loadPtrValue(spinalModel.graph),
+                this.loadPtrValue(spinalModel.device),
+                this.loadPtrValue(spinalModel.network),
+                this.loadPtrValue(spinalModel.context),
+                this.loadPtrValue(spinalModel.organ)
+            ]);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
+            const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
+            yield networkService.init(graph, {
+                contextName: context.getName().get(),
+                contextType: context.getType().get(),
+                networkType: organ.type.get(),
+                networkName: organ.name.get()
+            });
+            return {
+                networkService,
+                spinalDevice,
+                spinalModel,
+                network
+            };
+        });
+    }
     /////////////////////////////////////////////////////////////
     ////              GET NETWORK SERVICE DATA                 //
     /////////////////////////////////////////////////////////////
     static _getSpinalDiscoverModel(discoverModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            const graph = yield this.getGraph(discoverModel.graph);
+            const graph = yield this.loadPtrValue(discoverModel.graph);
             const organ = {
                 contextName: discoverModel.context.name.get(),
                 contextType: discoverModel.context.type.get(),
@@ -64,10 +112,10 @@ class SpinalNetworkServiceUtilities {
             return networkService.createNewBmsNetwork(organId, networkInfo.type, networkInfo.name);
         });
     }
-    static getGraph(graphPtr) {
+    static loadPtrValue(ptrModel) {
         return new Promise((resolve, reject) => {
-            graphPtr.load((graph) => {
-                resolve(graph);
+            ptrModel.load((data) => {
+                resolve(data);
             });
         });
     }

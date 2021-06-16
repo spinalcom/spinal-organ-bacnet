@@ -16,6 +16,34 @@ const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 class BacnetUtilities {
     constructor() { }
+    static _getChildrenNewValue(client, address, children) {
+        client = client || new bacnet();
+        const requestArray = children.map(el => {
+            return {
+                objectId: el,
+                properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }]
+            };
+        });
+        return new Promise((resolve, reject) => {
+            client.readPropertyMultiple(address, requestArray, (err, data) => {
+                if (err) {
+                    // console.error(err)
+                    reject(err);
+                    return;
+                }
+                const dataFormated = data.values.map(el => {
+                    const value = this._getObjValue(el.values[0].value);
+                    return {
+                        id: el.objectId.instance,
+                        type: el.objectId.type,
+                        currentValue: this._formatCurrentValue(value, el.objectId.type)
+                    };
+                });
+                client.close();
+                resolve(dataFormated);
+            });
+        });
+    }
     static _getObjectDetail(device, objects, argClient) {
         const client = argClient || new bacnet();
         const requestArray = objects.map(el => ({
@@ -100,13 +128,6 @@ class BacnetUtilities {
             return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
         return;
     }
-    static _itemExistInChild(parentId, relationName, childNetworkId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
-            const found = children.find(el => el.idNetwork.get() == childNetworkId);
-            return found;
-        });
-    }
     static createEndpointsInGroup(networkService, deviceId, groupName, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
             const endpointGroup = yield this._createEndpointsGroup(networkService, deviceId, groupName);
@@ -153,6 +174,13 @@ class BacnetUtilities {
                 type: endpointObj.type,
             };
             return networkService.createNewBmsEndpoint(groupId, obj);
+        });
+    }
+    static _itemExistInChild(parentId, relationName, childNetworkId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
+            const found = children.find(el => el.idNetwork.get() == childNetworkId);
+            return found;
         });
     }
 }

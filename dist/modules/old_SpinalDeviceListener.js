@@ -15,7 +15,6 @@ const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const events_1 = require("events");
 const bacnet = require("bacstack");
 const lodash = require("lodash");
-const SpinalMonitoring_1 = require("./SpinalMonitoring");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalDeviceListener extends events_1.EventEmitter {
     constructor(listenerModel) {
@@ -52,35 +51,33 @@ class SpinalDeviceListener extends events_1.EventEmitter {
         });
     }
     _bindListen() {
-        this.listenerModel.listen.bind(() => __awaiter(this, void 0, void 0, function* () {
-            if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
-                yield this.checkIfItemExist(this.networkService, this.device.id);
-                this.monitorBind = this.listenerModel.monitor.bind(() => {
-                    this._stopMonitors();
-                    for (let i = 0; i < this.listenerModel.monitor.length; i++) {
-                        const model = this.listenerModel.monitor[i];
-                        const spinalMonitoring = new SpinalMonitoring_1.default(model, (children) => {
-                            if (children.length > 0)
-                                this._updateEndpoints(children);
-                        });
-                        spinalMonitoring.start();
-                        this.spinalMonitors.push(spinalMonitoring);
-                    }
-                });
-                return;
-            }
-            else if (!this.listenerModel.listen.get()) {
-                if (this.monitorBind) {
-                    this.listenerModel.monitor.unbind(this.monitorBind);
-                }
-                // console.log(`${new Date()} ===> ${(<any>this.device).name} is stopped`);
-                this._stopMonitors();
-            }
-            // this.timeIntervalDebounced()
-        }));
-        // setInterval(() => {
-        //    this._updateEndpoints();
-        // }, 15000);
+        // this.listenerModel.listen.bind(async () => {
+        //    if (this.listenerModel.listen.get() && this.listenerModel.monitor) {
+        //       await this.checkIfItemExist(this.networkService, (<any>this.device).id);
+        //       this.monitorBind = this.listenerModel.monitor.bind(() => {
+        //          this._stopMonitors();
+        //          for (let i = 0; i < this.listenerModel.monitor.length; i++) {
+        //             const model = this.listenerModel.monitor[i];
+        //             const spinalMonitoring = new SpinalMonitoring(model, (children) => {
+        //                if (children.length > 0) this._updateEndpoints(children);
+        //             });
+        //             spinalMonitoring.start();
+        //             this.spinalMonitors.push(spinalMonitoring);
+        //          }
+        //       })
+        //       return;
+        //    } else if (!this.listenerModel.listen.get()) {
+        //       if (this.monitorBind) {
+        //          this.listenerModel.monitor.unbind(this.monitorBind);
+        //       }
+        //       // console.log(`${new Date()} ===> ${(<any>this.device).name} is stopped`);
+        //       this._stopMonitors();
+        //    }
+        //    // this.timeIntervalDebounced()
+        // })
+        // // setInterval(() => {
+        // //    this._updateEndpoints();
+        // // }, 15000);
     }
     _stopMonitors() {
         for (const spinalMonitoring of this.spinalMonitors) {
@@ -239,4 +236,4 @@ class SpinalDeviceListener extends events_1.EventEmitter {
     }
 }
 exports.SpinalDeviceListener = SpinalDeviceListener;
-//# sourceMappingURL=SpinalDeviceListener.js.map
+//# sourceMappingURL=old_SpinalDeviceListener.js.map

@@ -9,6 +9,40 @@ import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spina
 export default class BacnetUtilities {
    constructor() { }
 
+
+   public static _getChildrenNewValue(client: any, address: string, children: Array<{ type: number, instance: number }>) {
+
+      client = client || new bacnet();
+
+      const requestArray = children.map(el => {
+         return {
+            objectId: el,
+            properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }]
+         }
+      })
+      return new Promise((resolve, reject) => {
+         client.readPropertyMultiple(address, requestArray, (err, data) => {
+            if (err) {
+               // console.error(err)
+               reject(err);
+               return;
+            }
+
+            const dataFormated = data.values.map(el => {
+               const value = this._getObjValue(el.values[0].value);
+               return {
+                  id: el.objectId.instance,
+                  type: el.objectId.type,
+                  currentValue: this._formatCurrentValue(value, el.objectId.type)
+               }
+            })
+
+            client.close();
+            resolve(dataFormated);
+         })
+      });
+   }
+
    public static _getObjectDetail(device: any, objects: Array<{ type: string, instance: number }>, argClient?: any) {
 
       const client = argClient || new bacnet();
@@ -112,12 +146,7 @@ export default class BacnetUtilities {
       return;
    }
 
-   public static async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number) {
-      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
-      const found = children.find(el => el.idNetwork.get() == childNetworkId);
 
-      return found;
-   }
 
    public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any) {
       const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
@@ -165,6 +194,13 @@ export default class BacnetUtilities {
 
       return networkService.createNewBmsEndpoint(groupId, obj);
 
+   }
+
+   public static async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number) {
+      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
+      const found = children.find(el => el.idNetwork.get() == childNetworkId);
+
+      return found;
    }
 
 }

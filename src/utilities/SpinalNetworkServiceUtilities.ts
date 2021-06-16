@@ -1,18 +1,11 @@
-import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
-import { SpinalBacnetValueModel, SpinalDisoverModel } from "spinal-model-bacnet";
-import { SpinalContext, SpinalGraph, SpinalGraphService, SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { NetworkService } from "spinal-model-bmsnetwork";
+import { SpinalBacnetValueModel, SpinalDisoverModel, SpinalListenerModel } from "spinal-model-bacnet";
+import { SpinalGraph, SpinalGraphService, SpinalNode } from "spinal-env-viewer-graph-service";
+import { SpinalDevice } from "../modules/SpinalDevice";
 
 
 export class SpinalNetworkServiceUtilities {
    constructor() { }
-
-   public static async init(spinalModel: SpinalDisoverModel | SpinalBacnetValueModel) {
-      if (spinalModel instanceof SpinalDisoverModel) {
-         return this.initSpinalDiscoverNetwork(spinalModel);
-      } else if (spinalModel instanceof SpinalBacnetValueModel) {
-         return this.initSpinalBacnetValueModel(spinalModel);
-      }
-   }
 
    public static async initSpinalDiscoverNetwork(spinalModel: SpinalDisoverModel): Promise<{
       networkService: NetworkService; network: any
@@ -36,21 +29,27 @@ export class SpinalNetworkServiceUtilities {
    }> {
 
       const { node, context, graph, network, organ } = await (<any>spinalModel.getAllItem());
+
+
       (<any>SpinalGraphService)._addNode(node);
       (<any>SpinalGraphService)._addNode(context);
       (<any>SpinalGraphService)._addNode(graph);
       (<any>SpinalGraphService)._addNode(network);
 
+
       const networkService: NetworkService = new NetworkService(false);
       const organNetwork = {
-         contextName: (<any>context).getName().get(),
-         contextType: (<any>context).getType().get(),
-         networkType: (<any>network).getType().get(),
-         networkName: (<any>network).getName().get()
+         contextName: context.getName().get(),
+         contextType: context.getType().get(),
+         networkType: network.getType().get(),
+         networkName: network.getName().get()
       };
 
-      await networkService.init((<any>graph), organNetwork);
-      const device = { address: (<any>node).info.address.get(), deviceId: (<any>node).info.idNetwork.get() }
+      await networkService.init(graph, organNetwork);
+
+
+
+      const device = { address: node.info.address.get(), deviceId: node.info.idNetwork.get() }
 
       return {
          networkService,
@@ -58,6 +57,50 @@ export class SpinalNetworkServiceUtilities {
          organ,
          node
       }
+   }
+
+
+   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
+      networkService: NetworkService; spinalDevice: SpinalDevice; spinalModel: SpinalListenerModel, network: SpinalNode<any>
+   }> {
+      const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
+      const networkService: NetworkService = new NetworkService(saveTimeSeries);
+
+      const [graph, device, network, context, organ] = await Promise.all([
+         this.loadPtrValue(spinalModel.graph),
+         this.loadPtrValue(spinalModel.device),
+         this.loadPtrValue(spinalModel.network),
+         this.loadPtrValue(spinalModel.context),
+         this.loadPtrValue(spinalModel.organ)
+      ]);
+
+
+      (<any>SpinalGraphService)._addNode(graph);
+      (<any>SpinalGraphService)._addNode(device);
+      (<any>SpinalGraphService)._addNode(network);
+      (<any>SpinalGraphService)._addNode(context);
+
+
+      const spinalDevice: SpinalDevice = new SpinalDevice(device.info.get());
+
+
+      await networkService.init(graph, {
+         contextName: context.getName().get(),
+         contextType: context.getType().get(),
+         networkType: organ.type.get(),
+         networkName: organ.name.get()
+      })
+
+
+
+
+      return {
+         networkService,
+         spinalDevice,
+         spinalModel,
+         network
+      }
+
    }
 
 
@@ -69,7 +112,7 @@ export class SpinalNetworkServiceUtilities {
       graph: SpinalGraph<any>;
       organ: { contextName: string; contextType: string; networkType: string; networkName: string; }
    }> {
-      const graph = await this.getGraph(discoverModel.graph);
+      const graph = await this.loadPtrValue(discoverModel.graph);
 
       const organ = {
          contextName: discoverModel.context.name.get(),
@@ -100,10 +143,10 @@ export class SpinalNetworkServiceUtilities {
       return networkService.createNewBmsNetwork(organId, networkInfo.type, networkInfo.name);
    }
 
-   private static getGraph(graphPtr): Promise<SpinalGraph<any>> {
+   private static loadPtrValue(ptrModel): Promise<SpinalGraph<any>> {
       return new Promise((resolve, reject) => {
-         graphPtr.load((graph) => {
-            resolve(graph);
+         ptrModel.load((data) => {
+            resolve(data);
          });
       });
 

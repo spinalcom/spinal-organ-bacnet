@@ -9,7 +9,8 @@ export declare class SpinalQueuing extends EventEmitter {
     private queueList;
     percent: number;
     length: number;
-    debounceStart: any;
+    isProcessing: boolean;
+    private debounceStart;
     constructor();
     addToQueue(obj: any): number;
     setQueue(queue: any[]): number;

@@ -9,18 +9,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalBacnetValueModelCallback = exports.SpinalListnerCallback = exports.SpinalDiscoverCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = void 0;
+exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.SpinalDiscoverCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = void 0;
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalDiscover_1 = require("../modules/SpinalDiscover");
-const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
-const Queuing_1 = require("./Queuing");
-const spinal_core_connectorjs_type_2 = require("spinal-core-connectorjs_type");
+const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
+const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
 const Q = require('q');
 const pm2 = require("pm2");
-const listenerQueue = new Queuing_1.SpinalQueuing();
 const WaitModelReady = () => {
     const deferred = Q.defer();
     const WaitModelReadyLoop = (defer) => {
@@ -61,7 +58,7 @@ const CreateOrganConfigFile = (spinalConnection, path, connectorName) => {
             console.log("organ not found");
             const model = new spinal_model_bacnet_1.SpinalOrganConfigModel(connectorName);
             WaitModelReady().then(() => {
-                const file = new spinal_core_connectorjs_type_2.File(`${connectorName}.conf`, model, undefined);
+                const file = new spinal_core_connectorjs_type_1.File(`${connectorName}.conf`, model, undefined);
                 directory.push(file);
                 console.log("organ created");
                 return resolve(model);
@@ -89,7 +86,6 @@ exports.GetPm2Instance = GetPm2Instance;
 const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d;
     yield WaitModelReady();
-    console.log("spinalDisoverModel", spinalDisoverModel);
     if (((_a = organModel.id) === null || _a === void 0 ? void 0 : _a.get()) === ((_c = (_b = spinalDisoverModel.organ) === null || _b === void 0 ? void 0 : _b.id) === null || _c === void 0 ? void 0 : _c.get())) {
         const minute = 2 * (60 * 1000);
         const time = Date.now();
@@ -103,54 +99,36 @@ const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(voi
     }
 });
 exports.SpinalDiscoverCallback = SpinalDiscoverCallback;
+const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
+    var _e, _f;
+    yield WaitModelReady();
+    try {
+        const { networkService, device, organ, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+        if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
+            return;
+        if (spinalBacnetValueModel.state.get() === 'wait') {
+            const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
+            yield spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
+        }
+        else {
+            return spinalBacnetValueModel.remToNode();
+        }
+    }
+    catch (error) {
+        spinalBacnetValueModel.setErrorState();
+    }
+});
+exports.SpinalBacnetValueModelCallback = SpinalBacnetValueModelCallback;
 const SpinalListnerCallback = (spinalListenerModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
     yield WaitModelReady();
     spinalListenerModel.organ.load((organ) => {
         var _a, _b;
         if (organ) {
             if (((_a = organ.id) === null || _a === void 0 ? void 0 : _a.get()) === ((_b = organModel.id) === null || _b === void 0 ? void 0 : _b.get())) {
-                listenerQueue.addToQueue({
-                    item: spinalListenerModel,
-                    callback: (item) => { }
-                });
+                SpinalMonitoring_1.spinalMonitoring.addToMonitoringList(spinalListenerModel);
             }
         }
     });
 });
 exports.SpinalListnerCallback = SpinalListnerCallback;
-const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e, _f;
-    yield WaitModelReady();
-    const { node, context, graph, network, organ } = yield spinalBacnetValueModel.getAllItem();
-    if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
-        return;
-    if (spinalBacnetValueModel.state.get() === 'wait' && node && context && graph && network && organ) {
-        spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(node);
-        spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
-        spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
-        spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
-        const networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
-        const organNetwork = {
-            contextName: context.getName().get(),
-            contextType: context.getType().get(),
-            networkType: network.getType().get(),
-            networkName: network.getName().get()
-        };
-        // const client = new bacnet();
-        yield networkService.init(graph, organNetwork);
-        const device = { address: node.info.address.get(), deviceId: node.info.idNetwork.get() };
-        // const spinalDevice = new SpinalDevice(device, client);
-        const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
-        spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel).then(() => {
-            console.log("hello world");
-        }).catch((err) => {
-            spinalBacnetValueModel.setErrorState();
-            console.log(`error ===> ${node.getName().get()}`);
-        });
-    }
-    else {
-        return spinalBacnetValueModel.remToNode();
-    }
-});
-exports.SpinalBacnetValueModelCallback = SpinalBacnetValueModelCallback;
 //# sourceMappingURL=Functions.js.map

@@ -1,10 +1,16 @@
-export default class SpinalMonitoring {
-    private monitorModel;
-    private intervalId;
-    private monitoringProcess;
-    private intervalProcess;
-    private updateFunc;
-    constructor(model: any, callback: Function);
-    start(): void;
-    stop(): void;
+import { SpinalListenerModel } from "spinal-model-bacnet";
+declare class SpinalMonitoring {
+    private queue;
+    private devices;
+    constructor();
+    init(): void;
+    addToMonitoringList(spinalListenerModel: SpinalListenerModel): Promise<void>;
+    startDeviceInitialisation(): Promise<void>;
+    startMonitoring(): Promise<void>;
+    private monitDevice;
+    private _stopMonitors;
+    private _getItemLists;
 }
+declare const spinalMonitoring: SpinalMonitoring;
+export default spinalMonitoring;
+export { spinalMonitoring };
