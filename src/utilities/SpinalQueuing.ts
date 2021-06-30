@@ -9,13 +9,11 @@ export enum Events {
 
 export class SpinalQueuing extends EventEmitter {
 
-
-
    private processed: Array<any> = [];
    private queueList: Array<any> = [];
 
    public percent: number = 0;
-   public length: number;
+   private length: number;
    public isProcessing: boolean = false;
 
    private debounceStart = lodash.debounce(this.begin, 3000);
@@ -46,6 +44,18 @@ export class SpinalQueuing extends EventEmitter {
 
       this.percent = Math.floor((100 * this.processed.length) / this.length);
       return item;
+   }
+
+   public refresh() {
+      this.queueList = [];
+   }
+
+   public getQueue(): any[] {
+      return [...this.queueList];
+   }
+
+   public isEmpty(): boolean {
+      return this.queueList.length === 0;
    }
 
 

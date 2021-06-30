@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@datastructures-js/priority-queue": "^5.1.1",
     "bacstack": "0.0.1-beta.13",
     "big-json": "^3.1.0",
     "json5": "^2.2.0",
@@ -20,7 +21,8 @@
     "pm2": "^4.5.6",
     "socket.io": "^3.1.1",
     "spinal-model-bacnet": "git+https://github.com/spinalcom/spinal-model-bacnet.git",
-    "spinal-model-bmsnetwork": "git+https://github.com/spinalcom/spinal-model-bmsnetwork.git#personalized"
+    "spinal-model-bmsnetwork": "git+https://github.com/spinalcom/spinal-model-bmsnetwork.git#personalized",
+    "ts-priority-queue": "^0.1.1"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

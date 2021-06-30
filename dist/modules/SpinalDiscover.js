@@ -11,7 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalDiscover = void 0;
 const bacnet = require("bacstack");
-const Queuing_1 = require("../utilities/Queuing");
+const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
@@ -81,7 +81,7 @@ class SpinalDiscover {
         });
     }
     getDevicesQueue() {
-        const queue = new Queuing_1.SpinalQueuing();
+        const queue = new SpinalQueuing_1.SpinalQueuing();
         return new Promise((resolve, reject) => {
             var _a, _b, _c, _d;
             if ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get()) {
@@ -128,7 +128,7 @@ class SpinalDiscover {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("creating nodes...");
             try {
-                const queue = new Queuing_1.SpinalQueuing();
+                const queue = new SpinalQueuing_1.SpinalQueuing();
                 queue.setQueue(Array.from(this.devices.keys()));
                 const { networkService, network } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
                 const devices = yield this.getDevices(network.id.get());

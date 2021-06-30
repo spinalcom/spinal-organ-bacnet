@@ -10,38 +10,7 @@ export default class BacnetUtilities {
    constructor() { }
 
 
-   public static _getChildrenNewValue(client: any, address: string, children: Array<{ type: number, instance: number }>) {
 
-      client = client || new bacnet();
-
-      const requestArray = children.map(el => {
-         return {
-            objectId: el,
-            properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }]
-         }
-      })
-      return new Promise((resolve, reject) => {
-         client.readPropertyMultiple(address, requestArray, (err, data) => {
-            if (err) {
-               // console.error(err)
-               reject(err);
-               return;
-            }
-
-            const dataFormated = data.values.map(el => {
-               const value = this._getObjValue(el.values[0].value);
-               return {
-                  id: el.objectId.instance,
-                  type: el.objectId.type,
-                  currentValue: this._formatCurrentValue(value, el.objectId.type)
-               }
-            })
-
-            client.close();
-            resolve(dataFormated);
-         })
-      });
-   }
 
    public static _getObjectDetail(device: any, objects: Array<{ type: string, instance: number }>, argClient?: any) {
 
@@ -81,6 +50,39 @@ export default class BacnetUtilities {
       });
    }
 
+   public static _getChildrenNewValue(client: any, address: string, children: Array<{ type: number, instance: number }>) {
+
+      client = client || new bacnet();
+
+      const requestArray = children.map(el => {
+         return {
+            objectId: el,
+            properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }]
+         }
+      })
+      return new Promise((resolve, reject) => {
+         client.readPropertyMultiple(address, requestArray, (err, data) => {
+            if (err) {
+               // console.error(err)
+               reject(err);
+               return;
+            }
+
+            const dataFormated = data.values.map(el => {
+               const value = this._getObjValue(el.values[0].value);
+               return {
+                  id: el.objectId.instance,
+                  type: el.objectId.type,
+                  currentValue: this._formatCurrentValue(value, el.objectId.type)
+               }
+            })
+
+            client.close();
+            resolve(dataFormated);
+         })
+      });
+   }
+
    public static _formatProperty(deviceId, object) {
 
       if (object) {
@@ -110,12 +112,15 @@ export default class BacnetUtilities {
    }
 
    public static _getObjValue(value: any) {
-      if (Array.isArray(value)) {
-         if (value.length === 0) return "";
-         return value[0].value;
-      }
+      let temp_value = Array.isArray(value) ? value[0]?.value : value.value;
 
-      return value.value;
+      return typeof temp_value === "object" ? "" : temp_value;
+      // if (Array.isArray(value)) {
+      //    if (value.length === 0 || typeof value[0].value === "object") return "";
+      //    return value[0].value;
+      // }
+
+      // return value.value;
    }
 
    public static _formatCurrentValue(value: any, type: number) {
@@ -185,7 +190,7 @@ export default class BacnetUtilities {
       const obj: any = {
          id: networkId,
          typeId: endpointObj.typeId,
-         name: endpointObj.object_name,
+         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : "no name",
          path: "",
          currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
          unit: endpointObj.units,

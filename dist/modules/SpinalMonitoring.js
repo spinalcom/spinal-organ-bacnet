@@ -10,13 +10,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalMonitoring = void 0;
+const priority_queue_1 = require("@datastructures-js/priority-queue");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
-const Queuing_1 = require("../utilities/Queuing");
-const Monitor_1 = require("../utilities/Monitor");
+const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
+const lodash = require("lodash");
 class SpinalMonitoring {
+    // private devices: Array<{
+    //    networkService: NetworkService,
+    //    spinalDevice: SpinalDevice,
+    //    spinalModel: SpinalListenerModel,
+    //    network: SpinalNode<any>,
+    //    monitors?: Monitor[]
+    // }> = [];
     constructor() {
-        this.queue = new Queuing_1.SpinalQueuing();
-        this.devices = [];
+        this.queue = new SpinalQueuing_1.SpinalQueuing();
+        this.priorityQueue = new priority_queue_1.MinPriorityQueue();
+        this.isProcessing = false;
+        this.intervalTimesMap = new Map();
     }
     init() {
         this.queue.on("start", () => {
@@ -31,77 +41,66 @@ class SpinalMonitoring {
     }
     startDeviceInitialisation() {
         return __awaiter(this, void 0, void 0, function* () {
-            let isFinish = false;
-            while (!isFinish) {
-                const spinalListenerModel = this.queue.dequeue();
-                try {
-                    if (typeof spinalListenerModel !== "undefined") {
-                        const objectIds = this._getItemLists(spinalListenerModel);
-                        const data = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(spinalListenerModel);
-                        yield data.spinalDevice.checkAndCreateIfNotExist(data.networkService, objectIds);
-                        this.devices.push(data);
-                    }
-                    else {
-                        isFinish = true;
-                    }
-                }
-                catch (error) {
-                    console.error(error);
-                }
+            const list = this.queue.getQueue();
+            this.queue.refresh();
+            const promises = list.map(el => SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
+            const devices = lodash.flattenDeep(yield Promise.all(promises));
+            this._addToMaps(devices);
+            if (!this.isProcessing) {
+                this.isProcessing = true;
+                this.startMonitoring();
             }
-            this.startMonitoring();
         });
     }
     startMonitoring() {
         return __awaiter(this, void 0, void 0, function* () {
-            for (const data of this.devices) {
-                this.monitDevice(data);
+            let p = true;
+            while (p) {
+                const { priority, element } = this.priorityQueue.dequeue();
+                yield this.execFunc(element.functions, element.interval, priority);
+            }
+            // for (const data of this.devices) {
+            //    await this.monitDevice(data);
+            // }
+        });
+    }
+    execFunc(functions, interval, date) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (date && Date.now() < date) {
+                yield this.waitFct(date - Date.now());
+            }
+            try {
+                yield Promise.all(functions.map(func => {
+                    if (typeof func === "function")
+                        return func();
+                }));
+                this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
+            }
+            catch (error) {
+                this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
             }
         });
     }
-    monitDevice(data) {
-        let monitorBind;
-        data.spinalModel.listen.bind(() => {
-            if (data.spinalModel.listen.get() && data.spinalModel.monitor) {
-                monitorBind = data.spinalModel.monitor.bind(() => {
-                    this._stopMonitors(data.monitors);
-                    for (let i = 0; i < data.spinalModel.monitor.length; i++) {
-                        const model = data.spinalModel.monitor[i];
-                        const monitor = new Monitor_1.Monitor(model, data.networkService, data.spinalDevice, data.spinalModel, data.network);
-                        monitor.start();
-                        if (data.monitors) {
-                            data.monitors.push(monitor);
-                        }
-                        else {
-                            data.monitors = [monitor];
-                        }
-                        // this.monitors.push(monitor);
-                    }
-                });
+    _addToMaps(devices) {
+        for (const { interval, func } of devices) {
+            if (isNaN(interval))
+                continue;
+            const value = this.intervalTimesMap.get(interval);
+            if (typeof value !== "undefined") {
+                value.push(func);
             }
-            else if (!data.spinalModel.listen.get()) {
-                if (monitorBind) {
-                    data.spinalModel.monitor.unbind(monitorBind);
-                }
-                this._stopMonitors(data.monitors);
+            else {
+                this.intervalTimesMap.set(interval, [func]);
+                this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
             }
+        }
+    }
+    waitFct(nb) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, nb >= 0 ? nb : 0);
         });
-    }
-    _stopMonitors(monitors = []) {
-        for (const spinalMonitoring of monitors) {
-            spinalMonitoring.stop();
-        }
-        monitors = [];
-    }
-    _getItemLists(listenerModel) {
-        if (listenerModel.monitor) {
-            let objectIds = [];
-            for (let i = 0; i < listenerModel.monitor.length; i++) {
-                objectIds.push(...listenerModel.monitor[i].children.get());
-            }
-            return objectIds;
-        }
-        return [];
     }
 }
 const spinalMonitoring = new SpinalMonitoring();

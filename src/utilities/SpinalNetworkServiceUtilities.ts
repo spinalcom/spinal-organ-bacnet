@@ -60,18 +60,17 @@ export class SpinalNetworkServiceUtilities {
    }
 
 
-   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
-      networkService: NetworkService; spinalDevice: SpinalDevice; spinalModel: SpinalListenerModel, network: SpinalNode<any>
-   }> {
+   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{ interval: number; func: Function }> {
       const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
       const networkService: NetworkService = new NetworkService(saveTimeSeries);
 
-      const [graph, device, network, context, organ] = await Promise.all([
+      const [graph, device, network, context, organ, profil] = await Promise.all([
          this.loadPtrValue(spinalModel.graph),
          this.loadPtrValue(spinalModel.device),
          this.loadPtrValue(spinalModel.network),
          this.loadPtrValue(spinalModel.context),
-         this.loadPtrValue(spinalModel.organ)
+         this.loadPtrValue(spinalModel.organ),
+         this.loadPtrValue(spinalModel.monitor.profil)
       ]);
 
 
@@ -91,15 +90,37 @@ export class SpinalNetworkServiceUtilities {
          networkName: organ.name.get()
       })
 
+      spinalModel.saveTimeSeries?.bind(() => {
+         console.log("timeSeries change", spinalModel.saveTimeSeries?.get());
+         networkService.useTimeseries = spinalModel.saveTimeSeries?.get() || false;
+      })
+
+      const monitors = spinalModel.monitor.getMonitoringData();
+
+      return monitors.map(({ interval, children }) => {
+         return {
+            interval,
+            func: () => {
+               if (spinalModel.listen.get()) {
+                  spinalDevice.updateEndpoints(networkService, network, children);
+               }
+
+               // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
+            }
+         }
+      })
 
 
 
-      return {
-         networkService,
-         spinalDevice,
-         spinalModel,
-         network
-      }
+
+      // return {
+      //    networkService,
+      //    spinalDevice,
+      //    spinalModel,
+      //    network,
+      //    profil,
+      //    monitor: 
+      // }
 
    }
 

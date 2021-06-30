@@ -38,6 +38,15 @@ class SpinalQueuing extends events_1.EventEmitter {
         this.percent = Math.floor((100 * this.processed.length) / this.length);
         return item;
     }
+    refresh() {
+        this.queueList = [];
+    }
+    getQueue() {
+        return [...this.queueList];
+    }
+    isEmpty() {
+        return this.queueList.length === 0;
+    }
     begin() {
         if (!this.isProcessing) {
             this.isProcessing = true;
@@ -53,4 +62,4 @@ class SpinalQueuing extends events_1.EventEmitter {
 }
 exports.SpinalQueuing = SpinalQueuing;
 exports.default = SpinalQueuing;
-//# sourceMappingURL=Queuing.js.map
+//# sourceMappingURL=SpinalQueuing.js.map

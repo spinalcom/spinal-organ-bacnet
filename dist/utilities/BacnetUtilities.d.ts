@@ -1,14 +1,14 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
 export default class BacnetUtilities {
     constructor();
-    static _getChildrenNewValue(client: any, address: string, children: Array<{
-        type: number;
-        instance: number;
-    }>): Promise<unknown>;
     static _getObjectDetail(device: any, objects: Array<{
         type: string;
         instance: number;
     }>, argClient?: any): Promise<unknown>;
+    static _getChildrenNewValue(client: any, address: string, children: Array<{
+        type: number;
+        instance: number;
+    }>): Promise<unknown>;
     static _formatProperty(deviceId: any, object: any): {
         objectId: any;
         id: any;

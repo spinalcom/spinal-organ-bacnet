@@ -16,34 +16,6 @@ const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 class BacnetUtilities {
     constructor() { }
-    static _getChildrenNewValue(client, address, children) {
-        client = client || new bacnet();
-        const requestArray = children.map(el => {
-            return {
-                objectId: el,
-                properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }]
-            };
-        });
-        return new Promise((resolve, reject) => {
-            client.readPropertyMultiple(address, requestArray, (err, data) => {
-                if (err) {
-                    // console.error(err)
-                    reject(err);
-                    return;
-                }
-                const dataFormated = data.values.map(el => {
-                    const value = this._getObjValue(el.values[0].value);
-                    return {
-                        id: el.objectId.instance,
-                        type: el.objectId.type,
-                        currentValue: this._formatCurrentValue(value, el.objectId.type)
-                    };
-                });
-                client.close();
-                resolve(dataFormated);
-            });
-        });
-    }
     static _getObjectDetail(device, objects, argClient) {
         const client = argClient || new bacnet();
         const requestArray = objects.map(el => ({
@@ -76,6 +48,34 @@ class BacnetUtilities {
             });
         });
     }
+    static _getChildrenNewValue(client, address, children) {
+        client = client || new bacnet();
+        const requestArray = children.map(el => {
+            return {
+                objectId: el,
+                properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }]
+            };
+        });
+        return new Promise((resolve, reject) => {
+            client.readPropertyMultiple(address, requestArray, (err, data) => {
+                if (err) {
+                    // console.error(err)
+                    reject(err);
+                    return;
+                }
+                const dataFormated = data.values.map(el => {
+                    const value = this._getObjValue(el.values[0].value);
+                    return {
+                        id: el.objectId.instance,
+                        type: el.objectId.type,
+                        currentValue: this._formatCurrentValue(value, el.objectId.type)
+                    };
+                });
+                client.close();
+                resolve(dataFormated);
+            });
+        });
+    }
     static _formatProperty(deviceId, object) {
         if (object) {
             const { objectId, values } = object;
@@ -97,12 +97,14 @@ class BacnetUtilities {
         }
     }
     static _getObjValue(value) {
-        if (Array.isArray(value)) {
-            if (value.length === 0)
-                return "";
-            return value[0].value;
-        }
-        return value.value;
+        var _a;
+        let temp_value = Array.isArray(value) ? (_a = value[0]) === null || _a === void 0 ? void 0 : _a.value : value.value;
+        return typeof temp_value === "object" ? "" : temp_value;
+        // if (Array.isArray(value)) {
+        //    if (value.length === 0 || typeof value[0].value === "object") return "";
+        //    return value[0].value;
+        // }
+        // return value.value;
     }
     static _formatCurrentValue(value, type) {
         if ([GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT, GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
@@ -167,7 +169,7 @@ class BacnetUtilities {
             const obj = {
                 id: networkId,
                 typeId: endpointObj.typeId,
-                name: endpointObj.object_name,
+                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : "no name",
                 path: "",
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,

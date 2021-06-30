@@ -1,7 +1,6 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { SpinalBacnetValueModel, SpinalDisoverModel, SpinalListenerModel } from "spinal-model-bacnet";
 import { SpinalNode } from "spinal-env-viewer-graph-service";
-import { SpinalDevice } from "../modules/SpinalDevice";
 export declare class SpinalNetworkServiceUtilities {
     constructor();
     static initSpinalDiscoverNetwork(spinalModel: SpinalDisoverModel): Promise<{
@@ -16,10 +15,8 @@ export declare class SpinalNetworkServiceUtilities {
         node: SpinalNode<any>;
     }>;
     static initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
-        networkService: NetworkService;
-        spinalDevice: SpinalDevice;
-        spinalModel: SpinalListenerModel;
-        network: SpinalNode<any>;
+        interval: number;
+        func: Function;
     }>;
     private static _getSpinalDiscoverModel;
     private static _getOrCreateNetworkNode;

@@ -1,5 +1,5 @@
 import * as bacnet from 'bacstack';
-import { SpinalQueuing } from '../utilities/Queuing';
+import { SpinalQueuing } from '../utilities/SpinalQueuing';
 import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { SpinalBmsDevice } from "spinal-model-bmsnetwork";
 import { IDevice, SpinalDevice } from './SpinalDevice';
