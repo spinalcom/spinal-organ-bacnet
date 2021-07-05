@@ -75,9 +75,15 @@ class SpinalMonitoring {
          await this.waitFct(date - Date.now());
       }
       try {
-         await Promise.all(functions.map(func => {
-            if (typeof func === "function") return func();
-         }))
+         const deep_functions = [...functions]
+         console.log("deep_functions", deep_functions);
+
+         while (deep_functions.length > 0) {
+            try {
+               const func = deep_functions.shift();
+               if (typeof func === "function") await func();
+            } catch (error) { }
+         }
          this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
       } catch (error) {
          this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);

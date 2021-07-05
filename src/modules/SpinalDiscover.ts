@@ -64,13 +64,17 @@ export class SpinalDiscover {
                const info = await this.createSpinalDevice(item);
                if (info) this.addDeviceFound(info);
             } else {
+               console.log("isFinish");
                isFinish = true;
             }
          }
 
          if (this.discoverModel.devices.length !== 0) {
             this.discoverModel.setDiscoveredMode();
+            console.log("discovered");
+
          } else {
+            console.log("Timeout !");
             this.discoverModel.setTimeoutMode();
          }
 

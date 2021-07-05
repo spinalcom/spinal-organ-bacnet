@@ -1,8 +1,8 @@
-node_modules
 .vscode
+node_modules
 db
 spinal-model-bmsnetwork
-old_config.json5
 config.json5
+old_config.json5
 logs
 pilote_script.js

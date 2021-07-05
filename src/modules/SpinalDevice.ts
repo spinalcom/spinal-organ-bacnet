@@ -108,7 +108,7 @@ export class SpinalDevice extends EventEmitter {
 
    public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: number }>) {
 
-      const client = this.client || new bacnet();
+      const client = new bacnet();
       const children = lodash.chunk(objectIds, 60);
       const objectListDetails = await this._getAllObjectDetails(children, client);
 
@@ -121,19 +121,23 @@ export class SpinalDevice extends EventEmitter {
    }
 
    public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>) {
-      const client = new bacnet();
+      try {
+         const client = new bacnet();
 
-      console.log(`${new Date()} ===> update ${(<any>this.device).name}`)
-      const objectListDetails = await BacnetUtilities._getChildrenNewValue(client, this.device.address, children)
+         console.log(`${new Date()} ===> update ${(<any>this.device).name}`)
+         const objectListDetails = await BacnetUtilities._getChildrenNewValue(client, this.device.address, children)
 
-      console.log("new values", objectListDetails);
+         const obj: any = {
+            id: (<any>this.device).idNetwork,
+            children: this._groupByType(lodash.flattenDeep(objectListDetails))
+         }
 
-      const obj: any = {
-         id: (<any>this.device).idNetwork,
-         children: this._groupByType(lodash.flattenDeep(objectListDetails))
+         networkService.updateData(obj, null, networkNode);
+      } catch (error) {
+         // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
+         console.error(error);
+
       }
-
-      networkService.updateData(obj, null, networkNode);
 
    }
 

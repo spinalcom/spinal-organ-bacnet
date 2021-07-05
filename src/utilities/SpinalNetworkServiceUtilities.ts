@@ -91,18 +91,22 @@ export class SpinalNetworkServiceUtilities {
       })
 
       spinalModel.saveTimeSeries?.bind(() => {
-         console.log("timeSeries change", spinalModel.saveTimeSeries?.get());
          networkService.useTimeseries = spinalModel.saveTimeSeries?.get() || false;
       })
 
       const monitors = spinalModel.monitor.getMonitoringData();
 
       return monitors.map(({ interval, children }) => {
+         let init = false;
          return {
             interval,
-            func: () => {
+            func: async () => {
                if (spinalModel.listen.get()) {
-                  spinalDevice.updateEndpoints(networkService, network, children);
+                  if (!init) {
+                     await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+                     init = true;
+                  }
+                  await spinalDevice.updateEndpoints(networkService, network, children);
                }
 
                // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
