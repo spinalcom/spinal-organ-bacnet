@@ -1,13 +1,13 @@
 {
    spinalConnector : {
       // name : "spinal-organ-bacnet-test",
-      name: "hello world",
-      userId: "168", // user id - process.env.SPINAL_USER_ID
+      name: "ORGAN_NAME",
+      userId: "USER_ID", // user id - process.env.SPINAL_USER_ID
       // password: "HBOJRtNPAm5E", // user password - process.env.SPINAL_USER_ID 
-      password : "HBOJRtNPAm5E",
+      password : "HUB_PASSWORD",
       protocol : "http",
       // host: "vinci-archipel-b1.spinalcom.com", // can be an ip address - process.env.SPINALHUB_IP
-      host: "localhost", // can be an ip address - process.env.SPINALHUB_IP
+      host: "HUB_IP", // can be an ip address - process.env.SPINALHUB_IP
       
       port: 7777, // hub port
       path: '/__users__/admin/organs'
