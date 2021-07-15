@@ -31,7 +31,7 @@ class SpinalQueuing extends events_1.EventEmitter {
     }
     dequeue() {
         const item = this.queueList.shift();
-        if (typeof item === "undefined")
+        if (this.queueList.length === 0)
             this.finish();
         else
             this.processed.push(item);

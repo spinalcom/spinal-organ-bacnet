@@ -90,7 +90,7 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     checkAndCreateIfNotExist(networkService, objectIds) {
         return __awaiter(this, void 0, void 0, function* () {
-            const client = this.client || new bacnet();
+            const client = new bacnet();
             const children = lodash.chunk(objectIds, 60);
             const objectListDetails = yield this._getAllObjectDetails(children, client);
             const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
@@ -102,15 +102,20 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     updateEndpoints(networkService, networkNode, children) {
         return __awaiter(this, void 0, void 0, function* () {
-            const client = new bacnet();
-            console.log(`${new Date()} ===> update ${this.device.name}`);
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(client, this.device.address, children);
-            console.log("new values", objectListDetails);
-            const obj = {
-                id: this.device.idNetwork,
-                children: this._groupByType(lodash.flattenDeep(objectListDetails))
-            };
-            networkService.updateData(obj, null, networkNode);
+            try {
+                const client = new bacnet();
+                console.log(`${new Date()} ===> update ${this.device.name}`);
+                const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(client, this.device.address, children);
+                const obj = {
+                    id: this.device.idNetwork,
+                    children: this._groupByType(lodash.flattenDeep(objectListDetails))
+                };
+                networkService.updateData(obj, null, networkNode);
+            }
+            catch (error) {
+                // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
+                console.error(error);
+            }
         });
     }
     //////////////////////////////////////////////////////////////////////////////
@@ -169,13 +174,14 @@ class SpinalDevice extends events_1.EventEmitter {
                     reject(err);
                     return;
                 }
-                const dataFormated = data.values.map(el => BacnetUtilities_1.BacnetUtilities._formatProperty(device.deviceId, el));
+                const [dataFormated] = data.values.map(el => BacnetUtilities_1.BacnetUtilities._formatProperty(device.deviceId, el));
+                const tempName = dataFormated[BacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME)];
                 const obj = {
                     id: device.deviceId,
                     deviceId: device.deviceId,
                     address: device.address,
-                    name: dataFormated[0][BacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME)],
-                    type: dataFormated[0].type
+                    name: (tempName === null || tempName === void 0 ? void 0 : tempName.length) > 0 ? tempName : `Device_${device.deviceId}`,
+                    type: dataFormated.type
                 };
                 resolve(obj);
             });

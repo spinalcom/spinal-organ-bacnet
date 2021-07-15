@@ -27,6 +27,7 @@ export class SpinalDiscover {
       this.client = new bacnet({
          address: model.network?.address?.get(),
          port: model.network?.port?.get(),
+
       })
 
       this.client.on('error', (err) => {

@@ -30,7 +30,7 @@ class SpinalMonitoring {
     }
     init() {
         this.queue.on("start", () => {
-            console.log("start");
+            console.log("start monitoring...");
             this.startDeviceInitialisation();
         });
     }
@@ -56,6 +56,10 @@ class SpinalMonitoring {
         return __awaiter(this, void 0, void 0, function* () {
             let p = true;
             while (p) {
+                if (this.priorityQueue.isEmpty()) {
+                    yield this.waitFct(100);
+                    continue;
+                }
                 const { priority, element } = this.priorityQueue.dequeue();
                 yield this.execFunc(element.functions, element.interval, priority);
             }
@@ -70,10 +74,16 @@ class SpinalMonitoring {
                 yield this.waitFct(date - Date.now());
             }
             try {
-                yield Promise.all(functions.map(func => {
-                    if (typeof func === "function")
-                        return func();
-                }));
+                const deep_functions = [...functions];
+                // console.log("deep_functions", deep_functions);
+                while (deep_functions.length > 0) {
+                    try {
+                        const func = deep_functions.shift();
+                        if (typeof func === "function")
+                            yield func();
+                    }
+                    catch (error) { }
+                }
                 this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
             }
             catch (error) {

@@ -2,13 +2,15 @@ import { FileSystem, File } from "spinal-core-connectorjs_type";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import {
    SpinalDisoverModel, SpinalListenerModel,
-   SpinalOrganConfigModel, SpinalBacnetValueModel, STATES
+   SpinalOrganConfigModel, SpinalBacnetValueModel,
+   SpinalPilotModel, STATES
 } from "spinal-model-bacnet";
 
 import { SpinalDiscover } from "../modules/SpinalDiscover";
-import { spinalMonitoring } from "../modules/SpinalMonitoring";
-
 import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
+
+import { spinalMonitoring } from "../modules/SpinalMonitoring";
+import { spinalPilot } from "../modules/SpinalPilot";
 
 const Q = require('q');
 const pm2 = require("pm2");
@@ -142,5 +144,12 @@ export const SpinalListnerCallback = async (spinalListenerModel: SpinalListenerM
       }
 
    })
+}
+
+export const SpinalPilotCallback = async (spinalPilotModel: SpinalPilotModel, organModel: SpinalOrganConfigModel) => {
+   await WaitModelReady();
+   if (spinalPilotModel.organ?.id.get() === organModel.id?.get()) {
+      spinalPilot.addToPilotList(spinalPilotModel);
+   }
 }
 

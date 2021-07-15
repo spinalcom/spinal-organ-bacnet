@@ -75,20 +75,24 @@ class SpinalNetworkServiceUtilities {
                 networkName: organ.name.get()
             });
             (_b = spinalModel.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.bind(() => {
-                var _a, _b;
-                console.log("timeSeries change", (_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get());
-                networkService.useTimeseries = ((_b = spinalModel.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.get()) || false;
+                var _a;
+                networkService.useTimeseries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
             });
             const monitors = spinalModel.monitor.getMonitoringData();
             return monitors.map(({ interval, children }) => {
+                let init = false;
                 return {
                     interval,
-                    func: () => {
+                    func: () => __awaiter(this, void 0, void 0, function* () {
                         if (spinalModel.listen.get()) {
-                            spinalDevice.updateEndpoints(networkService, network, children);
+                            if (!init) {
+                                yield spinalDevice.checkAndCreateIfNotExist(networkService, children);
+                                init = true;
+                            }
+                            yield spinalDevice.updateEndpoints(networkService, network, children);
                         }
                         // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
-                    }
+                    })
                 };
             });
         });

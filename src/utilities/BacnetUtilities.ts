@@ -23,6 +23,8 @@ export default class BacnetUtilities {
             { id: PropertyIds.PROP_PRESENT_VALUE },
             { id: PropertyIds.PROP_OBJECT_TYPE },
             { id: PropertyIds.PROP_UNITS },
+            { id: PropertyIds.PROP_MAXIMUM_VALUE }, 
+            { id: PropertyIds.PROP_MINIMUM_VALUE }
          ]
       }))
 
@@ -151,8 +153,6 @@ export default class BacnetUtilities {
       return;
    }
 
-
-
    public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any) {
       const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
       const groupId = endpointGroup.id.get();
@@ -187,10 +187,12 @@ export default class BacnetUtilities {
       const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
       if (exist) return exist;
 
+      // console.log("endpointObj", endpointObj);
+      
       const obj: any = {
          id: networkId,
          typeId: endpointObj.typeId,
-         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : "no name",
+         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${networkId}`,
          path: "",
          currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
          unit: endpointObj.units,

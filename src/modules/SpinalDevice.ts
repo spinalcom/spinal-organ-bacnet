@@ -211,14 +211,15 @@ export class SpinalDevice extends EventEmitter {
                return;
             }
 
-            const dataFormated = data.values.map(el => BacnetUtilities._formatProperty(device.deviceId, el))
-
+            const [dataFormated] = data.values.map(el => BacnetUtilities._formatProperty(device.deviceId, el))
+            const tempName = dataFormated[BacnetUtilities._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)]
+            
             const obj = {
                id: device.deviceId,
                deviceId: device.deviceId,
                address: device.address,
-               name: dataFormated[0][BacnetUtilities._getPropertyNameByCode(PropertyIds.PROP_OBJECT_NAME)],
-               type: dataFormated[0].type
+               name: tempName?.length > 0 ? tempName : `Device_${device.deviceId}`,
+               type: dataFormated.type
             }
 
             resolve(obj)

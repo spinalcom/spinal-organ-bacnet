@@ -25,6 +25,8 @@ class BacnetUtilities {
                 { id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE },
                 { id: GlobalVariables_1.PropertyIds.PROP_OBJECT_TYPE },
                 { id: GlobalVariables_1.PropertyIds.PROP_UNITS },
+                { id: GlobalVariables_1.PropertyIds.PROP_MAXIMUM_VALUE },
+                { id: GlobalVariables_1.PropertyIds.PROP_MINIMUM_VALUE }
             ]
         }));
         // console.log(device, requestArray);
@@ -166,10 +168,11 @@ class BacnetUtilities {
             const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, networkId);
             if (exist)
                 return exist;
+            console.log("endpointObj", endpointObj);
             const obj = {
                 id: networkId,
                 typeId: endpointObj.typeId,
-                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : "no name",
+                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${networkId}`,
                 path: "",
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,

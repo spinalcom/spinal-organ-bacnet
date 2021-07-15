@@ -21,7 +21,7 @@
     "pm2": "^4.5.6",
     "socket.io": "^3.1.1",
     "spinal-model-bacnet": "git+https://github.com/spinalcom/spinal-model-bacnet.git",
-    "spinal-model-bmsnetwork": "git+https://github.com/spinalcom/spinal-model-bmsnetwork.git#personalized",
+    "spinal-model-bmsnetwork": "git+https://github.com/spinalcom/spinal-model-bmsnetwork.git#bacnet",
     "ts-priority-queue": "^0.1.1"
   },
   "devDependencies": {

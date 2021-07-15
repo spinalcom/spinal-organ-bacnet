@@ -39,7 +39,7 @@ export class SpinalQueuing extends EventEmitter {
    public dequeue(): any {
       const item = this.queueList.shift();
 
-      if (typeof item === "undefined") this.finish();
+      if (this.queueList.length === 0) this.finish();
       else this.processed.push(item);
 
       this.percent = Math.floor((100 * this.processed.length) / this.length);

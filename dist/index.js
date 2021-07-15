@@ -16,18 +16,26 @@ const pm2 = require("pm2");
 const config = require("../config.json5");
 const url = `${config.spinalConnector.protocol}://${config.spinalConnector.userId}:${config.spinalConnector.password}@${config.spinalConnector.host}:${config.spinalConnector.port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
+// FileSystem._disp = true;
 const path = config.spinalConnector.path;
 const name = config.spinalConnector.name;
 const listenLoadType = (connect, organModel) => {
     return new Promise((resolve, reject) => {
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel) => {
+            console.log("discover");
             Functions_1.SpinalDiscoverCallback(spinalDisoverModel, organModel);
         }, Functions_1.connectionErrorCallback);
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalListenerModel', (spinalListenerModel) => {
+            console.log("listener");
             Functions_1.SpinalListnerCallback(spinalListenerModel, organModel);
         }, Functions_1.connectionErrorCallback);
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
+            console.log("bacnetValue");
             Functions_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
+        }, Functions_1.connectionErrorCallback);
+        spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalPilotModel', (spinalPilotModel) => {
+            console.log("pilot");
+            Functions_1.SpinalPilotCallback(spinalPilotModel, organModel);
         }, Functions_1.connectionErrorCallback);
     });
 };

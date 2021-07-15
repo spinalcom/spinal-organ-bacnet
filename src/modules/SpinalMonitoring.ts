@@ -29,7 +29,7 @@ class SpinalMonitoring {
 
    init() {
       this.queue.on("start", () => {
-         console.log("start");
+         console.log("start monitoring...");
 
          this.startDeviceInitialisation();
       })
@@ -45,7 +45,9 @@ class SpinalMonitoring {
       this.queue.refresh();
 
       const promises = list.map(el => SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
+
       const devices = lodash.flattenDeep(await Promise.all(promises));
+
       this._addToMaps(devices);
 
       if (!this.isProcessing) {
@@ -57,6 +59,11 @@ class SpinalMonitoring {
    public async startMonitoring() {
       let p = true;
       while (p) {
+         if (this.priorityQueue.isEmpty()) {
+            await this.waitFct(100);
+            continue;
+         }
+
          const { priority, element } = this.priorityQueue.dequeue();
          await this.execFunc(element.functions, element.interval, priority);
       }
@@ -76,7 +83,7 @@ class SpinalMonitoring {
       }
       try {
          const deep_functions = [...functions]
-         console.log("deep_functions", deep_functions);
+         // console.log("deep_functions", deep_functions);
 
          while (deep_functions.length > 0) {
             try {
@@ -92,8 +99,8 @@ class SpinalMonitoring {
    }
 
    private _addToMaps(devices: Array<{ interval: number; func: Function }>) {
-
       for (const { interval, func } of devices) {
+
          if (isNaN(interval)) continue;
 
          const value = this.intervalTimesMap.get(interval);

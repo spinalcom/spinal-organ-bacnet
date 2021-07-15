@@ -9,13 +9,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.SpinalDiscoverCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = void 0;
+exports.SpinalPilotCallback = exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.SpinalDiscoverCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = void 0;
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalDiscover_1 = require("../modules/SpinalDiscover");
-const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
 const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
+const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
+const SpinalPilot_1 = require("../modules/SpinalPilot");
 const Q = require('q');
 const pm2 = require("pm2");
 const WaitModelReady = () => {
@@ -131,4 +132,12 @@ const SpinalListnerCallback = (spinalListenerModel, organModel) => __awaiter(voi
     });
 });
 exports.SpinalListnerCallback = SpinalListnerCallback;
+const SpinalPilotCallback = (spinalPilotModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
+    var _g, _h;
+    yield WaitModelReady();
+    if (((_g = spinalPilotModel.organ) === null || _g === void 0 ? void 0 : _g.id.get()) === ((_h = organModel.id) === null || _h === void 0 ? void 0 : _h.get())) {
+        SpinalPilot_1.spinalPilot.addToPilotList(spinalPilotModel);
+    }
+});
+exports.SpinalPilotCallback = SpinalPilotCallback;
 //# sourceMappingURL=Functions.js.map

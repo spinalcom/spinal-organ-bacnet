@@ -4,6 +4,8 @@ export const ObjectTypes = bacnet.enum.ObjectTypes;
 // const PROP_DESCRIPTION = bacnet.enum.PropertyIds.PROP_DESCRIPTION;
 export const PropertyIds = bacnet.enum.PropertyIds;
 export const ENUM_DISABLE = bacnet.enum.EnableDisable;
+export const APPLICATION_TAGS = bacnet.enum.ApplicationTags;
+
 
 export const SENSOR_TYPES = [
    // ANALOG
@@ -41,7 +43,6 @@ export const ObjectTypesCode = (function swap(json) {
    return ret;
 })(bacnet.enum.ObjectTypes);
 
-
 export const UNITS_TYPES = (function swap(json) {
    var ret = {};
    for (var key in json) {
@@ -49,3 +50,4 @@ export const UNITS_TYPES = (function swap(json) {
    }
    return ret;
 })(bacnet.enum.UnitsId);
+

@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SENSOR_TYPES = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
+exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SENSOR_TYPES = exports.APPLICATION_TAGS = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
 const bacnet = require("bacstack");
 exports.ObjectTypes = bacnet.enum.ObjectTypes;
 // const PROP_DESCRIPTION = bacnet.enum.PropertyIds.PROP_DESCRIPTION;
 exports.PropertyIds = bacnet.enum.PropertyIds;
 exports.ENUM_DISABLE = bacnet.enum.EnableDisable;
+exports.APPLICATION_TAGS = bacnet.enum.ApplicationTags;
 exports.SENSOR_TYPES = [
     // ANALOG
     exports.ObjectTypes.OBJECT_ANALOG_INPUT,
