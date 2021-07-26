@@ -116,6 +116,7 @@ const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => _
         }
     }
     catch (error) {
+        console.error(error);
         spinalBacnetValueModel.setErrorState();
     }
 });

@@ -16,6 +16,7 @@ export declare class SpinalNetworkServiceUtilities {
     }>;
     static initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
         interval: number;
+        id: string;
         func: Function;
     }>;
     private static _getSpinalDiscoverModel;

@@ -1,12 +1,15 @@
 import * as bacnet from 'bacstack';
 
 export const ObjectTypes = bacnet.enum.ObjectTypes;
-// const PROP_DESCRIPTION = bacnet.enum.PropertyIds.PROP_DESCRIPTION;
 export const PropertyIds = bacnet.enum.PropertyIds;
 export const ENUM_DISABLE = bacnet.enum.EnableDisable;
 export const APPLICATION_TAGS = bacnet.enum.ApplicationTags;
+export const SEGMENTATIONS = bacnet.enum.Segmentations;
 
 
+/*
+* TYPE of item retrieved to devices
+*/
 export const SENSOR_TYPES = [
    // ANALOG
    ObjectTypes.OBJECT_ANALOG_INPUT,
@@ -27,6 +30,9 @@ export const SENSOR_TYPES = [
    //NETWORK
 ]
 
+/*
+* All property object ({name : code}) of device
+*/
 export const PropertyNames = (function swap(json) {
    var ret = {};
    for (var key in json) {
@@ -35,6 +41,9 @@ export const PropertyNames = (function swap(json) {
    return ret;
 })(bacnet.enum.PropertyIds);
 
+/*
+* All property object ({code : name}) of device
+*/
 export const ObjectTypesCode = (function swap(json) {
    var ret = {};
    for (var key in json) {
@@ -43,6 +52,9 @@ export const ObjectTypesCode = (function swap(json) {
    return ret;
 })(bacnet.enum.ObjectTypes);
 
+/*
+* All property object ({name : code}) of device
+*/
 export const UNITS_TYPES = (function swap(json) {
    var ret = {};
    for (var key in json) {

@@ -41,7 +41,7 @@ class SpinalNetworkServiceUtilities {
                 networkName: network.getName().get()
             };
             yield networkService.init(graph, organNetwork);
-            const device = { address: node.info.address.get(), deviceId: node.info.idNetwork.get() };
+            const device = node.info.get();
             return {
                 networkService,
                 device,
@@ -67,6 +67,7 @@ class SpinalNetworkServiceUtilities {
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
+            console.log(graph, device, context, network, organ);
             const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
             yield networkService.init(graph, {
                 contextName: context.getName().get(),
@@ -83,6 +84,7 @@ class SpinalNetworkServiceUtilities {
                 let init = false;
                 return {
                     interval,
+                    id: device.info.id.get(),
                     func: () => __awaiter(this, void 0, void 0, function* () {
                         if (spinalModel.listen.get()) {
                             if (!init) {

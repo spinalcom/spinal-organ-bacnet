@@ -53,7 +53,6 @@ export const CreateOrganConfigFile = (spinalConnection: any, path: string, conne
             }
          }
 
-
          console.log("organ not found");
          const model = new SpinalOrganConfigModel(connectorName);
          WaitModelReady().then(() => {
@@ -114,7 +113,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
 
    try {
       const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
-
+     
       if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
 
       if (spinalBacnetValueModel.state.get() === 'wait') {
@@ -127,6 +126,8 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
          return spinalBacnetValueModel.remToNode();
       }
    } catch (error) {
+      console.error(error);
+      
       spinalBacnetValueModel.setErrorState();
    }
 

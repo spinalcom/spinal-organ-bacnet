@@ -15,18 +15,12 @@ const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServi
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const lodash = require("lodash");
 class SpinalMonitoring {
-    // private devices: Array<{
-    //    networkService: NetworkService,
-    //    spinalDevice: SpinalDevice,
-    //    spinalModel: SpinalListenerModel,
-    //    network: SpinalNode<any>,
-    //    monitors?: Monitor[]
-    // }> = [];
     constructor() {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
         this.priorityQueue = new priority_queue_1.MinPriorityQueue();
         this.isProcessing = false;
         this.intervalTimesMap = new Map();
+        this.devices = [];
     }
     init() {
         this.queue.on("start", () => {
@@ -45,11 +39,39 @@ class SpinalMonitoring {
             this.queue.refresh();
             const promises = list.map(el => SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
             const devices = lodash.flattenDeep(yield Promise.all(promises));
-            this._addToMaps(devices);
+            console.log("devices", devices);
+            yield this._addToMaps(devices);
             if (!this.isProcessing) {
                 this.isProcessing = true;
                 this.startMonitoring();
             }
+        });
+    }
+    _addToMaps(devices) {
+        return __awaiter(this, void 0, void 0, function* () {
+            for (const { interval, func, id } of devices) {
+                if (this.devices.indexOf(id) > -1) {
+                    yield this.removeToMaps(id);
+                }
+                else {
+                    this.devices.push(id);
+                }
+                if (isNaN(interval))
+                    continue;
+                const value = this.intervalTimesMap.get(interval);
+                if (typeof value !== "undefined") {
+                    value.push({ id, func });
+                }
+                else {
+                    this.intervalTimesMap.set(interval, [{ id, func }]);
+                    this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
+                }
+            }
+        });
+    }
+    removeToMaps(deviceId) {
+        this.intervalTimesMap.forEach((value, key) => {
+            this.intervalTimesMap.set(key, value.filter(el => el.id !== deviceId));
         });
     }
     startMonitoring() {
@@ -78,32 +100,20 @@ class SpinalMonitoring {
                 // console.log("deep_functions", deep_functions);
                 while (deep_functions.length > 0) {
                     try {
-                        const func = deep_functions.shift();
+                        const { func } = deep_functions.shift();
                         if (typeof func === "function")
                             yield func();
                     }
-                    catch (error) { }
+                    catch (error) {
+                        console.error(error);
+                    }
                 }
-                this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
-            }
-            catch (error) {
-                this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
-            }
-        });
-    }
-    _addToMaps(devices) {
-        for (const { interval, func } of devices) {
-            if (isNaN(interval))
-                continue;
-            const value = this.intervalTimesMap.get(interval);
-            if (typeof value !== "undefined") {
-                value.push(func);
-            }
-            else {
-                this.intervalTimesMap.set(interval, [func]);
                 this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
             }
-        }
+            catch (error) {
+                this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
+            }
+        });
     }
     waitFct(nb) {
         return new Promise((resolve) => {

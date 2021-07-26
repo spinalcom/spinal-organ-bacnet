@@ -47,9 +47,7 @@ export class SpinalNetworkServiceUtilities {
 
       await networkService.init(graph, organNetwork);
 
-
-
-      const device = { address: node.info.address.get(), deviceId: node.info.idNetwork.get() }
+      const device = node.info.get();
 
       return {
          networkService,
@@ -60,7 +58,7 @@ export class SpinalNetworkServiceUtilities {
    }
 
 
-   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{ interval: number; func: Function }> {
+   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{ interval: number; id: string; func: Function }> {
       const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
       const networkService: NetworkService = new NetworkService(saveTimeSeries);
 
@@ -79,6 +77,8 @@ export class SpinalNetworkServiceUtilities {
       (<any>SpinalGraphService)._addNode(network);
       (<any>SpinalGraphService)._addNode(context);
 
+      console.log(graph,device,context,network,organ);
+      
 
       const spinalDevice: SpinalDevice = new SpinalDevice(device.info.get());
 
@@ -100,6 +100,7 @@ export class SpinalNetworkServiceUtilities {
          let init = false;
          return {
             interval,
+            id: device.info.id.get(),
             func: async () => {
                if (spinalModel.listen.get()) {
                   if (!init) {

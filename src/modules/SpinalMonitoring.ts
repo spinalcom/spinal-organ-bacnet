@@ -12,17 +12,12 @@ import * as lodash from "lodash";
 class SpinalMonitoring {
 
    private queue: SpinalQueuing = new SpinalQueuing();
-   private priorityQueue: MinPriorityQueue<{ interval: number; functions: Function[] }> = new MinPriorityQueue();
+   private priorityQueue: MinPriorityQueue<{ interval: number; functions: {id: string; func: Function}[] }> = new MinPriorityQueue();
    private isProcessing: boolean = false;
    private intervalTimesMap: Map<string | number, any> = new Map();
+   
 
-   // private devices: Array<{
-   //    networkService: NetworkService,
-   //    spinalDevice: SpinalDevice,
-   //    spinalModel: SpinalListenerModel,
-   //    network: SpinalNode<any>,
-   //    monitors?: Monitor[]
-   // }> = [];
+   private devices: Array<string> = [];
 
 
    constructor() { }
@@ -43,17 +38,45 @@ class SpinalMonitoring {
    public async startDeviceInitialisation() {
       const list = this.queue.getQueue();
       this.queue.refresh();
-
+      
       const promises = list.map(el => SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
 
-      const devices = lodash.flattenDeep(await Promise.all(promises));
 
-      this._addToMaps(devices);
+      const devices = lodash.flattenDeep(await Promise.all(promises));
+      console.log("devices",devices);
+      
+      await this._addToMaps(devices);
 
       if (!this.isProcessing) {
          this.isProcessing = true;
          this.startMonitoring()
       }
+   }
+
+   private async _addToMaps(devices: Array<{ interval: number; id: string; func: Function }>) {
+      for (const { interval, func, id } of devices) {
+         if(this.devices.indexOf(id) > -1) {
+            await this.removeToMaps(id);
+         } else {
+            this.devices.push(id);
+         }
+
+         if (isNaN(interval)) continue;
+
+         const value = this.intervalTimesMap.get(interval);
+         if (typeof value !== "undefined") {
+            value.push({id, func});
+         } else {
+            this.intervalTimesMap.set(interval, [{id, func}])
+            this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval)
+         }
+      }
+   }
+
+   private removeToMaps(deviceId: string) {
+      this.intervalTimesMap.forEach((value,key) => {
+         this.intervalTimesMap.set(key,value.filter(el => el.id !== deviceId));
+      })
    }
 
    public async startMonitoring() {
@@ -73,10 +96,7 @@ class SpinalMonitoring {
       // }
    }
 
-
-
-
-   private async execFunc(functions: Function[], interval: number, date?: number) {
+   private async execFunc(functions: {id: string; func: Function}[], interval: number, date?: number) {
 
       if (date && Date.now() < date) {
          await this.waitFct(date - Date.now());
@@ -87,30 +107,18 @@ class SpinalMonitoring {
 
          while (deep_functions.length > 0) {
             try {
-               const func = deep_functions.shift();
+               const {func} = deep_functions.shift();
                if (typeof func === "function") await func();
-            } catch (error) { }
+            } catch (error) { 
+               console.error(error);
+               
+            }
          }
-         this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
+         this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
       } catch (error) {
-         this.priorityQueue.enqueue({ interval, functions }, Date.now() + interval);
+         this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
       }
 
-   }
-
-   private _addToMaps(devices: Array<{ interval: number; func: Function }>) {
-      for (const { interval, func } of devices) {
-
-         if (isNaN(interval)) continue;
-
-         const value = this.intervalTimesMap.get(interval);
-         if (typeof value !== "undefined") {
-            value.push(func);
-         } else {
-            this.intervalTimesMap.set(interval, [func])
-            this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval)
-         }
-      }
    }
 
    private waitFct(nb: number): Promise<void> {

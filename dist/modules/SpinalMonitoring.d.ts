@@ -4,13 +4,15 @@ declare class SpinalMonitoring {
     private priorityQueue;
     private isProcessing;
     private intervalTimesMap;
+    private devices;
     constructor();
     init(): void;
     addToMonitoringList(spinalListenerModel: SpinalListenerModel): Promise<void>;
     startDeviceInitialisation(): Promise<void>;
+    private _addToMaps;
+    private removeToMaps;
     startMonitoring(): Promise<void>;
     private execFunc;
-    private _addToMaps;
     private waitFct;
 }
 declare const spinalMonitoring: SpinalMonitoring;

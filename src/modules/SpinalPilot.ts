@@ -39,7 +39,7 @@ class SpinalPilot {
                   pilot.setSuccessMode();
                   await pilot.removeToNode();
                } catch (error) {
-                  console.log("error");
+                  console.error(error.message);
                   pilot.setErrorMode();
                   await pilot.removeToNode();
                }
@@ -61,9 +61,8 @@ class SpinalPilot {
          const req = requests[index];
          try {
             await this.writeProperty(req);
-         } catch (error) {
-            throw new Error("error");
-            
+         } catch (error) {            
+            throw error;
          }
          
       }
@@ -79,7 +78,7 @@ class SpinalPilot {
             await this.useDataType(req, type);
             success = true;
          } catch (error) {
-            // console.error(error);
+            // throw error;
          }
       }
 
@@ -92,7 +91,9 @@ class SpinalPilot {
    private useDataType(req: IRequest, dataType: number) {
       return new Promise((resolve, reject) => {
          const client = new bacnet();
-         client.writeProperty(req.address,req.objectId,PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: req.value }],{ priority: 8 },(err,value) => {
+         const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
+         
+         client.writeProperty(req.address,req.objectId,PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }],{ priority: 8 },(err,value) => {
                if (err) {
                   reject(err)
                   return;
@@ -103,20 +104,13 @@ class SpinalPilot {
    }
 
    private getDataTypes(type: any): number[] {
-
-
-      
-
       switch (type) {
-         
          case ObjectTypes.OBJECT_ANALOG_INPUT:
          case ObjectTypes.OBJECT_ANALOG_OUTPUT:
          case ObjectTypes.OBJECT_ANALOG_VALUE:
          case ObjectTypes.OBJECT_MULTI_STATE_INPUT:
          case ObjectTypes.OBJECT_MULTI_STATE_OUTPUT:
          case ObjectTypes.OBJECT_MULTI_STATE_VALUE:
-            console.log("number value");
-            
             return [
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
@@ -128,15 +122,12 @@ class SpinalPilot {
          case ObjectTypes.OBJECT_BINARY_OUTPUT:
          case ObjectTypes.OBJECT_BINARY_VALUE:
          case ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT:
-            console.log("binary value");
-
             return [
+               APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED,
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN
             ]
       
          default:
-            console.log("string value");
-
             return [
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
@@ -144,6 +135,17 @@ class SpinalPilot {
             ]
       }
    }
+
+   // private transformBacnetErrorToObj(error) {
+   //    console.log(error);
+      
+   //    const message = error.message.match(/Code\:\d+/);
+   //    console.log(message);
+      
+   //    // return message.replace("Code:",'')
+      
+      
+   // }
 }
 
 const spinalPilot = new SpinalPilot();

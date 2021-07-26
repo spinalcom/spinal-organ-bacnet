@@ -46,7 +46,7 @@ class SpinalPilot {
                             yield pilot.removeToNode();
                         }
                         catch (error) {
-                            console.log("error");
+                            console.error(error.message);
                             pilot.setErrorMode();
                             yield pilot.removeToNode();
                         }
@@ -69,7 +69,7 @@ class SpinalPilot {
                     yield this.writeProperty(req);
                 }
                 catch (error) {
-                    throw new Error("error");
+                    throw error;
                 }
             }
         });
@@ -85,7 +85,7 @@ class SpinalPilot {
                     success = true;
                 }
                 catch (error) {
-                    // console.error(error);
+                    // throw error;
                 }
             }
             if (!success) {
@@ -96,7 +96,8 @@ class SpinalPilot {
     useDataType(req, dataType) {
         return new Promise((resolve, reject) => {
             const client = new bacnet();
-            client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: req.value }], { priority: 8 }, (err, value) => {
+            const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
+            client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority: 8 }, (err, value) => {
                 if (err) {
                     reject(err);
                     return;
@@ -113,7 +114,6 @@ class SpinalPilot {
             case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_INPUT:
             case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT:
             case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_VALUE:
-                console.log("number value");
                 return [
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
@@ -124,12 +124,11 @@ class SpinalPilot {
             case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_OUTPUT:
             case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE:
             case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT:
-                console.log("binary value");
                 return [
+                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED,
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN
                 ];
             default:
-                console.log("string value");
                 return [
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
