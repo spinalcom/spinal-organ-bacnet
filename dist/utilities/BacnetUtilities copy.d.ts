@@ -4,9 +4,8 @@ import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty
 export default class BacnetUtilities {
     constructor();
     static readPropertyMutltiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
-    static readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
+    static readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<IReadProperty>;
     static _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<Array<IObjectId>>;
-    static getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<unknown>;
     static _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<Array<{
         [key: string]: string | boolean | number;
     }>>;

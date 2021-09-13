@@ -39,11 +39,10 @@ class BacnetUtilities {
             }
         });
     }
-    static readProperty(address, objectId, propertyId, argClient, clientOptions) {
+    static readProperty(address, objectId, propertyId, argClient) {
         const client = argClient || new bacnet();
-        const options = clientOptions || {};
         return new Promise((resolve, reject) => {
-            client.readProperty(address, objectId, propertyId, options, (err, data) => {
+            client.readProperty(address, objectId, propertyId, (err, data) => {
                 if (err)
                     return reject(err);
                 resolve(data);
@@ -55,10 +54,10 @@ class BacnetUtilities {
     ////////////////////////////////////////////////////////////////
     static _getDeviceObjectList(device, SENSOR_TYPES, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("getting object list");
-            const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
-            let values;
             try {
+                console.log("getting object list");
+                const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+                let values;
                 if (device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
                     console.log(device.address, "device accepte segmentation");
                     const requestArray = {
@@ -73,52 +72,17 @@ class BacnetUtilities {
                     const data = yield this.readProperty(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient);
                     values = data.values;
                 }
+                const sensor = [];
+                for (const item of values) {
+                    if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
+                        sensor.push(item.value);
+                    }
+                }
+                return sensor;
             }
             catch (error) {
-                if (error.message.match(/reason:4/i)) {
-                    values = yield this.getItemListByFragment(device, objectId, argClient);
-                }
-                else {
-                    throw error;
-                }
+                throw error;
             }
-            if (typeof values === "undefined")
-                throw "No values found";
-            const sensor = [];
-            for (const item of values) {
-                if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
-                    sensor.push(item.value);
-                }
-            }
-            return sensor;
-        });
-    }
-    static getItemListByFragment(device, objectId, argClient) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const list = [];
-            return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
-                let error;
-                let index = 1;
-                let finish = false;
-                while (!error || !finish) {
-                    try {
-                        const clientOptions = { arrayIndex: index };
-                        const value = yield this.readProperty(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
-                        if (value) {
-                            index++;
-                            list.push(...value.values);
-                        }
-                        else {
-                            finish = true;
-                        }
-                    }
-                    catch (err) {
-                        error = err;
-                        resolve(list);
-                    }
-                }
-                resolve(list);
-            }));
         });
     }
     ////////////////////////////////////////////////////////////////
@@ -448,4 +412,4 @@ class BacnetUtilities {
 }
 exports.default = BacnetUtilities;
 exports.BacnetUtilities = BacnetUtilities;
-//# sourceMappingURL=BacnetUtilities.js.map
+//# sourceMappingURL=BacnetUtilities%20copy.js.map

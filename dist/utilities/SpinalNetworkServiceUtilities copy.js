@@ -67,7 +67,7 @@ class SpinalNetworkServiceUtilities {
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
-            // console.log(graph, device, context, network, organ);
+            console.log(graph, device, context, network, organ);
             const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
             yield networkService.init(graph, {
                 contextName: context.getName().get(),
@@ -81,25 +81,20 @@ class SpinalNetworkServiceUtilities {
             });
             const monitors = spinalModel.monitor.getMonitoringData();
             return monitors.map(({ interval, children }) => {
-                // console.log(children);
                 let init = false;
                 return {
                     interval,
                     id: device.info.id.get(),
-                    children,
-                    spinalModel,
-                    spinalDevice,
-                    networkService
-                    // func: async () => {
-                    //    if (spinalModel.listen.get() && children?.length > 0) {
-                    //       if (!init) {
-                    //          await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-                    //          init = true;
-                    //       }
-                    //       // await spinalDevice.updateEndpoints(networkService, network, children);
-                    //    }
-                    //    // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
-                    // }
+                    func: () => __awaiter(this, void 0, void 0, function* () {
+                        if (spinalModel.listen.get()) {
+                            if (!init) {
+                                yield spinalDevice.checkAndCreateIfNotExist(networkService, children);
+                                init = true;
+                            }
+                            yield spinalDevice.updateEndpoints(networkService, network, children);
+                        }
+                        // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
+                    })
                 };
             });
         });
@@ -144,4 +139,4 @@ class SpinalNetworkServiceUtilities {
     }
 }
 exports.SpinalNetworkServiceUtilities = SpinalNetworkServiceUtilities;
-//# sourceMappingURL=SpinalNetworkServiceUtilities.js.map
+//# sourceMappingURL=SpinalNetworkServiceUtilities%20copy.js.map

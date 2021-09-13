@@ -58,10 +58,7 @@ export class SpinalNetworkServiceUtilities {
    }
 
 
-   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
-      interval: number; id: string; children: Array<any>; spinalModel: SpinalListenerModel;
-      spinalDevice: SpinalDevice; networkService: NetworkService;
-   }> {
+   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{ interval: number; id: string; func: Function }> {
       const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
       const networkService: NetworkService = new NetworkService(saveTimeSeries);
 
@@ -80,10 +77,11 @@ export class SpinalNetworkServiceUtilities {
       (<any>SpinalGraphService)._addNode(network);
       (<any>SpinalGraphService)._addNode(context);
 
-      // console.log(graph, device, context, network, organ);
+      console.log(graph, device, context, network, organ);
 
 
       const spinalDevice: SpinalDevice = new SpinalDevice(device.info.get());
+
 
       await networkService.init(graph, {
          contextName: context.getName().get(),
@@ -97,29 +95,23 @@ export class SpinalNetworkServiceUtilities {
       })
 
       const monitors = spinalModel.monitor.getMonitoringData();
-      return monitors.map(({ interval, children }) => {
-         // console.log(children);
 
+      return monitors.map(({ interval, children }) => {
          let init = false;
          return {
             interval,
             id: device.info.id.get(),
-            children,
-            spinalModel,
-            spinalDevice,
-            networkService
-            // func: async () => {
+            func: async () => {
+               if (spinalModel.listen.get()) {
+                  if (!init) {
+                     await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+                     init = true;
+                  }
+                  await spinalDevice.updateEndpoints(networkService, network, children);
+               }
 
-            //    if (spinalModel.listen.get() && children?.length > 0) {
-            //       if (!init) {
-            //          await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-            //          init = true;
-            //       }
-            //       // await spinalDevice.updateEndpoints(networkService, network, children);
-            //    }
-
-            //    // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
-            // }
+               // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
+            }
          }
       })
 

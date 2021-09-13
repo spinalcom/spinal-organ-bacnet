@@ -10,12 +10,10 @@ declare class SpinalMonitoring {
     addToMonitoringList(spinalListenerModel: SpinalListenerModel): Promise<void>;
     startDeviceInitialisation(): Promise<void>;
     private _addToMaps;
-    private addToQueue;
     private removeToMaps;
     startMonitoring(): Promise<void>;
     private execFunc;
     private waitFct;
-    private funcToExecute;
 }
 declare const spinalMonitoring: SpinalMonitoring;
 export default spinalMonitoring;

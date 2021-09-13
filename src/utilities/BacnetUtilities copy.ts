@@ -35,12 +35,10 @@ export default class BacnetUtilities {
       });
    }
 
-   public static readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
+   public static readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<IReadProperty> {
       const client = argClient || new bacnet();
-      const options = clientOptions || {};
-
       return new Promise((resolve, reject) => {
-         client.readProperty(address, objectId, propertyId, options, (err, data) => {
+         client.readProperty(address, objectId, propertyId, (err, data) => {
             if (err) return reject(err);
 
             resolve(data);
@@ -52,11 +50,11 @@ export default class BacnetUtilities {
    ////                  GET ALL OBJECT LIST                     //
    ////////////////////////////////////////////////////////////////
    public static async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<Array<IObjectId>> {
-      console.log("getting object list");
-      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
-      let values;
-
       try {
+         console.log("getting object list");
+         const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+         let values;
+
          if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
             console.log(device.address, "device accepte segmentation");
 
@@ -74,56 +72,20 @@ export default class BacnetUtilities {
             values = data.values;
          }
 
-      } catch (error) {
 
-         if (error.message.match(/reason:4/i)) {
-            values = await this.getItemListByFragment(device, objectId, argClient);
-         } else {
-            throw error;
-         }
+         const sensor = [];
 
-      }
-
-
-      if (typeof values === "undefined") throw "No values found";
-
-      const sensor = [];
-      for (const item of values) {
-         if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
-            sensor.push(item.value);
-         }
-      }
-
-      return sensor;
-   }
-
-
-   public static async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet) {
-      const list = [];
-
-      return new Promise(async (resolve, reject) => {
-         let error;
-         let index = 1;
-         let finish = false;
-         while (!error || !finish) {
-            try {
-               const clientOptions = { arrayIndex: index }
-               const value = await this.readProperty(device.address, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
-               if (value) {
-                  index++;
-                  list.push(...value.values);
-               } else {
-                  finish = true;
-               }
-
-            } catch (err) {
-               error = err;
-               resolve(list);
+         for (const item of values) {
+            if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
+               sensor.push(item.value);
             }
          }
 
-         resolve(list);
-      });
+         return sensor;
+
+      } catch (error) {
+         throw error;
+      }
    }
 
    ////////////////////////////////////////////////////////////////
@@ -495,8 +457,6 @@ export default class BacnetUtilities {
    //       })
    //    }))
    // }
-
-
 
 }
 

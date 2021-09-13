@@ -1,5 +1,6 @@
 import { SpinalListenerModel } from "spinal-model-bacnet";
 import NetworkService from "spinal-model-bmsnetwork";
+import { SpinalNode } from "spinal-env-viewer-graph-service";
 import { MinPriorityQueue } from "@datastructures-js/priority-queue";
 
 import { SpinalNetworkServiceUtilities } from "../utilities/SpinalNetworkServiceUtilities";
@@ -39,7 +40,9 @@ class SpinalMonitoring {
 
       const promises = list.map(el => SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
 
+
       const devices = lodash.flattenDeep(await Promise.all(promises));
+      console.log("devices", devices);
 
       await this._addToMaps(devices);
 
@@ -49,43 +52,24 @@ class SpinalMonitoring {
       }
    }
 
-   private async _addToMaps(
-      devices: Array<{
-         interval: number; id: string; children: Array<any>; spinalModel: SpinalListenerModel;
-         spinalDevice: SpinalDevice; networkService: NetworkService;
-      }>) {
-      for (const { interval, id, children, spinalModel, spinalDevice, networkService } of devices) {
-         if (this.devices.indexOf(id) === -1) {
-            //    await this.removeToMaps(id);
-            // } else {
+   private async _addToMaps(devices: Array<{ interval: number; id: string; func: Function }>) {
+      for (const { interval, func, id } of devices) {
+         if (this.devices.indexOf(id) > -1) {
+            await this.removeToMaps(id);
+         } else {
             this.devices.push(id);
          }
 
-         console.log(interval, children);
+         if (isNaN(interval)) continue;
 
-         if (isNaN(interval) || interval <= 0 || children.length <= 0) continue;
-
-         const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService);
-
-         let value = this.intervalTimesMap.get(interval);
-
-         if (typeof value === "undefined") {
-            value = [];
+         const value = this.intervalTimesMap.get(interval);
+         if (typeof value !== "undefined") {
+            value.push({ id, func });
+         } else {
+            this.intervalTimesMap.set(interval, [{ id, func }])
+            this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval)
          }
-
-         value.push({ id, func })
-         this.intervalTimesMap.set(interval, value)
-
-
-
       }
-      await this.addToQueue();
-   }
-
-   private addToQueue() {
-      this.intervalTimesMap.forEach((value, interval) => {
-         this.priorityQueue.enqueue({ interval, functions: value }, Date.now() + interval)
-      })
    }
 
    private removeToMaps(deviceId: string) {
@@ -103,12 +87,7 @@ class SpinalMonitoring {
          }
 
          const { priority, element } = this.priorityQueue.dequeue();
-
-         if (element.functions.length > 0) {
-            await this.execFunc(element.functions, element.interval, priority);
-         }
-
-
+         await this.execFunc(element.functions, element.interval, priority);
       }
 
       // for (const data of this.devices) {
@@ -117,9 +96,8 @@ class SpinalMonitoring {
    }
 
    private async execFunc(functions: { id: string; func: Function }[], interval: number, date?: number) {
-      // console.log("functions !!",functions);
+
       if (date && Date.now() < date) {
-         console.log("wait ");
          await this.waitFct(date - Date.now());
       }
       try {
@@ -129,10 +107,7 @@ class SpinalMonitoring {
          while (deep_functions.length > 0) {
             try {
                const { func } = deep_functions.shift();
-
-               if (typeof func === "function") {
-                  await func();
-               }
+               if (typeof func === "function") await func();
             } catch (error) {
                console.error(error);
 
@@ -140,8 +115,6 @@ class SpinalMonitoring {
          }
          this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
       } catch (error) {
-         console.error(error);
-
          this.priorityQueue.enqueue({ interval, functions: this.intervalTimesMap.get(interval) }, Date.now() + interval);
       }
 
@@ -155,21 +128,6 @@ class SpinalMonitoring {
             },
             nb >= 0 ? nb : 0);
       });
-   }
-
-   private async funcToExecute(spinalModel: SpinalListenerModel, spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService) {
-      console.log("children", children);
-
-      let init = false;
-      if (spinalModel.listen.get() && children?.length > 0) {
-         if (!init) {
-            await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-            init = true;
-         }
-         // await spinalDevice.updateEndpoints(networkService, network, children);
-      }
-
-      // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
    }
 
    /*

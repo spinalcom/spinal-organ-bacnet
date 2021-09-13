@@ -28,8 +28,9 @@ class SpinalDiscover {
     init(model) {
         var _a, _b, _c, _d;
         this.client = new bacnet({
-            address: (_b = (_a = model.network) === null || _a === void 0 ? void 0 : _a.address) === null || _b === void 0 ? void 0 : _b.get(),
-            port: (_d = (_c = model.network) === null || _c === void 0 ? void 0 : _c.port) === null || _d === void 0 ? void 0 : _d.get(),
+            broadcastAddress: (_b = (_a = model.network) === null || _a === void 0 ? void 0 : _a.address) === null || _b === void 0 ? void 0 : _b.get(),
+            port: ((_d = (_c = model.network) === null || _c === void 0 ? void 0 : _c.port) === null || _d === void 0 ? void 0 : _d.get()) || 47808,
+            adpuTimeout: 6000
         });
         this.client.on('error', (err) => {
             console.log('Error occurred: ', err);
@@ -86,28 +87,49 @@ class SpinalDiscover {
     getDevicesQueue() {
         const queue = new SpinalQueuing_1.SpinalQueuing();
         return new Promise((resolve, reject) => {
-            var _a, _b, _c, _d;
-            if ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get()) {
-                console.log("use broadcast");
-                const timeOutId = setTimeout(() => {
+            var _a, _b;
+            // if (this.discoverModel.network?.useBroadcast?.get()) {
+            //    console.log("use broadcast");
+            const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
+            let timeOutId;
+            if (ips.length === 0) {
+                timeOutId = setTimeout(() => {
                     reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
                 }, this.CONNECTION_TIME_OUT);
-                this.client.on('iAm', (device) => {
-                    clearTimeout(timeOutId);
-                    queue.addToQueue(device);
-                });
                 this.client.whoIs();
             }
             else {
-                console.log("use unicast");
-                const ips = ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.ips) === null || _d === void 0 ? void 0 : _d.get()) || [];
-                const devices = ips.filter(({ address, deviceId }) => address && deviceId)
-                    .map(({ address, deviceId }) => {
-                    return { address, deviceId: parseInt(deviceId) };
+                ips.forEach(({ address, deviceId }) => {
+                    this.client.whoIs({ address });
                 });
-                queue.setQueue(devices);
             }
+            this.client.on('iAm', (device) => {
+                if (typeof timeOutId !== "undefined") {
+                    clearTimeout(timeOutId);
+                }
+                queue.addToQueue(device);
+            });
             queue.on("start", () => { resolve(queue); });
+            // if (this.discoverModel.network?.useBroadcast?.get()) {
+            //    console.log("use broadcast");
+            //    const timeOutId = setTimeout(() => {
+            //       reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
+            //    }, this.CONNECTION_TIME_OUT);
+            //    this.client.on('iAm', (device) => {
+            //       clearTimeout(timeOutId);
+            //       queue.addToQueue(device);
+            //    })
+            //    this.client.whoIs();
+            // } else {
+            //    console.log("use unicast");
+            //    const ips = this.discoverModel.network?.ips?.get() || [];
+            //    const devices = ips.filter(({ address, deviceId }) => address && deviceId)
+            //       .map(({ address, deviceId }) => {
+            //          return { address, deviceId: parseInt(deviceId) }
+            //       })
+            //    queue.setQueue(devices);
+            // }
+            // queue.on("start", () => { resolve(queue) });
         });
     }
     createSpinalDevice(device) {

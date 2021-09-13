@@ -26,9 +26,9 @@ export class SpinalDiscover {
 
    public init(model: any) {
       this.client = new bacnet({
-         address: model.network?.address?.get(),
-         port: model.network?.port?.get(),
-
+         broadcastAddress: model.network?.address?.get(),
+         port: model.network?.port?.get() || 47808,
+         adpuTimeout: 6000
       })
 
       this.client.on('error', (err) => {
@@ -91,32 +91,62 @@ export class SpinalDiscover {
       const queue: SpinalQueuing = new SpinalQueuing();
 
       return new Promise((resolve, reject) => {
-         if (this.discoverModel.network?.useBroadcast?.get()) {
-            console.log("use broadcast");
 
-            const timeOutId = setTimeout(() => {
+         // if (this.discoverModel.network?.useBroadcast?.get()) {
+         //    console.log("use broadcast");
+         const ips = this.discoverModel.network?.ips?.get() || [];
+         let timeOutId;
+
+         if(ips.length === 0) {
+            timeOutId = setTimeout(() => {
                reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
             }, this.CONNECTION_TIME_OUT);
 
-            this.client.on('iAm', (device) => {
-               clearTimeout(timeOutId);
-               queue.addToQueue(device);
-            })
-
             this.client.whoIs();
-
          } else {
-            console.log("use unicast");
-            const ips = this.discoverModel.network?.ips?.get() || [];
-            const devices = ips.filter(({ address, deviceId }) => address && deviceId)
-               .map(({ address, deviceId }) => {
-                  return { address, deviceId: parseInt(deviceId) }
-               })
-
-            queue.setQueue(devices);
+            ips.forEach(({address, deviceId}) => {
+               this.client.whoIs({ address })
+            });
          }
 
+         this.client.on('iAm', (device) => {
+            if(typeof timeOutId !== "undefined") {
+               clearTimeout(timeOutId);
+            }
+            
+            queue.addToQueue(device);
+         })
+
          queue.on("start", () => { resolve(queue) });
+
+     
+
+         // if (this.discoverModel.network?.useBroadcast?.get()) {
+         //    console.log("use broadcast");
+
+         //    const timeOutId = setTimeout(() => {
+         //       reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
+         //    }, this.CONNECTION_TIME_OUT);
+
+         //    this.client.on('iAm', (device) => {
+         //       clearTimeout(timeOutId);
+         //       queue.addToQueue(device);
+         //    })
+
+         //    this.client.whoIs();
+
+         // } else {
+         //    console.log("use unicast");
+         //    const ips = this.discoverModel.network?.ips?.get() || [];
+         //    const devices = ips.filter(({ address, deviceId }) => address && deviceId)
+         //       .map(({ address, deviceId }) => {
+         //          return { address, deviceId: parseInt(deviceId) }
+         //       })
+
+         //    queue.setQueue(devices);
+         // }
+
+         // queue.on("start", () => { resolve(queue) });
       });
 
    }
