@@ -20,6 +20,7 @@ class SpinalMonitoring {
         this.priorityQueue = new priority_queue_1.MinPriorityQueue();
         this.isProcessing = false;
         this.intervalTimesMap = new Map();
+        this.initializedMap = new Map();
         this.devices = [];
     }
     init() {
@@ -48,16 +49,17 @@ class SpinalMonitoring {
     }
     _addToMaps(devices) {
         return __awaiter(this, void 0, void 0, function* () {
-            for (const { interval, id, children, spinalModel, spinalDevice, networkService } of devices) {
+            for (const { interval, id, children, spinalModel, spinalDevice, networkService, network } of devices) {
                 if (this.devices.indexOf(id) === -1) {
                     //    await this.removeToMaps(id);
                     // } else {
                     this.devices.push(id);
                 }
-                console.log(interval, children);
+                // console.log(interval, children);
                 if (isNaN(interval) || interval <= 0 || children.length <= 0)
                     continue;
-                const func = () => __awaiter(this, void 0, void 0, function* () { return this.funcToExecute(spinalModel, spinalDevice, children, networkService); });
+                yield this.createDataIfNotExist(spinalModel, spinalDevice, children, networkService, network, interval);
+                const func = () => __awaiter(this, void 0, void 0, function* () { return this.funcToExecute(spinalModel, spinalDevice, children, networkService, network); });
                 let value = this.intervalTimesMap.get(interval);
                 if (typeof value === "undefined") {
                     value = [];
@@ -132,16 +134,23 @@ class SpinalMonitoring {
             }, nb >= 0 ? nb : 0);
         });
     }
-    funcToExecute(spinalModel, spinalDevice, children, networkService) {
+    createDataIfNotExist(spinalModel, spinalDevice, children, networkService, network, interval) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("children", children);
-            let init = false;
+            // console.log("inside funcToExecute");
+            const id = `${spinalDevice.device.deviceId}_${interval}`;
+            let init = this.initializedMap.get(id);
+            if (!init) {
+                console.log("initialisation");
+                this.initializedMap.set(id, true);
+                yield spinalDevice.checkAndCreateIfNotExist(networkService, children);
+            }
+        });
+    }
+    funcToExecute(spinalModel, spinalDevice, children, networkService, network) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // console.log("children", children);
             if (spinalModel.listen.get() && (children === null || children === void 0 ? void 0 : children.length) > 0) {
-                if (!init) {
-                    yield spinalDevice.checkAndCreateIfNotExist(networkService, children);
-                    init = true;
-                }
-                // await spinalDevice.updateEndpoints(networkService, network, children);
+                yield spinalDevice.updateEndpoints(networkService, network, children);
             }
             // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
         });

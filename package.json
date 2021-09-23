@@ -1,12 +1,12 @@
 {
   "name": "spinal-organ-bacnet",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "rm -rf dist && tsc",
+    "build": "tsc",
     "start": "npm run build && node dist/index.js",
-    "pm2": "node launchWithPm2.js"
+    "pm2": "npm run build && node launchWithPm2.js"
   },
   "keywords": [],
   "author": "",

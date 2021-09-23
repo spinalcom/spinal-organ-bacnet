@@ -6,6 +6,7 @@ import { SpinalNetworkServiceUtilities } from "../utilities/SpinalNetworkService
 import { SpinalQueuing } from "../utilities/SpinalQueuing";
 import { SpinalDevice } from "./SpinalDevice";
 import * as lodash from "lodash";
+import { SpinalNode } from "spinal-model-graph";
 
 class SpinalMonitoring {
 
@@ -13,7 +14,7 @@ class SpinalMonitoring {
    private priorityQueue: MinPriorityQueue<{ interval: number; functions: { id: string; func: Function }[] }> = new MinPriorityQueue();
    private isProcessing: boolean = false;
    private intervalTimesMap: Map<number, any> = new Map();
-
+   private initializedMap: Map<string, boolean> = new Map();
 
    private devices: Array<string> = [];
 
@@ -52,20 +53,21 @@ class SpinalMonitoring {
    private async _addToMaps(
       devices: Array<{
          interval: number; id: string; children: Array<any>; spinalModel: SpinalListenerModel;
-         spinalDevice: SpinalDevice; networkService: NetworkService;
+         spinalDevice: SpinalDevice; networkService: NetworkService; network: SpinalNode<any>;
       }>) {
-      for (const { interval, id, children, spinalModel, spinalDevice, networkService } of devices) {
+      for (const { interval, id, children, spinalModel, spinalDevice, networkService, network } of devices) {
          if (this.devices.indexOf(id) === -1) {
             //    await this.removeToMaps(id);
             // } else {
             this.devices.push(id);
          }
 
-         console.log(interval, children);
+         // console.log(interval, children);
 
          if (isNaN(interval) || interval <= 0 || children.length <= 0) continue;
 
-         const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService);
+         await this.createDataIfNotExist(spinalModel, spinalDevice, children, networkService, network, interval)
+         const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
 
          let value = this.intervalTimesMap.get(interval);
 
@@ -157,16 +159,25 @@ class SpinalMonitoring {
       });
    }
 
-   private async funcToExecute(spinalModel: SpinalListenerModel, spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService) {
-      console.log("children", children);
 
-      let init = false;
+   private async createDataIfNotExist(spinalModel: SpinalListenerModel, spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService, network: SpinalNode<any>, interval: number) {
+      // console.log("inside funcToExecute");
+      const id = `${spinalDevice.device.deviceId}_${interval}`;
+      let init = this.initializedMap.get(id);
+
+      if (!init) {
+         console.log("initialisation");
+         this.initializedMap.set(id, true);
+         await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+      }
+   }
+
+   private async funcToExecute(spinalModel: SpinalListenerModel, spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService, network: SpinalNode<any>) {
+      // console.log("children", children);
+
       if (spinalModel.listen.get() && children?.length > 0) {
-         if (!init) {
-            await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-            init = true;
-         }
-         // await spinalDevice.updateEndpoints(networkService, network, children);
+
+         await spinalDevice.updateEndpoints(networkService, network, children);
       }
 
       // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);

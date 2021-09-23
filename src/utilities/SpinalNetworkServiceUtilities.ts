@@ -60,7 +60,7 @@ export class SpinalNetworkServiceUtilities {
 
    public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
       interval: number; id: string; children: Array<any>; spinalModel: SpinalListenerModel;
-      spinalDevice: SpinalDevice; networkService: NetworkService;
+      spinalDevice: SpinalDevice; networkService: NetworkService; network: SpinalNode<any>
    }> {
       const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
       const networkService: NetworkService = new NetworkService(saveTimeSeries);
@@ -107,7 +107,8 @@ export class SpinalNetworkServiceUtilities {
             children,
             spinalModel,
             spinalDevice,
-            networkService
+            networkService,
+            network
             // func: async () => {
 
             //    if (spinalModel.listen.get() && children?.length > 0) {

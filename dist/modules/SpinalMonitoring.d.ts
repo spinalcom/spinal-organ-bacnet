@@ -4,6 +4,7 @@ declare class SpinalMonitoring {
     private priorityQueue;
     private isProcessing;
     private intervalTimesMap;
+    private initializedMap;
     private devices;
     constructor();
     init(): void;
@@ -15,6 +16,7 @@ declare class SpinalMonitoring {
     startMonitoring(): Promise<void>;
     private execFunc;
     private waitFct;
+    private createDataIfNotExist;
     private funcToExecute;
 }
 declare const spinalMonitoring: SpinalMonitoring;

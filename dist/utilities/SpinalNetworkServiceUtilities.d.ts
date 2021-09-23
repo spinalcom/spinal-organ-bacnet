@@ -22,6 +22,7 @@ export declare class SpinalNetworkServiceUtilities {
         spinalModel: SpinalListenerModel;
         spinalDevice: SpinalDevice;
         networkService: NetworkService;
+        network: SpinalNode<any>;
     }>;
     private static _getSpinalDiscoverModel;
     private static _getOrCreateNetworkNode;

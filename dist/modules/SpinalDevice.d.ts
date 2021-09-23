@@ -5,7 +5,7 @@ import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 import { IDevice } from "../Interfaces";
 export declare class SpinalDevice extends EventEmitter {
-    private device;
+    device: IDevice;
     private info;
     private client;
     constructor(device: IDevice, client?: any, networkService?: NetworkService);

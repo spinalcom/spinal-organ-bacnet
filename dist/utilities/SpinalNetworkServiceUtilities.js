@@ -89,7 +89,8 @@ class SpinalNetworkServiceUtilities {
                     children,
                     spinalModel,
                     spinalDevice,
-                    networkService
+                    networkService,
+                    network
                     // func: async () => {
                     //    if (spinalModel.listen.get() && children?.length > 0) {
                     //       if (!init) {
