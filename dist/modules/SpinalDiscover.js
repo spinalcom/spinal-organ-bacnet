@@ -87,7 +87,7 @@ class SpinalDiscover {
     getDevicesQueue() {
         const queue = new SpinalQueuing_1.SpinalQueuing();
         return new Promise((resolve, reject) => {
-            var _a, _b;
+            var _a, _b, _c, _d;
             // if (this.discoverModel.network?.useBroadcast?.get()) {
             //    console.log("use broadcast");
             const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
@@ -99,9 +99,16 @@ class SpinalDiscover {
                 this.client.whoIs();
             }
             else {
-                ips.forEach(({ address, deviceId }) => {
-                    this.client.whoIs({ address });
+                // ips.forEach(({ address, deviceId }) => {
+                //    this.client.whoIs({ address })
+                // });
+                console.log("use unicast");
+                const ips = ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.ips) === null || _d === void 0 ? void 0 : _d.get()) || [];
+                const devices = ips.filter(({ address, deviceId }) => address && deviceId)
+                    .map(({ address, deviceId }) => {
+                    return { address, deviceId: parseInt(deviceId) };
                 });
+                queue.setQueue(devices);
             }
             this.client.on('iAm', (device) => {
                 if (typeof timeOutId !== "undefined") {

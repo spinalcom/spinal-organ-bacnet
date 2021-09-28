@@ -97,29 +97,37 @@ export class SpinalDiscover {
          const ips = this.discoverModel.network?.ips?.get() || [];
          let timeOutId;
 
-         if(ips.length === 0) {
+         if (ips.length === 0) {
             timeOutId = setTimeout(() => {
                reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
             }, this.CONNECTION_TIME_OUT);
 
             this.client.whoIs();
          } else {
-            ips.forEach(({address, deviceId}) => {
-               this.client.whoIs({ address })
-            });
+            // ips.forEach(({ address, deviceId }) => {
+            //    this.client.whoIs({ address })
+            // });
+            console.log("use unicast");
+            const ips = this.discoverModel.network?.ips?.get() || [];
+            const devices = ips.filter(({ address, deviceId }) => address && deviceId)
+               .map(({ address, deviceId }) => {
+                  return { address, deviceId: parseInt(deviceId) }
+               })
+
+            queue.setQueue(devices);
          }
 
          this.client.on('iAm', (device) => {
-            if(typeof timeOutId !== "undefined") {
+            if (typeof timeOutId !== "undefined") {
                clearTimeout(timeOutId);
             }
-            
+
             queue.addToQueue(device);
          })
 
          queue.on("start", () => { resolve(queue) });
 
-     
+
 
          // if (this.discoverModel.network?.useBroadcast?.get()) {
          //    console.log("use broadcast");
