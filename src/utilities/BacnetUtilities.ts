@@ -321,6 +321,7 @@ export default class BacnetUtilities {
          while (deep_children.length > 0) {
             const obj = deep_children.shift();
             if (obj) {
+               obj["id"] = obj.instance;
                const data = await this.readProperty(device.address, obj, PropertyIds.PROP_PRESENT_VALUE, client);
                const value = data.values[0]?.value;
                obj["currentValue"] = this._getObjValue(value);
@@ -367,14 +368,14 @@ export default class BacnetUtilities {
    }
 
    public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
-      const networkId = endpointObj.id;
-      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, networkId);
+
+      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, endpointObj.id);
       if (exist) return exist;
 
       const obj: any = {
-         id: networkId,
+         id: endpointObj.id,
          typeId: endpointObj.typeId,
-         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${networkId}`,
+         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
          path: "",
          currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
          unit: endpointObj.units,
@@ -402,6 +403,7 @@ export default class BacnetUtilities {
 
       try {
          const data = await this.readProperty(address, objectId, propertyId, argClient);
+         console.log(data)
          const formated: any = this._formatProperty(data);
          return formated;
 
@@ -441,8 +443,11 @@ export default class BacnetUtilities {
             }
          }
 
-         if (typeof obj.units === "object") obj.units = "";
-         else obj.units = this._getUnitsByCode(obj.units);
+         if (typeof obj.units !== "undefined") {
+            if (typeof obj.units === "object") obj.units = "";
+            else obj.units = this._getUnitsByCode(obj.units);
+         }
+
 
          return obj;
       }

@@ -94,10 +94,11 @@ export class SpinalDiscover {
 
          // if (this.discoverModel.network?.useBroadcast?.get()) {
          //    console.log("use broadcast");
-         const ips = this.discoverModel.network?.ips?.get() || [];
          let timeOutId;
 
-         if (ips.length === 0) {
+         if (this.discoverModel.network?.useBroadcast?.get()) {
+            console.log("use broadcast");
+
             timeOutId = setTimeout(() => {
                reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
             }, this.CONNECTION_TIME_OUT);
@@ -126,7 +127,6 @@ export class SpinalDiscover {
          })
 
          queue.on("start", () => { resolve(queue) });
-
 
 
          // if (this.discoverModel.network?.useBroadcast?.get()) {

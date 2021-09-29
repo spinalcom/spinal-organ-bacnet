@@ -78,8 +78,6 @@ class SpinalMonitoring {
          value.push({ id, func })
          this.intervalTimesMap.set(interval, value)
 
-
-
       }
       await this.addToQueue();
    }
