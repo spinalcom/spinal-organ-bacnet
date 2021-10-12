@@ -23,4 +23,5 @@ export declare class SpinalDevice extends EventEmitter {
     private _createDevice;
     private _getDeviceInfo;
     private _groupByType;
+    private _getDataValue;
 }

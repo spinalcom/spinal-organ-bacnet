@@ -1,15 +1,15 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { SpinalBacnetValueModel, SpinalDisoverModel, SpinalListenerModel } from "spinal-model-bacnet";
-import { SpinalGraph, SpinalGraphService, SpinalNode } from "spinal-env-viewer-graph-service";
+import { SpinalGraph, SpinalGraphService } from "spinal-env-viewer-graph-service";
 import { SpinalDevice } from "../modules/SpinalDevice";
-
+import { IDataMonitor } from "../Interfaces/IDataMonitor";
+import { IDataDiscover } from "../Interfaces/IDataDiscover";
+import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
 
 export class SpinalNetworkServiceUtilities {
    constructor() { }
 
-   public static async initSpinalDiscoverNetwork(spinalModel: SpinalDisoverModel): Promise<{
-      networkService: NetworkService; network: any
-   }> {
+   public static async initSpinalDiscoverNetwork(spinalModel: SpinalDisoverModel): Promise<IDataDiscover> {
       const data = await this._getSpinalDiscoverModel(spinalModel);
       const networkService = new NetworkService(false);
       await networkService.init(data.graph, data.organ);
@@ -20,13 +20,7 @@ export class SpinalNetworkServiceUtilities {
    }
 
 
-   public static async initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<{
-      networkService: NetworkService;
-      network?: any;
-      device: any;
-      organ: any;
-      node: SpinalNode<any>
-   }> {
+   public static async initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue> {
 
       const { node, context, graph, network, organ } = await (<any>spinalModel.getAllItem());
 
@@ -58,10 +52,7 @@ export class SpinalNetworkServiceUtilities {
    }
 
 
-   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<{
-      interval: number; id: string; children: Array<any>; spinalModel?: SpinalListenerModel;
-      spinalDevice?: SpinalDevice; networkService?: NetworkService; network?: SpinalNode<any>
-   }> {
+   public static async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<IDataMonitor> {
 
       try {
          const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
@@ -96,25 +87,29 @@ export class SpinalNetworkServiceUtilities {
             networkService.useTimeseries = spinalModel.saveTimeSeries?.get() || false;
          })
 
-         const monitors = spinalModel.monitor.getMonitoringData();
-         return monitors.map(({ interval, children }) => {
+         // const monitors = spinalModel.monitor.getMonitoringData();
 
-            return {
-               interval,
-               id: device.info.id.get(),
-               children,
-               spinalModel,
-               spinalDevice,
-               networkService,
-               network
-            }
-         })
-      } catch (error) {
          return {
-            interval: 0,
-            id: "",
-            children: [],
+            id: device.info.id.get(),
+            spinalModel,
+            spinalDevice,
+            networkService,
+            network
          }
+         // return monitors.map(({ interval, children }) => {
+
+         //    return {
+         //       interval,
+         //       id: device.info.id.get(),
+         //       children,
+         //       spinalModel,
+         //       spinalDevice,
+         //       networkService,
+         //       network
+         //    }
+         // })
+      } catch (error) {
+         return;
       }
 
 

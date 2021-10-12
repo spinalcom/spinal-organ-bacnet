@@ -53,56 +53,55 @@ class SpinalNetworkServiceUtilities {
     static initSpinalListenerModel(spinalModel) {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            const saveTimeSeries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
-            const networkService = new spinal_model_bmsnetwork_1.NetworkService(saveTimeSeries);
-            const [graph, device, network, context, organ, profil] = yield Promise.all([
-                this.loadPtrValue(spinalModel.graph),
-                this.loadPtrValue(spinalModel.device),
-                this.loadPtrValue(spinalModel.network),
-                this.loadPtrValue(spinalModel.context),
-                this.loadPtrValue(spinalModel.organ),
-                this.loadPtrValue(spinalModel.monitor.profil)
-            ]);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
-            // console.log(graph, device, context, network, organ);
-            const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
-            yield networkService.init(graph, {
-                contextName: context.getName().get(),
-                contextType: context.getType().get(),
-                networkType: organ.type.get(),
-                networkName: organ.name.get()
-            });
-            (_b = spinalModel.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.bind(() => {
-                var _a;
-                networkService.useTimeseries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
-            });
-            const monitors = spinalModel.monitor.getMonitoringData();
-            return monitors.map(({ interval, children }) => {
-                // console.log(children);
-                let init = false;
+            try {
+                const saveTimeSeries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
+                const networkService = new spinal_model_bmsnetwork_1.NetworkService(saveTimeSeries);
+                const [graph, device, network, context, organ] = yield Promise.all([
+                    // const [graph, device, network, context, organ, profil] = await Promise.all([
+                    this.loadPtrValue(spinalModel.graph),
+                    this.loadPtrValue(spinalModel.device),
+                    this.loadPtrValue(spinalModel.network),
+                    this.loadPtrValue(spinalModel.context),
+                    this.loadPtrValue(spinalModel.organ),
+                ]);
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
+                const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
+                yield networkService.init(graph, {
+                    contextName: context.getName().get(),
+                    contextType: context.getType().get(),
+                    networkType: organ.type.get(),
+                    networkName: organ.name.get()
+                });
+                (_b = spinalModel.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.bind(() => {
+                    var _a;
+                    networkService.useTimeseries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
+                });
+                // const monitors = spinalModel.monitor.getMonitoringData();
                 return {
-                    interval,
                     id: device.info.id.get(),
-                    children,
                     spinalModel,
                     spinalDevice,
                     networkService,
                     network
-                    // func: async () => {
-                    //    if (spinalModel.listen.get() && children?.length > 0) {
-                    //       if (!init) {
-                    //          await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-                    //          init = true;
-                    //       }
-                    //       // await spinalDevice.updateEndpoints(networkService, network, children);
-                    //    }
-                    //    // if (typeof callback === "function") callback(networkService, spinalDevice, spinalModel, children);
-                    // }
                 };
-            });
+                // return monitors.map(({ interval, children }) => {
+                //    return {
+                //       interval,
+                //       id: device.info.id.get(),
+                //       children,
+                //       spinalModel,
+                //       spinalDevice,
+                //       networkService,
+                //       network
+                //    }
+                // })
+            }
+            catch (error) {
+                return;
+            }
         });
     }
     /////////////////////////////////////////////////////////////

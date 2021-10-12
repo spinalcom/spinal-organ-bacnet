@@ -90,9 +90,9 @@ class SpinalDiscover {
             var _a, _b, _c, _d;
             // if (this.discoverModel.network?.useBroadcast?.get()) {
             //    console.log("use broadcast");
-            const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
             let timeOutId;
-            if (ips.length === 0) {
+            if ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get()) {
+                console.log("use broadcast");
                 timeOutId = setTimeout(() => {
                     reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
                 }, this.CONNECTION_TIME_OUT);
@@ -110,11 +110,17 @@ class SpinalDiscover {
                 });
                 queue.setQueue(devices);
             }
+            const res = [];
             this.client.on('iAm', (device) => {
                 if (typeof timeOutId !== "undefined") {
                     clearTimeout(timeOutId);
                 }
-                queue.addToQueue(device);
+                const { address, deviceId } = device;
+                const found = res.find(el => el.address === address && el.deviceId === deviceId);
+                if (!found) {
+                    res.push(device);
+                    queue.addToQueue(device);
+                }
             });
             queue.on("start", () => { resolve(queue); });
             // if (this.discoverModel.network?.useBroadcast?.get()) {

@@ -7,17 +7,16 @@ declare class SpinalMonitoring {
     private initializedMap;
     private devices;
     constructor();
-    init(): void;
     addToMonitoringList(spinalListenerModel: SpinalListenerModel): Promise<void>;
+    init(): void;
     startDeviceInitialisation(): Promise<void>;
-    private _addToMaps;
-    private addToQueue;
-    private removeToMaps;
     startMonitoring(): Promise<void>;
+    private _addToMaps;
+    private removeToMaps;
     private execFunc;
-    private waitFct;
     private createDataIfNotExist;
     private funcToExecute;
+    private waitFct;
 }
 declare const spinalMonitoring: SpinalMonitoring;
 export default spinalMonitoring;

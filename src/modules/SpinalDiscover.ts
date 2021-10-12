@@ -89,7 +89,6 @@ export class SpinalDiscover {
 
    private getDevicesQueue(): Promise<SpinalQueuing> {
       const queue: SpinalQueuing = new SpinalQueuing();
-
       return new Promise((resolve, reject) => {
 
          // if (this.discoverModel.network?.useBroadcast?.get()) {
@@ -118,12 +117,19 @@ export class SpinalDiscover {
             queue.setQueue(devices);
          }
 
+         const res = []
+
          this.client.on('iAm', (device) => {
             if (typeof timeOutId !== "undefined") {
                clearTimeout(timeOutId);
             }
 
-            queue.addToQueue(device);
+            const { address, deviceId } = device;
+            const found = res.find(el => el.address === address && el.deviceId === deviceId);
+            if (!found) {
+               res.push(device);
+               queue.addToQueue(device);
+            }
          })
 
          queue.on("start", () => { resolve(queue) });

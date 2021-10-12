@@ -297,6 +297,7 @@ class BacnetUtilities {
                 while (deep_children.length > 0) {
                     const obj = deep_children.shift();
                     if (obj) {
+                        obj["id"] = obj.instance;
                         const data = yield this.readProperty(device.address, obj, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, client);
                         const value = (_a = data.values[0]) === null || _a === void 0 ? void 0 : _a.value;
                         obj["currentValue"] = this._getObjValue(value);
@@ -345,14 +346,13 @@ class BacnetUtilities {
     }
     static _createEndpoint(networkService, groupId, endpointObj) {
         return __awaiter(this, void 0, void 0, function* () {
-            const networkId = endpointObj.id;
-            const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, networkId);
+            const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, endpointObj.id);
             if (exist)
                 return exist;
             const obj = {
-                id: networkId,
+                id: endpointObj.id,
                 typeId: endpointObj.typeId,
-                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${networkId}`,
+                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
                 path: "",
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,
@@ -375,6 +375,7 @@ class BacnetUtilities {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = yield this.readProperty(address, objectId, propertyId, argClient);
+                console.log(data);
                 const formated = this._formatProperty(data);
                 return formated;
             }
@@ -406,10 +407,12 @@ class BacnetUtilities {
                     obj[propertyName] = this._getObjValue(value);
                 }
             }
-            if (typeof obj.units === "object")
-                obj.units = "";
-            else
-                obj.units = this._getUnitsByCode(obj.units);
+            if (typeof obj.units !== "undefined") {
+                if (typeof obj.units === "object")
+                    obj.units = "";
+                else
+                    obj.units = this._getUnitsByCode(obj.units);
+            }
             return obj;
         }
         return {};
