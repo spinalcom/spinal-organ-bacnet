@@ -321,11 +321,13 @@ export default class BacnetUtilities {
          while (deep_children.length > 0) {
             const obj = deep_children.shift();
             if (obj) {
-               obj["id"] = obj.instance;
-               const data = await this.readProperty(device.address, obj, PropertyIds.PROP_PRESENT_VALUE, client);
-               const value = data.values[0]?.value;
-               obj["currentValue"] = this._getObjValue(value);
-               res.push(obj);
+               try {
+                  obj["id"] = obj.instance;
+                  const data = await this.readProperty(device.address, obj, PropertyIds.PROP_PRESENT_VALUE, client);
+                  const value = data.values[0]?.value;
+                  obj["currentValue"] = this._getObjValue(value);
+                  res.push(obj);
+               } catch (error) { }
             }
          }
 

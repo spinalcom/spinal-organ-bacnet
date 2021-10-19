@@ -13,8 +13,8 @@ exports.SpinalPilotCallback = exports.SpinalListnerCallback = exports.SpinalBacn
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
-const SpinalDiscover_1 = require("../modules/SpinalDiscover");
 const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
+const SpinalDiscover_1 = require("../modules/SpinalDiscover");
 const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
 const SpinalPilot_1 = require("../modules/SpinalPilot");
 const Q = require('q');
@@ -47,7 +47,8 @@ const CreateOrganConfigFile = (spinalConnection, path, connectorName) => {
         spinalConnection.load_or_make_dir(`${path}`, (directory) => {
             for (let index = 0; index < directory.length; index++) {
                 const element = directory[index];
-                if (element.name.get() === `${connectorName}.conf`) {
+                const elementName = element.name.get();
+                if (elementName.toLowerCase() === `${connectorName}.conf`.toLowerCase()) {
                     console.log("organ found !");
                     return element.load(file => {
                         WaitModelReady().then(() => {
@@ -93,9 +94,11 @@ const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(voi
         const creation = ((_d = spinalDisoverModel.creation) === null || _d === void 0 ? void 0 : _d.get()) || 0;
         // Check if model is not timeout.
         if ((time - creation) >= minute || spinalDisoverModel.state.get() === spinal_model_bacnet_1.STATES.created) {
+            spinalDisoverModel.setTimeoutMode();
             spinalDisoverModel.remove();
             return;
         }
+        // DiscoverQueing.addToQueue(spinalDisoverModel)
         new SpinalDiscover_1.SpinalDiscover(spinalDisoverModel);
     }
 });

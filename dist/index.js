@@ -36,12 +36,13 @@ const listenLoadType = (connect, organModel) => {
 };
 Functions_1.CreateOrganConfigFile(connect, path, name).then((organModel) => {
     organModel.restart.bind(() => {
-        const restart = organModel.restart.get();
-        if (!restart) {
-            listenLoadType(connect, organModel);
-            return;
-        }
         Functions_1.GetPm2Instance(name).then((app) => __awaiter(void 0, void 0, void 0, function* () {
+            const restart = organModel.restart.get();
+            console.log(app);
+            if (!restart) {
+                listenLoadType(connect, organModel);
+                return;
+            }
             if (app) {
                 console.log("restart organ", app.pm_id);
                 organModel.restart.set(false);

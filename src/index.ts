@@ -27,7 +27,7 @@ const name = config.spinalConnector.name;
 
 const listenLoadType = (connect, organModel) => {
    return new Promise((resolve, reject) => {
-      spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel: SpinalDisoverModel) => {        
+      spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel: SpinalDisoverModel) => {
          SpinalDiscoverCallback(spinalDisoverModel, organModel)
       }, connectionErrorCallback);
 
@@ -48,13 +48,14 @@ const listenLoadType = (connect, organModel) => {
 CreateOrganConfigFile(connect, path, name).then((organModel: SpinalOrganConfigModel) => {
 
    organModel.restart.bind(() => {
-      const restart = organModel.restart.get();
-      if (!restart) {
-         listenLoadType(connect, organModel);
-         return;
-      }
-
       GetPm2Instance(name).then(async (app: any) => {
+         const restart = organModel.restart.get();
+         console.log(app);
+
+         if (!restart) {
+            listenLoadType(connect, organModel);
+            return;
+         }
 
          if (app) {
             console.log("restart organ", app.pm_id);

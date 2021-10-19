@@ -9,17 +9,40 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalDiscover = void 0;
+exports.SpinalDiscover = exports.DiscoverQueing = void 0;
 const bacnet = require("bacstack");
+const events_1 = require("events");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
-class SpinalDiscover {
+exports.DiscoverQueing = (function () {
+    const discoverQueue = new SpinalQueuing_1.SpinalQueuing();
+    let _isProcess = false;
+    discoverQueue.on("start", () => {
+        if (!_isProcess) {
+            startDiscovering();
+        }
+    });
+    const addToQueue = (model) => {
+        discoverQueue.addToQueue(model);
+    };
+    const startDiscovering = () => {
+        if (!discoverQueue.isEmpty()) {
+            const model = discoverQueue.dequeue();
+            const spinalDiscover = new SpinalDiscover(model);
+        }
+    };
+    return {
+        addToQueue
+    };
+})();
+class SpinalDiscover extends events_1.EventEmitter {
     constructor(model) {
         var _a, _b;
+        super();
         this.devices = new Map();
         this.discoverModel = model;
         this.CONNECTION_TIME_OUT = ((_b = (_a = model.network) === null || _a === void 0 ? void 0 : _a.timeout) === null || _b === void 0 ? void 0 : _b.get()) || 45000;
@@ -70,8 +93,8 @@ class SpinalDiscover {
                     }
                 }
                 if (this.discoverModel.devices.length !== 0) {
-                    this.discoverModel.setDiscoveredMode();
                     console.log("discovered");
+                    this.discoverModel.setDiscoveredMode();
                 }
                 else {
                     console.log("Timeout !");
@@ -96,7 +119,13 @@ class SpinalDiscover {
                 timeOutId = setTimeout(() => {
                     reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
                 }, this.CONNECTION_TIME_OUT);
-                this.client.whoIs();
+                this.client.whoIs({
+                    address: this.discoverModel.network.address.get(),
+                    dest: {
+                        net: '65535',
+                        adr: [''],
+                    },
+                });
             }
             else {
                 // ips.forEach(({ address, deviceId }) => {
@@ -115,6 +144,7 @@ class SpinalDiscover {
                 if (typeof timeOutId !== "undefined") {
                     clearTimeout(timeOutId);
                 }
+                console.log(device);
                 const { address, deviceId } = device;
                 const found = res.find(el => el.address === address && el.deviceId === deviceId);
                 if (!found) {

@@ -6,9 +6,9 @@ import {
    SpinalPilotModel, STATES
 } from "spinal-model-bacnet";
 
-import { SpinalDiscover } from "../modules/SpinalDiscover";
 import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
 
+import { SpinalDiscover, DiscoverQueing } from "../modules/SpinalDiscover";
 import { spinalMonitoring } from "../modules/SpinalMonitoring";
 import { spinalPilot } from "../modules/SpinalPilot";
 
@@ -43,7 +43,8 @@ export const CreateOrganConfigFile = (spinalConnection: any, path: string, conne
 
          for (let index = 0; index < directory.length; index++) {
             const element = directory[index];
-            if (element.name.get() === `${connectorName}.conf`) {
+            const elementName = element.name.get();
+            if (elementName.toLowerCase() === `${connectorName}.conf`.toLowerCase()) {
                console.log("organ found !");
                return element.load(file => {
                   WaitModelReady().then(() => {
@@ -98,9 +99,12 @@ export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverMo
 
       // Check if model is not timeout.
       if ((time - creation) >= minute || spinalDisoverModel.state.get() === STATES.created) {
+         spinalDisoverModel.setTimeoutMode();
          spinalDisoverModel.remove();
          return;
       }
+
+      // DiscoverQueing.addToQueue(spinalDisoverModel)
       new SpinalDiscover(spinalDisoverModel);
    }
 
@@ -113,7 +117,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
 
    try {
       const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
-     
+
       if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
 
       if (spinalBacnetValueModel.state.get() === 'wait') {
@@ -127,7 +131,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
       }
    } catch (error) {
       console.error(error);
-      
+
       spinalBacnetValueModel.setErrorState();
    }
 

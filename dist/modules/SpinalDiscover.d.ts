@@ -1,4 +1,10 @@
-export declare class SpinalDiscover {
+/// <reference types="node" />
+import { EventEmitter } from "events";
+import { SpinalDisoverModel } from 'spinal-model-bacnet';
+export declare const DiscoverQueing: {
+    addToQueue: (model: SpinalDisoverModel) => void;
+};
+export declare class SpinalDiscover extends EventEmitter {
     private bindSateProcess;
     private client;
     private CONNECTION_TIME_OUT;
