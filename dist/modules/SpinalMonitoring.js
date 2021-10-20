@@ -59,7 +59,7 @@ class SpinalMonitoring {
                     yield this.waitFct(100);
                     continue;
                 }
-                const { priority, element } = this.priorityQueue.dequeue();
+                const { priority, element } = (this.priorityQueue.dequeue());
                 const functions = this.intervalTimesMap.get(element.interval);
                 if (functions && functions.length > 0) {
                     yield this.execFunc(functions, element.interval, priority);

@@ -96,7 +96,13 @@ class SpinalDiscover {
                 timeOutId = setTimeout(() => {
                     reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
                 }, this.CONNECTION_TIME_OUT);
-                this.client.whoIs();
+                this.client.whoIs({
+                    address: this.discoverModel.network.address.get(),
+                    dest: {
+                        net: '65535',
+                        adr: [''],
+                    },
+                });
             }
             else {
                 // ips.forEach(({ address, deviceId }) => {
@@ -159,7 +165,7 @@ class SpinalDiscover {
         });
     }
     addDeviceFound(device) {
-        console.log("device found", device.address);
+        // console.log("device found", device.address);
         this.discoverModel.devices.push(device);
     }
     createNodes() {

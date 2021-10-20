@@ -65,7 +65,7 @@ class SpinalMonitoring {
             continue;
          }
 
-         const { priority, element } = this.priorityQueue.dequeue();
+         const { priority, element } = <any>(this.priorityQueue.dequeue());
          const functions = this.intervalTimesMap.get(element.interval);
 
          if (functions && functions.length > 0) {
@@ -99,7 +99,7 @@ class SpinalMonitoring {
 
                value.push({ id, func })
                this.intervalTimesMap.set(interval, value);
-               const arr = this.priorityQueue.toArray();
+               const arr: Array<any> = this.priorityQueue.toArray();
 
                const found = arr.find(({ element }) => {
                   return element.interval === interval;

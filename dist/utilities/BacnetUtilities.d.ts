@@ -1,10 +1,14 @@
 import * as bacnet from "bacstack";
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
+import { ISADR } from "../Interfaces/IDevice";
 export default class BacnetUtilities {
+    static withOutSADR: Map<string, any>;
     constructor();
-    static readPropertyMutltiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
-    static readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
+    static readPropertyMutltiple(address: string, SADR: ISADR, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
+    static readPropertyMultipleWithOutADR(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
+    static readProperty(address: string, SADR: ISADR, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
+    static readPropertyWithOutSADR(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
     static _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<Array<IObjectId>>;
     static getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<unknown>;
     static _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<Array<{
@@ -24,7 +28,7 @@ export default class BacnetUtilities {
     static _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown]>;
     static _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<any>;
     static _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<import("spinal-env-viewer-graph-service/declarations/GraphManagerService").SpinalNodeRef>;
-    static _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
+    static _getPropertyValue(address: string, SADR: ISADR, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
     static _formatProperty(object: any): any;
     static _getObjValue(value: any): any;
     static _formatCurrentValue(value: any, type: number | string): any;

@@ -25,7 +25,7 @@ class SpinalDevice extends events_1.EventEmitter {
     init() {
         return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
             this.info = deviceInfo;
-            console.log("this.info", this.info);
+            // console.log("this.info", this.info);
             this.emit("initialized", this);
         })).catch((err) => this.emit("error", err));
     }
@@ -49,7 +49,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 sensors = GlobalVariables_1.SENSOR_TYPES;
             }
             const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists, this.client);
+            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
             const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
             const listes = Array.from(Object.keys(children)).map((el) => [el, children[el]]);
             const maxLength = listes.length;
@@ -63,6 +63,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 if (item) {
                     const [key, value] = item;
                     try {
+                        console.log("doing", `${maxLength - listes.length}/${maxLength}`);
                         yield BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
                         if (spinalBacnetValueModel) {
                             const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
@@ -70,13 +71,13 @@ class SpinalDevice extends events_1.EventEmitter {
                         }
                     }
                     catch (error) {
-                        isError = true;
+                        isError = error;
                     }
                 }
             }
             if (spinalBacnetValueModel) {
                 if (isError) {
-                    console.log("set error model");
+                    console.log("set error model", isError);
                     spinalBacnetValueModel.setErrorState();
                     return;
                 }
@@ -127,17 +128,18 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             return {
-                name: yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
+                SADR: device.SADR,
+                name: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
                 address: device.address,
                 deviceId: device.deviceId,
-                segmentation: device.segmentation || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
+                segmentation: device.segmentation || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
                 // objectId: objectId,
                 id: objectId.instance,
                 typeId: objectId.type,
                 type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
                 // instance: objectId.instance,
-                vendorId: device.vendorId || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                maxApdu: device.maxApdu || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
+                vendorId: device.vendorId || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
+                maxApdu: device.maxApdu || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
             };
         });
     }
@@ -152,9 +154,9 @@ class SpinalDevice extends events_1.EventEmitter {
         }
         return res;
     }
-    _getDataValue(address, objectId, PropertyId) {
+    _getDataValue(address, SADR, objectId, PropertyId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const formated = yield BacnetUtilities_1.BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
+            const formated = yield BacnetUtilities_1.BacnetUtilities._getPropertyValue(address, SADR, objectId, PropertyId);
             return formated[BacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(PropertyId)];
         });
     }

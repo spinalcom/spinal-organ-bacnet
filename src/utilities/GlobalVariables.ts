@@ -1,10 +1,11 @@
-import * as bacnet from 'bacstack';
+// import * as bacnet from 'bacstack';
+import bacnetEnum from "./bacnetEnum";
 
-export const ObjectTypes = bacnet.enum.ObjectTypes;
-export const PropertyIds = bacnet.enum.PropertyIds;
-export const ENUM_DISABLE = bacnet.enum.EnableDisable;
-export const APPLICATION_TAGS = bacnet.enum.ApplicationTags;
-export const SEGMENTATIONS = bacnet.enum.Segmentations;
+export const ObjectTypes = bacnetEnum.ObjectTypes;
+export const PropertyIds = bacnetEnum.PropertyIds;
+export const ENUM_DISABLE = bacnetEnum.EnableDisable;
+export const APPLICATION_TAGS = bacnetEnum.ApplicationTags;
+export const SEGMENTATIONS = bacnetEnum.Segmentations;
 
 
 /*
@@ -39,7 +40,7 @@ export const PropertyNames = (function swap(json) {
       ret[json[key]] = key;
    }
    return ret;
-})(bacnet.enum.PropertyIds);
+})(bacnetEnum.PropertyIds);
 
 /*
 * All property object ({code : name}) of device
@@ -50,7 +51,7 @@ export const ObjectTypesCode = (function swap(json) {
       ret[json[key]] = key;
    }
    return ret;
-})(bacnet.enum.ObjectTypes);
+})(bacnetEnum.ObjectTypes);
 
 /*
 * All property object ({name : code}) of device
@@ -61,5 +62,5 @@ export const UNITS_TYPES = (function swap(json) {
       ret[json[key]] = key;
    }
    return ret;
-})(bacnet.enum.UnitsId);
+})(bacnetEnum.UnitsId);
 

@@ -422,7 +422,7 @@ export default class BacnetUtilities {
 
    public static _formatCurrentValue(value: any, type: number | string) {
 
-      if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
+      if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(<any>type) !== -1) {
          return value ? true : false;
       }
 

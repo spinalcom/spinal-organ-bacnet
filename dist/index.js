@@ -21,27 +21,27 @@ const name = config.spinalConnector.name;
 const listenLoadType = (connect, organModel) => {
     return new Promise((resolve, reject) => {
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel) => {
-            Functions_1.SpinalDiscoverCallback(spinalDisoverModel, organModel);
+            (0, Functions_1.SpinalDiscoverCallback)(spinalDisoverModel, organModel);
         }, Functions_1.connectionErrorCallback);
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalListenerModel', (spinalListenerModel) => {
-            Functions_1.SpinalListnerCallback(spinalListenerModel, organModel);
+            (0, Functions_1.SpinalListnerCallback)(spinalListenerModel, organModel);
         }, Functions_1.connectionErrorCallback);
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
-            Functions_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
+            (0, Functions_1.SpinalBacnetValueModelCallback)(spinalBacnetValueModel, organModel);
         }, Functions_1.connectionErrorCallback);
         spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalPilotModel', (spinalPilotModel) => {
-            Functions_1.SpinalPilotCallback(spinalPilotModel, organModel);
+            (0, Functions_1.SpinalPilotCallback)(spinalPilotModel, organModel);
         }, Functions_1.connectionErrorCallback);
     });
 };
-Functions_1.CreateOrganConfigFile(connect, path, name).then((organModel) => {
+(0, Functions_1.CreateOrganConfigFile)(connect, path, name).then((organModel) => {
     organModel.restart.bind(() => {
         const restart = organModel.restart.get();
         if (!restart) {
             listenLoadType(connect, organModel);
             return;
         }
-        Functions_1.GetPm2Instance(name).then((app) => __awaiter(void 0, void 0, void 0, function* () {
+        (0, Functions_1.GetPm2Instance)(name).then((app) => __awaiter(void 0, void 0, void 0, function* () {
             if (app) {
                 console.log("restart organ", app.pm_id);
                 organModel.restart.set(false);

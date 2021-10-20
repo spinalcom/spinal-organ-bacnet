@@ -9,7 +9,7 @@ import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVaria
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
-import { IDevice, IObjectId } from "../Interfaces";
+import { IDevice, IObjectId, ISADR } from "../Interfaces";
 
 export class SpinalDevice extends EventEmitter {
    public device: IDevice;
@@ -26,7 +26,7 @@ export class SpinalDevice extends EventEmitter {
    public init() {
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
          this.info = deviceInfo;
-         console.log("this.info", this.info);
+         // console.log("this.info", this.info);
 
          this.emit("initialized", this);
       }).catch((err) => this.emit("error", err));
@@ -55,7 +55,7 @@ export class SpinalDevice extends EventEmitter {
       }
 
       const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists, this.client);
+      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), this.client);
 
       const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
 
@@ -74,20 +74,22 @@ export class SpinalDevice extends EventEmitter {
             const [key, value] = item;
 
             try {
+               console.log("doing", `${maxLength - listes.length}/${maxLength}`);
+
                await BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
                if (spinalBacnetValueModel) {
                   const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                   spinalBacnetValueModel.progress.set(percent)
                }
             } catch (error) {
-               isError = true;
+               isError = error;
             }
          }
       }
 
       if (spinalBacnetValueModel) {
          if (isError) {
-            console.log("set error model");
+            console.log("set error model", isError);
             spinalBacnetValueModel.setErrorState();
             return;
          }
@@ -126,6 +128,8 @@ export class SpinalDevice extends EventEmitter {
 
          networkService.updateData(obj, null, networkNode);
       } catch (error) {
+
+
          // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
          // console.error(error);
 
@@ -147,17 +151,18 @@ export class SpinalDevice extends EventEmitter {
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
 
       return {
-         name: await this._getDataValue(device.address, objectId, PropertyIds.PROP_OBJECT_NAME),
+         SADR: device.SADR,
+         name: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_NAME),
          address: device.address,
          deviceId: device.deviceId,
-         segmentation: device.segmentation || await this._getDataValue(device.address, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
+         segmentation: device.segmentation || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
          // objectId: objectId,
          id: objectId.instance,
          typeId: objectId.type,
          type: BacnetUtilities._getObjectTypeByCode(objectId.type),
          // instance: objectId.instance,
-         vendorId: device.vendorId || await this._getDataValue(device.address, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
-         maxApdu: device.maxApdu || await this._getDataValue(device.address, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
+         vendorId: device.vendorId || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
+         maxApdu: device.maxApdu || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
       }
 
    }
@@ -177,8 +182,8 @@ export class SpinalDevice extends EventEmitter {
    }
 
 
-   private async _getDataValue(address: string, objectId: { type: any; instance: any }, PropertyId: number) {
-      const formated: any = await BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
+   private async _getDataValue(address: string, SADR: ISADR, objectId: { type: any; instance: any }, PropertyId: number) {
+      const formated: any = await BacnetUtilities._getPropertyValue(address, SADR, objectId, PropertyId);
       return formated[BacnetUtilities._getPropertyNameByCode(PropertyId)];
    }
 

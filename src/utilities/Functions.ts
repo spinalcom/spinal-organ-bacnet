@@ -111,25 +111,33 @@ export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverMo
 export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: SpinalBacnetValueModel, organModel: SpinalOrganConfigModel) => {
    await WaitModelReady();
 
-   try {
-      const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
-     
-      if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
+   spinalBacnetValueModel.organ.load(async (organ) => {
 
-      if (spinalBacnetValueModel.state.get() === 'wait') {
+      if (organ?.id.get() === organModel?.id.get()) {
+         try {
+            const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
 
-         const spinalDevice = new SpinalDevice(device);
+            if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
 
-         await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+            if (spinalBacnetValueModel.state.get() === 'wait') {
 
-      } else {
-         return spinalBacnetValueModel.remToNode();
+               const spinalDevice = new SpinalDevice(device);
+
+               await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+               return;
+            }
+
+            return spinalBacnetValueModel.remToNode();
+
+         } catch (error) {
+            console.error(error);
+
+            spinalBacnetValueModel.setErrorState();
+         }
       }
-   } catch (error) {
-      console.error(error);
-      
-      spinalBacnetValueModel.setErrorState();
-   }
+   })
+
+
 
 }
 
