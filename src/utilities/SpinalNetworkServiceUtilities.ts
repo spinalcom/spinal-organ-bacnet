@@ -25,10 +25,10 @@ export class SpinalNetworkServiceUtilities {
       const { node, context, graph, network, organ } = await (<any>spinalModel.getAllItem());
 
 
-      (<any>SpinalGraphService)._addNode(node);
-      (<any>SpinalGraphService)._addNode(context);
-      (<any>SpinalGraphService)._addNode(graph);
-      (<any>SpinalGraphService)._addNode(network);
+      if (node) (<any>SpinalGraphService)._addNode(node);
+      if (context) (<any>SpinalGraphService)._addNode(context);
+      if (graph) (<any>SpinalGraphService)._addNode(graph);
+      if (network) (<any>SpinalGraphService)._addNode(network);
 
 
       const networkService: NetworkService = new NetworkService(false);
@@ -69,10 +69,10 @@ export class SpinalNetworkServiceUtilities {
          ]);
 
 
-         (<any>SpinalGraphService)._addNode(graph);
-         (<any>SpinalGraphService)._addNode(device);
-         (<any>SpinalGraphService)._addNode(network);
-         (<any>SpinalGraphService)._addNode(context);
+         if (graph) (<any>SpinalGraphService)._addNode(graph);
+         if (device) (<any>SpinalGraphService)._addNode(device);
+         if (network) (<any>SpinalGraphService)._addNode(network);
+         if (context) (<any>SpinalGraphService)._addNode(context);
 
          const spinalDevice: SpinalDevice = new SpinalDevice(device.info.get());
 

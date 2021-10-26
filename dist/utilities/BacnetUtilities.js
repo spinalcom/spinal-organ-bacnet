@@ -59,38 +59,33 @@ class BacnetUtilities {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             let values;
             try {
-                if (device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
+                const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
+                let params;
+                let func;
+                if (deviceAcceptSegmentation) {
                     console.log(device.address, "device accepte segmentation");
-                    const requestArray = {
-                        objectId: objectId,
-                        properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }]
-                    };
-                    const data = yield this.readPropertyMutltiple(device.address, requestArray, argClient);
-                    values = lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value)));
+                    params = [{
+                            objectId: objectId,
+                            properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }]
+                        }];
+                    func = this.readPropertyMutltiple;
                 }
                 else {
-                    console.log(device.address, "not accepte segmentation");
-                    const data = yield this.readProperty(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient);
-                    values = data.values;
+                    console.log(device.address, "device not accepte segmentation");
+                    params = [objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST];
+                    func = this.readProperty;
                 }
+                const data = yield func.call(this, device.address, ...params, argClient);
+                values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
             }
             catch (error) {
-                if (error.message.match(/reason:4/i)) {
+                console.log(error);
+                if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i))
                     values = yield this.getItemListByFragment(device, objectId, argClient);
-                }
-                else {
-                    throw error;
-                }
             }
             if (typeof values === "undefined")
                 throw "No values found";
-            const sensor = [];
-            for (const item of values) {
-                if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
-                    sensor.push(item.value);
-                }
-            }
-            return sensor;
+            return values.filter(item => SENSOR_TYPES.indexOf(item.value.type) !== -1);
         });
     }
     static getItemListByFragment(device, objectId, argClient) {
@@ -126,39 +121,30 @@ class BacnetUtilities {
     ////////////////////////////////////////////////////////////////
     static _getObjectDetail(device, objects, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("get object details");
-            if (device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
-                console.log("device accepte segmentation");
-                const objectLists = lodash.chunk(objects, 60);
-                const objectListDetails = [];
-                while (objectLists.length > 0) {
-                    const object = objectLists.shift();
-                    if (object) {
-                        try {
-                            const res = yield this._getObjectDetailWithReadPropertyMultiple(device, object, argClient);
-                            objectListDetails.push(res);
-                        }
-                        catch (err) { }
+            let objectLists = [...objects];
+            let objectListDetails = [];
+            const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+            const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
+            if (deviceAcceptSegmentation) {
+                console.log("device accept segementation");
+                objectLists = lodash.chunk(objects, 10);
+            }
+            while (objectLists.length > 0) {
+                const object = objectLists.shift();
+                if (object) {
+                    try {
+                        const res = yield func.call(this, device, object, argClient);
+                        objectListDetails.push(res);
+                    }
+                    catch (err) {
+                        console.log("error", object);
                     }
                 }
-                return lodash.flattenDeep(objectListDetails);
             }
-            else {
-                console.log("device not accepte segmentation");
-                const objectLists = [...objects];
-                const objectListDetails = [];
-                while (objectLists.length > 0) {
-                    const object = objectLists.shift();
-                    if (object) {
-                        try {
-                            const res = yield this._getObjectDetailWithReadProperty(device, object, argClient);
-                            objectListDetails.push(res);
-                        }
-                        catch (error) { }
-                    }
-                }
-                return objectListDetails;
-            }
+            if (deviceAcceptSegmentation)
+                objectListDetails = lodash.flattenDeep(objectListDetails);
+            console.log("item created", objectListDetails.length);
+            return objectListDetails;
         });
     }
     static _getObjectDetailWithReadPropertyMultiple(device, objects, argClient) {
@@ -176,7 +162,7 @@ class BacnetUtilities {
                     ]
                 }));
                 const data = yield this.readPropertyMutltiple(device.address, requestArray, argClient);
-                const dataFormated = data.values.map(el => {
+                return data.values.map(el => {
                     const { objectId } = el;
                     const obj = {
                         objectId: objectId,
@@ -192,7 +178,6 @@ class BacnetUtilities {
                     }
                     return obj;
                 });
-                return dataFormated;
             }
             catch (error) {
                 throw error;
@@ -260,12 +245,14 @@ class BacnetUtilities {
     static _getChildrenNewValue(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             const client = argClient || new bacnet();
-            if (device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
-                return this.getChildrenNewValueWithReadPropertyMultiple(device, children, client);
-            }
-            else {
-                return this.getChildrenNewValueWithReadProperty(device, children, client);
-            }
+            const deviceAcceptSegmentation = [].indexOf(device.segmentation) !== -1;
+            const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
+            return func.call(this, device, children, client);
+            // if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
+            //    return this.getChildrenNewValueWithReadPropertyMultiple(device, children, client);
+            // } else {
+            //    return this.getChildrenNewValueWithReadProperty(device, children, client);
+            // }
         });
     }
     static getChildrenNewValueWithReadPropertyMultiple(device, children, argClient) {
@@ -297,11 +284,14 @@ class BacnetUtilities {
                 while (deep_children.length > 0) {
                     const obj = deep_children.shift();
                     if (obj) {
-                        obj["id"] = obj.instance;
-                        const data = yield this.readProperty(device.address, obj, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, client);
-                        const value = (_a = data.values[0]) === null || _a === void 0 ? void 0 : _a.value;
-                        obj["currentValue"] = this._getObjValue(value);
-                        res.push(obj);
+                        try {
+                            obj["id"] = obj.instance;
+                            const data = yield this.readProperty(device.address, obj, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, client);
+                            const value = (_a = data.values[0]) === null || _a === void 0 ? void 0 : _a.value;
+                            obj["currentValue"] = this._getObjValue(value);
+                            res.push(obj);
+                        }
+                        catch (error) { }
                     }
                 }
                 return res;

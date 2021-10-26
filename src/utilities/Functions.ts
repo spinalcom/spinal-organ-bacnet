@@ -8,7 +8,7 @@ import {
 
 import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
 
-import { SpinalDiscover, DiscoverQueing } from "../modules/SpinalDiscover";
+import { SpinalDiscover, discover } from "../modules/SpinalDiscover";
 import { spinalMonitoring } from "../modules/SpinalMonitoring";
 import { spinalPilot } from "../modules/SpinalPilot";
 
@@ -38,7 +38,7 @@ export const connectionErrorCallback = (err?) => {
 
 export const CreateOrganConfigFile = (spinalConnection: any, path: string, connectorName: string) => {
 
-   return new Promise((resolve, reject) => {
+   return new Promise((resolve) => {
       spinalConnection.load_or_make_dir(`${path}`, (directory) => {
 
          for (let index = 0; index < directory.length; index++) {
@@ -100,14 +100,12 @@ export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverMo
       // Check if model is not timeout.
       if ((time - creation) >= minute || spinalDisoverModel.state.get() === STATES.created) {
          spinalDisoverModel.setTimeoutMode();
-         spinalDisoverModel.remove();
-         return;
+         return spinalDisoverModel.remove();
       }
 
-      // DiscoverQueing.addToQueue(spinalDisoverModel)
-      new SpinalDiscover(spinalDisoverModel);
+      discover.addToQueue(spinalDisoverModel)
+      // new SpinalDiscover(spinalDisoverModel);
    }
-
 
 }
 
@@ -116,23 +114,28 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
    await WaitModelReady();
 
    try {
-      const { networkService, device, organ, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
+      spinalBacnetValueModel.organ.load(async (organ) => {
 
-      if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
+         if (organ && (<any>organ).id?.get() !== organModel.id?.get()) return;
 
-      if (spinalBacnetValueModel.state.get() === 'wait') {
+         const { networkService, device, node } = (<any>await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel));
 
-         const spinalDevice = new SpinalDevice(device);
+         if (spinalBacnetValueModel.state.get() === 'wait') {
 
-         await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+            const spinalDevice = new SpinalDevice(device);
 
-      } else {
-         return spinalBacnetValueModel.remToNode();
-      }
+            await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+
+         } else {
+            return spinalBacnetValueModel.remToNode();
+         }
+      })
+
    } catch (error) {
-      console.error(error);
+      // console.error(error);
 
-      spinalBacnetValueModel.setErrorState();
+      await spinalBacnetValueModel.setErrorState();
+      return spinalBacnetValueModel.remToNode();
    }
 
 }

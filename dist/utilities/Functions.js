@@ -43,7 +43,7 @@ const connectionErrorCallback = (err) => {
 };
 exports.connectionErrorCallback = connectionErrorCallback;
 const CreateOrganConfigFile = (spinalConnection, path, connectorName) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         spinalConnection.load_or_make_dir(`${path}`, (directory) => {
             for (let index = 0; index < directory.length; index++) {
                 const element = directory[index];
@@ -95,11 +95,10 @@ const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(voi
         // Check if model is not timeout.
         if ((time - creation) >= minute || spinalDisoverModel.state.get() === spinal_model_bacnet_1.STATES.created) {
             spinalDisoverModel.setTimeoutMode();
-            spinalDisoverModel.remove();
-            return;
+            return spinalDisoverModel.remove();
         }
-        // DiscoverQueing.addToQueue(spinalDisoverModel)
-        new SpinalDiscover_1.SpinalDiscover(spinalDisoverModel);
+        SpinalDiscover_1.discover.addToQueue(spinalDisoverModel);
+        // new SpinalDiscover(spinalDisoverModel);
     }
 });
 exports.SpinalDiscoverCallback = SpinalDiscoverCallback;

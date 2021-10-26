@@ -29,10 +29,14 @@ class SpinalNetworkServiceUtilities {
     static initSpinalBacnetValueModel(spinalModel) {
         return __awaiter(this, void 0, void 0, function* () {
             const { node, context, graph, network, organ } = yield spinalModel.getAllItem();
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(node);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
-            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
+            if (node)
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(node);
+            if (context)
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
+            if (graph)
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
+            if (network)
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
             const networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
             const organNetwork = {
                 contextName: context.getName().get(),
@@ -64,10 +68,14 @@ class SpinalNetworkServiceUtilities {
                     this.loadPtrValue(spinalModel.context),
                     this.loadPtrValue(spinalModel.organ),
                 ]);
-                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
-                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
-                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
-                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
+                if (graph)
+                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
+                if (device)
+                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
+                if (network)
+                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
+                if (context)
+                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
                 const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
                 yield networkService.init(graph, {
                     contextName: context.getName().get(),

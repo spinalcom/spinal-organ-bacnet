@@ -57,55 +57,34 @@ export default class BacnetUtilities {
       let values;
 
       try {
-         if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
-            console.log(device.address, "device accepte segmentation");
+         const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
+         let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, PropertyIds.PROP_OBJECT_LIST];
+         let func = deviceAcceptSegmentation ? this.readPropertyMutltiple : this.readProperty;
 
-            const requestArray: IRequestArray = {
-               objectId: objectId,
-               properties: [{ id: PropertyIds.PROP_OBJECT_LIST }]
-            };
-
-            const data = await this.readPropertyMutltiple(device.address, requestArray, argClient);
-            values = lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value)));
-
-         } else {
-            console.log(device.address, "not accepte segmentation");
-            const data = await this.readProperty(device.address, objectId, PropertyIds.PROP_OBJECT_LIST, argClient);
-            values = data.values;
-         }
+         const data = await func.call(this, device.address, ...params, argClient);
+         values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
 
       } catch (error) {
-
-         if (error.message.match(/reason:4/i)) {
-            values = await this.getItemListByFragment(device, objectId, argClient);
-         } else {
-            throw error;
-         }
+         if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId, argClient);
 
       }
-
 
       if (typeof values === "undefined") throw "No values found";
 
-      const sensor = [];
-      for (const item of values) {
-         if (SENSOR_TYPES.indexOf(item.value.type) !== -1) {
-            sensor.push(item.value);
-         }
-      }
+      return values.filter(item => SENSOR_TYPES.indexOf(item.value.type) !== -1);
 
-      return sensor;
    }
 
 
    public static async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet) {
       const list = [];
+      let error;
+      let index = 1;
+      let finish = false;
 
       return new Promise(async (resolve, reject) => {
-         let error;
-         let index = 1;
-         let finish = false;
-         while (!error || !finish) {
+
+         while (!error && !finish) {
             try {
                const clientOptions = { arrayIndex: index }
                const value = await this.readProperty(device.address, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
@@ -118,7 +97,6 @@ export default class BacnetUtilities {
 
             } catch (err) {
                error = err;
-               resolve(list);
             }
          }
 
@@ -132,44 +110,28 @@ export default class BacnetUtilities {
 
    public static async _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<Array<{ [key: string]: string | boolean | number }>> {
 
-      console.log("get object details");
+      let objectLists = [...objects];
+      let objectListDetails = [];
+      const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+      const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
 
-      if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
-         console.log("device accepte segmentation");
-
-         const objectLists = lodash.chunk(objects, 60);
-         const objectListDetails = [];
-
-         while (objectLists.length > 0) {
-            const object = objectLists.shift();
-            if (object) {
-               try {
-                  const res = await this._getObjectDetailWithReadPropertyMultiple(device, object, argClient);
-                  objectListDetails.push(res);
-               } catch (err) { }
-            }
-         }
-
-         return lodash.flattenDeep(objectListDetails);
-      } else {
-         console.log("device not accepte segmentation");
-
-         const objectLists = [...objects];
-         const objectListDetails = [];
-
-         while (objectLists.length > 0) {
-            const object = objectLists.shift();
-            if (object) {
-               try {
-                  const res = await this._getObjectDetailWithReadProperty(device, object, argClient);
-                  objectListDetails.push(res);
-               } catch (error) { }
-
-            }
-         }
-
-         return objectListDetails;
+      if (deviceAcceptSegmentation) {
+         objectLists = lodash.chunk(objects, 10);
       }
+
+      while (objectLists.length > 0) {
+         const object: any = objectLists.shift();
+         if (object) {
+            try {
+               const res = await func.call(this, device, object, argClient);
+               objectListDetails.push(res);
+            } catch (err) { }
+         }
+      }
+
+      if (deviceAcceptSegmentation) objectListDetails = lodash.flattenDeep(objectListDetails);
+
+      return objectListDetails;
 
    }
 
@@ -188,7 +150,7 @@ export default class BacnetUtilities {
             ]
          }))
          const data = await this.readPropertyMutltiple(device.address, requestArray, argClient);
-         const dataFormated = data.values.map(el => {
+         return data.values.map(el => {
             const { objectId } = el;
 
             const obj = {
@@ -209,7 +171,6 @@ export default class BacnetUtilities {
             return obj;
          });
 
-         return dataFormated;
       } catch (error) {
          throw error;
       }
@@ -284,12 +245,15 @@ export default class BacnetUtilities {
 
    public static async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
       const client = argClient || new bacnet();
+      const deviceAcceptSegmentation = [].indexOf(device.segmentation) !== -1;
+      const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
 
-      if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
-         return this.getChildrenNewValueWithReadPropertyMultiple(device, children, client);
-      } else {
-         return this.getChildrenNewValueWithReadProperty(device, children, client);
-      }
+      return func.call(this, device, children, client);
+      // if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
+      //    return this.getChildrenNewValueWithReadPropertyMultiple(device, children, client);
+      // } else {
+      //    return this.getChildrenNewValueWithReadProperty(device, children, client);
+      // }
 
    }
 

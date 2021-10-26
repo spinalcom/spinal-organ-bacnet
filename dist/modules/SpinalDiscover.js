@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalDiscover = exports.DiscoverQueing = void 0;
+exports.SpinalDiscover = exports.discover = void 0;
 const bacnet = require("bacstack");
 const events_1 = require("events");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
@@ -18,31 +18,60 @@ const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
-exports.DiscoverQueing = (function () {
-    const discoverQueue = new SpinalQueuing_1.SpinalQueuing();
-    let _isProcess = false;
-    discoverQueue.on("start", () => {
-        if (!_isProcess) {
-            startDiscovering();
-        }
-    });
-    const addToQueue = (model) => {
-        discoverQueue.addToQueue(model);
-    };
-    const startDiscovering = () => {
-        if (!discoverQueue.isEmpty()) {
-            const model = discoverQueue.dequeue();
+class Discover extends events_1.EventEmitter {
+    constructor() {
+        super();
+        this._discoverQueue = new SpinalQueuing_1.SpinalQueuing();
+        this._isProcess = false;
+        this.listenEvent();
+    }
+    listenEvent() {
+        this._discoverQueue.on("start", () => {
+            if (!this._isProcess) {
+                this._isProcess = true;
+                this._discoverNext();
+            }
+        });
+        this.on("next", () => {
+            this._discoverNext();
+        });
+    }
+    addToQueue(model) {
+        this._discoverQueue.addToQueue(model);
+    }
+    _discoverNext() {
+        if (!this._discoverQueue.isEmpty()) {
+            const model = this._discoverQueue.dequeue();
             const spinalDiscover = new SpinalDiscover(model);
+            let timeout = false;
+            let bindSateProcess = model.state.bind(() => {
+                const state = model.state.get();
+                switch (state) {
+                    case spinal_model_bacnet_1.STATES.discovered:
+                        model.state.unbind(bindSateProcess);
+                        if (!timeout) {
+                            this.emit("next");
+                        }
+                        break;
+                    case spinal_model_bacnet_1.STATES.timeout:
+                        if (!timeout) {
+                            this.emit("next");
+                        }
+                        timeout = true;
+                    default:
+                        break;
+                }
+            });
         }
-    };
-    return {
-        addToQueue
-    };
-})();
-class SpinalDiscover extends events_1.EventEmitter {
+        else {
+            this._isProcess = false;
+        }
+    }
+}
+exports.discover = new Discover();
+class SpinalDiscover {
     constructor(model) {
         var _a, _b;
-        super();
         this.devices = new Map();
         this.discoverModel = model;
         this.CONNECTION_TIME_OUT = ((_b = (_a = model.network) === null || _a === void 0 ? void 0 : _a.timeout) === null || _b === void 0 ? void 0 : _b.get()) || 45000;
@@ -119,13 +148,7 @@ class SpinalDiscover extends events_1.EventEmitter {
                 timeOutId = setTimeout(() => {
                     reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
                 }, this.CONNECTION_TIME_OUT);
-                this.client.whoIs({
-                    address: this.discoverModel.network.address.get(),
-                    dest: {
-                        net: '65535',
-                        adr: [''],
-                    },
-                });
+                this.client.whoIs();
             }
             else {
                 // ips.forEach(({ address, deviceId }) => {
@@ -152,27 +175,9 @@ class SpinalDiscover extends events_1.EventEmitter {
                     queue.addToQueue(device);
                 }
             });
-            queue.on("start", () => { resolve(queue); });
-            // if (this.discoverModel.network?.useBroadcast?.get()) {
-            //    console.log("use broadcast");
-            //    const timeOutId = setTimeout(() => {
-            //       reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
-            //    }, this.CONNECTION_TIME_OUT);
-            //    this.client.on('iAm', (device) => {
-            //       clearTimeout(timeOutId);
-            //       queue.addToQueue(device);
-            //    })
-            //    this.client.whoIs();
-            // } else {
-            //    console.log("use unicast");
-            //    const ips = this.discoverModel.network?.ips?.get() || [];
-            //    const devices = ips.filter(({ address, deviceId }) => address && deviceId)
-            //       .map(({ address, deviceId }) => {
-            //          return { address, deviceId: parseInt(deviceId) }
-            //       })
-            //    queue.setQueue(devices);
-            // }
-            // queue.on("start", () => { resolve(queue) });
+            queue.on("start", () => {
+                resolve(queue);
+            });
         });
     }
     createSpinalDevice(device) {

@@ -14,25 +14,27 @@ const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const Functions_1 = require("./utilities/Functions");
 const pm2 = require("pm2");
 const config = require("../config.json5");
-const url = `${config.spinalConnector.protocol}://${config.spinalConnector.userId}:${config.spinalConnector.password}@${config.spinalConnector.host}:${config.spinalConnector.port}/`;
+const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
+const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
-const path = config.spinalConnector.path;
-const name = config.spinalConnector.name;
+const loadTypeInSpinalCore = (connect, type, callback, errorCallback) => {
+    spinal_core_connectorjs_type_1.spinalCore.load_type(connect, type, callback, errorCallback);
+};
 const listenLoadType = (connect, organModel) => {
-    return new Promise((resolve, reject) => {
-        spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel) => {
-            Functions_1.SpinalDiscoverCallback(spinalDisoverModel, organModel);
-        }, Functions_1.connectionErrorCallback);
-        spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalListenerModel', (spinalListenerModel) => {
-            Functions_1.SpinalListnerCallback(spinalListenerModel, organModel);
-        }, Functions_1.connectionErrorCallback);
-        spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
-            Functions_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
-        }, Functions_1.connectionErrorCallback);
-        spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalPilotModel', (spinalPilotModel) => {
-            Functions_1.SpinalPilotCallback(spinalPilotModel, organModel);
-        }, Functions_1.connectionErrorCallback);
-    });
+    // return new Promise((resolve, reject) => {
+    loadTypeInSpinalCore(connect, 'SpinalDisoverModel', (spinalDisoverModel) => {
+        Functions_1.SpinalDiscoverCallback(spinalDisoverModel, organModel);
+    }, Functions_1.connectionErrorCallback);
+    loadTypeInSpinalCore(connect, 'SpinalListenerModel', (spinalListenerModel) => {
+        Functions_1.SpinalListnerCallback(spinalListenerModel, organModel);
+    }, Functions_1.connectionErrorCallback);
+    loadTypeInSpinalCore(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
+        Functions_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
+    }, Functions_1.connectionErrorCallback);
+    loadTypeInSpinalCore(connect, 'SpinalPilotModel', (spinalPilotModel) => {
+        Functions_1.SpinalPilotCallback(spinalPilotModel, organModel);
+    }, Functions_1.connectionErrorCallback);
+    // });
 };
 Functions_1.CreateOrganConfigFile(connect, path, name).then((organModel) => {
     organModel.restart.bind(() => {
