@@ -1,4 +1,27 @@
 "use strict";
+/*
+ * Copyright 2021 SpinalCom - www.spinalcom.com
+ *
+ * This file is part of SpinalCore.
+ *
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ *
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ *
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -60,26 +83,12 @@ class BacnetUtilities {
             let values;
             try {
                 const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
-                let params;
-                let func;
-                if (deviceAcceptSegmentation) {
-                    console.log(device.address, "device accepte segmentation");
-                    params = [{
-                            objectId: objectId,
-                            properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }]
-                        }];
-                    func = this.readPropertyMutltiple;
-                }
-                else {
-                    console.log(device.address, "device not accepte segmentation");
-                    params = [objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST];
-                    func = this.readProperty;
-                }
+                let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST];
+                let func = deviceAcceptSegmentation ? this.readPropertyMutltiple : this.readProperty;
                 const data = yield func.call(this, device.address, ...params, argClient);
                 values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
             }
             catch (error) {
-                console.log(error);
                 if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i))
                     values = yield this.getItemListByFragment(device, objectId, argClient);
             }
@@ -91,11 +100,11 @@ class BacnetUtilities {
     static getItemListByFragment(device, objectId, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             const list = [];
+            let error;
+            let index = 1;
+            let finish = false;
             return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
-                let error;
-                let index = 1;
-                let finish = false;
-                while (!error || !finish) {
+                while (!error && !finish) {
                     try {
                         const clientOptions = { arrayIndex: index };
                         const value = yield this.readProperty(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
@@ -109,7 +118,6 @@ class BacnetUtilities {
                     }
                     catch (err) {
                         error = err;
-                        resolve(list);
                     }
                 }
                 resolve(list);
@@ -124,26 +132,24 @@ class BacnetUtilities {
             let objectLists = [...objects];
             let objectListDetails = [];
             const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+            console.log(deviceAcceptSegmentation);
             const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
             if (deviceAcceptSegmentation) {
-                console.log("device accept segementation");
                 objectLists = lodash.chunk(objects, 10);
             }
             while (objectLists.length > 0) {
                 const object = objectLists.shift();
                 if (object) {
                     try {
+                        console.log(argClient);
                         const res = yield func.call(this, device, object, argClient);
                         objectListDetails.push(res);
                     }
-                    catch (err) {
-                        console.log("error", object);
-                    }
+                    catch (err) { }
                 }
             }
             if (deviceAcceptSegmentation)
                 objectListDetails = lodash.flattenDeep(objectListDetails);
-            console.log("item created", objectListDetails.length);
             return objectListDetails;
         });
     }
@@ -203,13 +209,20 @@ class BacnetUtilities {
                 try {
                     const property = properties.shift();
                     if (typeof property !== "undefined") {
+                        console.log("property not undefined");
                         const formated = yield this._getPropertyValue(device.address, objectId, property, argClient);
+                        console.log("formated", formated);
                         for (let key in formated) {
                             obj[key] = formated[key];
                         }
                     }
+                    else {
+                        console.log("property is undefined");
+                    }
                 }
-                catch (error) { }
+                catch (error) {
+                    console.error(error);
+                }
             }
             return obj;
             // const requestArray = objects.map(el => ({
@@ -245,7 +258,7 @@ class BacnetUtilities {
     static _getChildrenNewValue(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             const client = argClient || new bacnet();
-            const deviceAcceptSegmentation = [].indexOf(device.segmentation) !== -1;
+            const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
             const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
             return func.call(this, device, children, client);
             // if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
@@ -365,7 +378,6 @@ class BacnetUtilities {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = yield this.readProperty(address, objectId, propertyId, argClient);
-                console.log(data);
                 const formated = this._formatProperty(data);
                 return formated;
             }

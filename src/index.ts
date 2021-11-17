@@ -31,7 +31,6 @@ CreateOrganConfigFile(connect, path, name).then((organModel: SpinalOrganConfigMo
    organModel.restart.bind(() => {
       GetPm2Instance(name).then(async (app: any) => {
          const restart = organModel.restart.get();
-         console.log(app);
 
          if (!restart) {
             listenLoadType(connect, organModel);

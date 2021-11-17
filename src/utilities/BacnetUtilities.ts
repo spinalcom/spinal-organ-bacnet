@@ -135,9 +135,13 @@ export default class BacnetUtilities {
    public static async _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<Array<{ [key: string]: string | boolean | number }>> {
 
       let objectLists = [...objects];
+
       let objectListDetails = [];
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+      console.log(deviceAcceptSegmentation);
+
       const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
+
 
       if (deviceAcceptSegmentation) {
          objectLists = lodash.chunk(objects, 10);
@@ -147,6 +151,8 @@ export default class BacnetUtilities {
          const object: any = objectLists.shift();
          if (object) {
             try {
+               console.log(argClient);
+
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
             } catch (err) { }
@@ -221,13 +227,20 @@ export default class BacnetUtilities {
          try {
             const property = properties.shift();
             if (typeof property !== "undefined") {
+               console.log("property not undefined");
                const formated = await this._getPropertyValue(device.address, objectId, property, argClient);
+               console.log("formated", formated);
+
                for (let key in formated) {
                   obj[key] = formated[key];
                }
+            } else {
+               console.log("property is undefined");
             }
 
-         } catch (error) { }
+         } catch (error) {
+            console.error(error);
+         }
       }
 
 
@@ -393,7 +406,6 @@ export default class BacnetUtilities {
 
       try {
          const data = await this.readProperty(address, objectId, propertyId, argClient);
-         console.log(data)
          const formated: any = this._formatProperty(data);
          return formated;
 
