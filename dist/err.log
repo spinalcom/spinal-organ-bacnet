@@ -505,3 +505,36 @@
 2021-11-16T16:22:34:     at Generator.next (<anonymous>)
 2021-11-16T16:22:34:     at fulfilled (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/utilities/Functions.js:5:58)
 2021-11-16T16:22:34:     at process._tickCallback (internal/process/next_tick.js:68:7)
+2021-11-18T16:13:57: TypeError: Cannot read property 'name' of undefined
+2021-11-18T16:13:57:     at SpinalMonitoring.<anonymous> (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/src/modules/SpinalMonitoring.ts:91:43)
+2021-11-18T16:13:57:     at Generator.next (<anonymous>)
+2021-11-18T16:13:57:     at /home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:8:71
+2021-11-18T16:13:57:     at new Promise (<anonymous>)
+2021-11-18T16:13:57:     at __awaiter (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:4:12)
+2021-11-18T16:13:57:     at SpinalMonitoring._createMaps (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:72:16)
+2021-11-18T16:13:57:     at SpinalMonitoring.<anonymous> (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/src/modules/SpinalMonitoring.ts:50:18)
+2021-11-18T16:13:57:     at Generator.next (<anonymous>)
+2021-11-18T16:13:57:     at fulfilled (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:5:58)
+2021-11-18T16:13:57:     at process._tickCallback (internal/process/next_tick.js:68:7)
+2021-11-18T16:16:17: TypeError: Cannot read property 'name' of undefined
+2021-11-18T16:16:17:     at SpinalMonitoring.<anonymous> (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/src/modules/SpinalMonitoring.ts:91:43)
+2021-11-18T16:16:17:     at Generator.next (<anonymous>)
+2021-11-18T16:16:17:     at /home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:8:71
+2021-11-18T16:16:17:     at new Promise (<anonymous>)
+2021-11-18T16:16:17:     at __awaiter (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:4:12)
+2021-11-18T16:16:17:     at SpinalMonitoring._createMaps (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:72:16)
+2021-11-18T16:16:17:     at SpinalMonitoring.<anonymous> (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/src/modules/SpinalMonitoring.ts:50:18)
+2021-11-18T16:16:17:     at Generator.next (<anonymous>)
+2021-11-18T16:16:17:     at fulfilled (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:5:58)
+2021-11-18T16:16:17:     at process._tickCallback (internal/process/next_tick.js:68:7)
+2021-11-18T16:22:30: TypeError: Cannot read property 'name' of undefined
+2021-11-18T16:22:30:     at SpinalMonitoring.<anonymous> (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/src/modules/SpinalMonitoring.ts:91:43)
+2021-11-18T16:22:30:     at Generator.next (<anonymous>)
+2021-11-18T16:22:30:     at /home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:8:71
+2021-11-18T16:22:30:     at new Promise (<anonymous>)
+2021-11-18T16:22:30:     at __awaiter (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:4:12)
+2021-11-18T16:22:30:     at SpinalMonitoring._createMaps (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:72:16)
+2021-11-18T16:22:30:     at SpinalMonitoring.<anonymous> (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/src/modules/SpinalMonitoring.ts:50:18)
+2021-11-18T16:22:30:     at Generator.next (<anonymous>)
+2021-11-18T16:22:30:     at fulfilled (/home/spinalcom/bacnet-organs/spinal-organ-bacnet-C/dist/modules/SpinalMonitoring.js:5:58)
+2021-11-18T16:22:30:     at process._tickCallback (internal/process/next_tick.js:68:7)

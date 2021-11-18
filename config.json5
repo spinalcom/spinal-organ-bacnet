@@ -7,7 +7,7 @@
     password: "bqM83SJs8",
     protocol: "https",
     // host: "vinci-archipel-b1.spinalcom.com", // can be an ip address - process.env.SPINALHUB_IP
-    host: "141.94.206.62", // can be an ip address - process.env.SPINALHUB_IP
+    host: "51.178.139.45", // can be an ip address - process.env.SPINALHUB_IP
 
     port: 10124, // hub port
     path: "/__users__/admin/organs",

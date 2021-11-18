@@ -88,9 +88,9 @@ class SpinalMonitoring {
 
          if (!listen) {
             this.removeToMaps(id);
-            console.log(spinalDevice.info.name.get(), "is stopped");
+            console.log(spinalDevice.device.name, "is stopped");
 
-            return;
+            continue;
          }
          const monitors = spinalModel.monitor.getMonitoringData();
          const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
@@ -100,6 +100,8 @@ class SpinalMonitoring {
 
          if (this.binded.indexOf(id) === -1) {
             spinalModel.listen.bind(() => {
+               console.log("listen changed");
+
                this.addToMonitoringList(spinalModel);
             })
          }

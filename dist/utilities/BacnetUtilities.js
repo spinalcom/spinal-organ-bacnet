@@ -132,7 +132,6 @@ class BacnetUtilities {
             let objectLists = [...objects];
             let objectListDetails = [];
             const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
-            console.log(deviceAcceptSegmentation);
             const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
             if (deviceAcceptSegmentation) {
                 objectLists = lodash.chunk(objects, 10);
@@ -141,7 +140,6 @@ class BacnetUtilities {
                 const object = objectLists.shift();
                 if (object) {
                     try {
-                        console.log(argClient);
                         const res = yield func.call(this, device, object, argClient);
                         objectListDetails.push(res);
                     }
@@ -211,7 +209,6 @@ class BacnetUtilities {
                     if (typeof property !== "undefined") {
                         console.log("property not undefined");
                         const formated = yield this._getPropertyValue(device.address, objectId, property, argClient);
-                        console.log("formated", formated);
                         for (let key in formated) {
                             obj[key] = formated[key];
                         }

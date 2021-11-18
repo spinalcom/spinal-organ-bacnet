@@ -138,7 +138,6 @@ export default class BacnetUtilities {
 
       let objectListDetails = [];
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
-      console.log(deviceAcceptSegmentation);
 
       const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
 
@@ -151,7 +150,6 @@ export default class BacnetUtilities {
          const object: any = objectLists.shift();
          if (object) {
             try {
-               console.log(argClient);
 
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
@@ -229,7 +227,6 @@ export default class BacnetUtilities {
             if (typeof property !== "undefined") {
                console.log("property not undefined");
                const formated = await this._getPropertyValue(device.address, objectId, property, argClient);
-               console.log("formated", formated);
 
                for (let key in formated) {
                   obj[key] = formated[key];
