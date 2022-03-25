@@ -50,6 +50,7 @@ class SpinalDevice extends events_1.EventEmitter {
             }
             const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
+            console.log("object Details", objectListDetails);
             const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
             const listes = Array.from(Object.keys(children)).map((el) => [el, children[el]]);
             const maxLength = listes.length;
@@ -59,7 +60,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 spinalBacnetValueModel.setProgressState();
             }
             while (!isError && listes.length > 0) {
-                const item = listes.shift();
+                const item = listes.pop();
                 if (item) {
                     const [key, value] = item;
                     try {

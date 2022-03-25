@@ -1,6 +1,6 @@
 import * as lodash from "lodash";
 import * as bacnet from "bacstack";
-import { SpinalGraphService } from "spinal-env-viewer-graph-service";
+import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
 import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
@@ -91,7 +91,6 @@ export default class BacnetUtilities {
    }
 
    public static readPropertyWithOutSADR(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
-
       const client = argClient || new bacnet();
       const options = clientOptions || {};
 
@@ -160,7 +159,7 @@ export default class BacnetUtilities {
          // }
 
       } catch (error) {
-         console.log(error)
+         // console.log(error)
          if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId, argClient);
 
          // if (error.message.match(/reason:4/i)) {
@@ -209,7 +208,7 @@ export default class BacnetUtilities {
 
                const clientOptions = { arrayIndex: index }
                const value = await this.readProperty(device.address, SADR, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
-               console.log("value", index, value);
+               console.log("get value on index : ", index, value);
 
                if (value) {
                   index++;
@@ -219,8 +218,15 @@ export default class BacnetUtilities {
                }
 
             } catch (err) {
-               console.log(err.message);
-               error = err;
+               // console.log(device.address, PropertyIds.PROP_OBJECT_LIST, err.message);
+
+               if (err.message.match(/ERR_TIMEOUT/i)) {
+                  index++
+                  argClient = new bacnet();
+               }
+
+               if (err.message.match(/Class:2 - Code:42/i))
+                  error = err;
             }
          }
 
@@ -250,9 +256,11 @@ export default class BacnetUtilities {
          if (object) {
             try {
                const res = await func.call(this, device, object, argClient);
+               // console.log("detail", res);
+
                objectListDetails.push(res);
             } catch (err) {
-               console.log("error", object);
+               // console.log("error", object);
             }
          }
       }
@@ -362,6 +370,7 @@ export default class BacnetUtilities {
 
    public static async _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId, argClient?: any): Promise<any> {
 
+      console.log("getting", objectId.instance, "details");
       const SADR = this.withOutSADR.get(device.address) ? null : device.SADR;
 
       const properties = [
@@ -379,9 +388,11 @@ export default class BacnetUtilities {
          deviceId: device.deviceId
       };
 
-      while (properties.length > 0) {
+      let counter = 0;
+      while (properties.length > counter) {
+         const property = properties[counter];
+
          try {
-            const property = properties.shift();
             if (typeof property !== "undefined") {
                const formated = await this._getPropertyValue(device.address, SADR, objectId, property, argClient);
                for (let key in formated) {
@@ -389,7 +400,14 @@ export default class BacnetUtilities {
                }
             }
 
-         } catch (error) { }
+            counter++;
+
+         } catch (error) {
+            console.log(error.message);
+            if (error.message.match(/Class:2 - Code:32/i)) counter++;
+            if (error.message.match(/Class:2 - Code:27/i)) counter++;
+            if (error.message.match(/ERR_TIMEOUT/i)) argClient = null;
+         }
       }
 
 
@@ -481,7 +499,8 @@ export default class BacnetUtilities {
                   obj["currentValue"] = this._getObjValue(value);
                   res.push(obj);
                } catch (error) {
-                  console.log("can not read value of", obj.instance);
+                  // console.log("can not read value of", obj.instance);
+                  console.error(error.message);
 
                }
             }
@@ -520,34 +539,48 @@ export default class BacnetUtilities {
    }
 
    public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any) {
-      const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el))
-      const endpoints = await Promise.all(promises);
-      return endpoints;
+      const childNetwork = await this.getChildrenObj(groupId, SpinalBmsEndpoint.relationName);
+      let counter = 0;
+      while (counter < endpointArray.length) {
+         const item = endpointArray[counter];
+         if (childNetwork[item.id]) {
+            console.log(item.id, "already exists");
+            counter++;
+            continue;
+         }
+
+         await this._createEndpoint(networkService, groupId, item);
+         counter++;
+      }
+
+      // const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
+      // const endpoints = await Promise.all(promises);
+      // return endpoints;
    }
 
    public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
       console.log("creating", endpointObj.id);
 
-      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, endpointObj.id);
-      if (exist) {
-         console.log(endpointObj.id, "exist");
-         return exist
-      };
+      // const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, endpointObj.id);
+      // if (exist) {
+      //    console.log(endpointObj.id, "exist");
+      //    return exist
+      // };
 
-      console.log(endpointObj.id, "will be created");
-
-      console.log(endpointObj);
-
+      // console.log(endpointObj.id, "will be created");
 
       const obj: any = {
          id: endpointObj.id,
          typeId: endpointObj.typeId,
-         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
+         // name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
+         name: endpointObj.object_name,
          path: "",
          currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
          unit: endpointObj.units,
          type: endpointObj.type,
       }
+
+      if (typeof obj.name !== "string" && obj.currentValue != 0 && !!obj.currentValue) return;
 
       return networkService.createNewBmsEndpoint(groupId, obj);
 
@@ -626,8 +659,10 @@ export default class BacnetUtilities {
    public static _getObjValue(value: any) {
       if (typeof value !== "object") return value;
 
-      let temp_value = Array.isArray(value) ? value[0]?.value : value.value;
-      return typeof temp_value === "object" ? "" : temp_value;
+      let temp_value = Array.isArray(value) ? value[0] : value;
+      if (typeof temp_value !== "object") return temp_value;
+      return temp_value && temp_value.value ? temp_value.value : "";
+      // return typeof temp_value === "object" ? "" : temp_value;
    }
 
    public static _formatCurrentValue(value: any, type: number | string) {
@@ -669,6 +704,13 @@ export default class BacnetUtilities {
    //    }))
    // }
 
+   private static async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
+      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
+      const obj = {};
+      children.forEach(el => obj[el.idNetwork.get()] = el);
+
+      return obj;
+   }
 
 
 }

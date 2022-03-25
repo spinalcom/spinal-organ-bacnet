@@ -23,6 +23,7 @@ class SpinalMonitoring {
         this.intervalTimesMap = new Map();
         this.initializedMap = new Map();
         this.devices = [];
+        this.binded = [];
     }
     addToMonitoringList(spinalListenerModel) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -31,7 +32,6 @@ class SpinalMonitoring {
     }
     init() {
         this.queue.on("start", () => {
-            console.log("start monitoring...");
             this.startDeviceInitialisation();
         });
     }
@@ -42,7 +42,8 @@ class SpinalMonitoring {
             const promises = list.map(el => SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
             const devices = lodash.flattenDeep(yield Promise.all(promises));
             const filtered = devices.filter(el => typeof el !== "undefined");
-            yield this._addToMaps(filtered);
+            yield this._createMaps(devices);
+            // await this._addToMaps(filtered);
             // await this.addToQueue(filtered);
             if (!this.isProcessing) {
                 this.isProcessing = true;
@@ -52,6 +53,7 @@ class SpinalMonitoring {
     }
     startMonitoring() {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log("start monitoring...");
             let p = true;
             while (p) {
                 if (this.priorityQueue.isEmpty()) {
@@ -67,47 +69,112 @@ class SpinalMonitoring {
             }
         });
     }
-    _addToMaps(devices) {
+    _createMaps(devices) {
         return __awaiter(this, void 0, void 0, function* () {
-            for (const { id, spinalModel, spinalDevice, networkService, network } of devices) {
-                spinalModel.listen.bind(() => __awaiter(this, void 0, void 0, function* () {
-                    const value = spinalModel.listen.get();
-                    if (!value) {
-                        console.log("stopped", value);
-                        this.removeToMaps(id);
-                        return;
-                    }
-                    const monitors = spinalModel.monitor.getMonitoringData();
-                    const promises = monitors.map(({ interval, children }) => __awaiter(this, void 0, void 0, function* () {
-                        if (isNaN(interval) || interval <= 0 || children.length <= 0)
-                            return;
-                        yield this.createDataIfNotExist(spinalDevice, children, networkService, network, interval);
-                        const func = () => __awaiter(this, void 0, void 0, function* () { return this.funcToExecute(spinalModel, spinalDevice, children, networkService, network); });
-                        let value = this.intervalTimesMap.get(interval);
-                        if (typeof value === "undefined") {
-                            value = [];
-                        }
-                        value.push({ id, func });
-                        this.intervalTimesMap.set(interval, value);
-                        const arr = this.priorityQueue.toArray();
-                        const found = arr.find(({ element }) => {
-                            return element.interval === interval;
-                        });
-                        if (typeof found === "undefined") {
-                            this.priorityQueue.enqueue({ interval }, Date.now() + interval);
-                        }
-                        return;
-                    }));
-                    return Promise.all(promises);
-                }));
+            const devices_copy = Object.assign([], devices);
+            while (devices_copy.length > 0) {
+                const { id, spinalModel, spinalDevice, networkService, network } = devices_copy.shift();
+                const listen = spinalModel.listen.get();
+                if (!listen) {
+                    this.removeToMaps(id);
+                    console.log(spinalDevice.device.name, "is stopped");
+                    continue;
+                }
+                const monitors = spinalModel.monitor.getMonitoringData();
+                const intervals = yield this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
+                for (const { interval, func } of intervals) {
+                    this._addToMap(id, interval, func);
+                }
+                if (this.binded.indexOf(id) === -1) {
+                    spinalModel.listen.bind(() => {
+                        console.log("listen changed");
+                        this.addToMonitoringList(spinalModel);
+                    });
+                }
             }
         });
+    }
+    getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const monitors_copy = Object.assign([], monitors);
+            const res = [];
+            while (monitors_copy.length > 0) {
+                const { interval, children } = monitors_copy.shift();
+                if (isNaN(interval) || interval <= 0 || children.length <= 0)
+                    continue;
+                yield this.createDataIfNotExist(spinalDevice, children, networkService, interval);
+                const func = () => __awaiter(this, void 0, void 0, function* () { return this.funcToExecute(spinalModel, spinalDevice, children, networkService, network); });
+                res.push({
+                    interval,
+                    children,
+                    func
+                });
+            }
+            return res;
+        });
+    }
+    _addToMap(id, interval, func) {
+        let value = this.intervalTimesMap.get(interval);
+        if (typeof value === "undefined") {
+            value = [];
+        }
+        value.push({ id, func });
+        this.intervalTimesMap.set(interval, value);
+        this._addIntervalToPriorityQueue(interval);
     }
     removeToMaps(deviceId) {
         this.intervalTimesMap.forEach((value, key) => {
             this.intervalTimesMap.set(key, value.filter(el => el.id !== deviceId));
         });
     }
+    _addIntervalToPriorityQueue(interval) {
+        const arr = this.priorityQueue.toArray();
+        //@ts-ignore
+        const found = arr.find(({ element }) => {
+            return element.interval === interval;
+        });
+        if (typeof found === "undefined") {
+            this.priorityQueue.enqueue({ interval }, Date.now() + interval);
+        }
+    }
+    // private async _addToMaps(devices: Array<IDataMonitor>) {
+    //    for (const { id, spinalModel, spinalDevice, networkService, network } of devices) {
+    //       spinalModel.listen.bind(async () => {
+    //          const value = spinalModel.listen.get();
+    //          if (!value) {
+    //             console.log("stopped", value);
+    //             this.removeToMaps(id);
+    //             return;
+    //          }
+    //          const monitors = spinalModel.monitor.getMonitoringData();
+    //          const promises = monitors.map(async ({ interval, children }) => {
+    //             if (isNaN(interval) || interval <= 0 || children.length <= 0) return;
+    //             await this.createDataIfNotExist(spinalDevice, children, networkService, network, interval);
+    //             const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
+    //             let value = this.intervalTimesMap.get(interval);
+    //             if (typeof value === "undefined") {
+    //                value = [];
+    //             }
+    //             value.push({ id, func })
+    //             this.intervalTimesMap.set(interval, value);
+    //             const arr: Array<any> = this.priorityQueue.toArray();
+    //             const found = arr.find(({ element }) => {
+    //                return element.interval === interval;
+    //             })
+    //             if (typeof found === "undefined") {
+    //                this.priorityQueue.enqueue({ interval }, Date.now() + interval);
+    //             }
+    //             return;
+    //          })
+    //          return Promise.all(promises);
+    //       })
+    //    }
+    // }
+    // private removeToMaps(deviceId: string) {
+    //    this.intervalTimesMap.forEach((value, key) => {
+    //       this.intervalTimesMap.set(key, value.filter(el => el.id !== deviceId));
+    //    })
+    // }
     execFunc(functions, interval, date) {
         return __awaiter(this, void 0, void 0, function* () {
             // console.log(this.intervalTimesMap);
@@ -138,18 +205,20 @@ class SpinalMonitoring {
             }
         });
     }
-    createDataIfNotExist(spinalDevice, children, networkService, network, interval) {
+    createDataIfNotExist(spinalDevice, children, networkService, interval) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const id = `${spinalDevice.device.deviceId}_${interval}`;
                 let init = this.initializedMap.get(id);
                 if (!init) {
-                    console.log("initialisation");
+                    // console.log("initialisation");
                     this.initializedMap.set(id, true);
                     yield spinalDevice.checkAndCreateIfNotExist(networkService, children);
                 }
             }
-            catch (error) { }
+            catch (error) {
+                console.error(error);
+            }
         });
     }
     funcToExecute(spinalModel, spinalDevice, children, networkService, network) {

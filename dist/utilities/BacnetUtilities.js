@@ -135,7 +135,7 @@ class BacnetUtilities {
                 // }
             }
             catch (error) {
-                console.log(error);
+                // console.log(error)
                 if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i))
                     values = yield this.getItemListByFragment(device, objectId, argClient);
                 // if (error.message.match(/reason:4/i)) {
@@ -174,7 +174,7 @@ class BacnetUtilities {
                         let SADR = this.withOutSADR.get(device.address) ? null : device.SADR;
                         const clientOptions = { arrayIndex: index };
                         const value = yield this.readProperty(device.address, SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
-                        console.log("value", index, value);
+                        console.log("get value on index : ", index, value);
                         if (value) {
                             index++;
                             list.push(...value.values);
@@ -184,8 +184,13 @@ class BacnetUtilities {
                         }
                     }
                     catch (err) {
-                        console.log(err.message);
-                        error = err;
+                        // console.log(device.address, PropertyIds.PROP_OBJECT_LIST, err.message);
+                        if (err.message.match(/ERR_TIMEOUT/i)) {
+                            index++;
+                            argClient = new bacnet();
+                        }
+                        if (err.message.match(/Class:2 - Code:42/i))
+                            error = err;
                     }
                 }
                 resolve(list);
@@ -210,10 +215,11 @@ class BacnetUtilities {
                 if (object) {
                     try {
                         const res = yield func.call(this, device, object, argClient);
+                        // console.log("detail", res);
                         objectListDetails.push(res);
                     }
                     catch (err) {
-                        console.log("error", object);
+                        // console.log("error", object);
                     }
                 }
             }
@@ -302,6 +308,7 @@ class BacnetUtilities {
     }
     static _getObjectDetailWithReadProperty(device, objectId, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log("getting", objectId.instance, "details");
             const SADR = this.withOutSADR.get(device.address) ? null : device.SADR;
             const properties = [
                 GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE,
@@ -316,17 +323,27 @@ class BacnetUtilities {
                 instance: objectId.instance,
                 deviceId: device.deviceId
             };
-            while (properties.length > 0) {
+            let counter = 0;
+            while (properties.length > counter) {
+                const property = properties[counter];
                 try {
-                    const property = properties.shift();
                     if (typeof property !== "undefined") {
                         const formated = yield this._getPropertyValue(device.address, SADR, objectId, property, argClient);
                         for (let key in formated) {
                             obj[key] = formated[key];
                         }
                     }
+                    counter++;
                 }
-                catch (error) { }
+                catch (error) {
+                    console.log(error.message);
+                    if (error.message.match(/Class:2 - Code:32/i))
+                        counter++;
+                    if (error.message.match(/Class:2 - Code:27/i))
+                        counter++;
+                    if (error.message.match(/ERR_TIMEOUT/i))
+                        argClient = null;
+                }
             }
             return obj;
             // const requestArray = objects.map(el => ({
@@ -411,7 +428,8 @@ class BacnetUtilities {
                             res.push(obj);
                         }
                         catch (error) {
-                            console.log("can not read value of", obj.instance);
+                            // console.log("can not read value of", obj.instance);
+                            console.error(error.message);
                         }
                     }
                 }
@@ -450,31 +468,44 @@ class BacnetUtilities {
     }
     static _createEndpointByArray(networkService, groupId, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
-            const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
-            const endpoints = yield Promise.all(promises);
-            return endpoints;
+            const childNetwork = yield this.getChildrenObj(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
+            let counter = 0;
+            while (counter < endpointArray.length) {
+                const item = endpointArray[counter];
+                if (childNetwork[item.id]) {
+                    console.log(item.id, "already exists");
+                    counter++;
+                    continue;
+                }
+                yield this._createEndpoint(networkService, groupId, item);
+                counter++;
+            }
+            // const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
+            // const endpoints = await Promise.all(promises);
+            // return endpoints;
         });
     }
     static _createEndpoint(networkService, groupId, endpointObj) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("creating", endpointObj.id);
-            const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, endpointObj.id);
-            if (exist) {
-                console.log(endpointObj.id, "exist");
-                return exist;
-            }
-            ;
-            console.log(endpointObj.id, "will be created");
-            console.log(endpointObj);
+            // const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, endpointObj.id);
+            // if (exist) {
+            //    console.log(endpointObj.id, "exist");
+            //    return exist
+            // };
+            // console.log(endpointObj.id, "will be created");
             const obj = {
                 id: endpointObj.id,
                 typeId: endpointObj.typeId,
-                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
+                // name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
+                name: endpointObj.object_name,
                 path: "",
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,
                 type: endpointObj.type,
             };
+            if (typeof obj.name !== "string" && obj.currentValue != 0 && !!obj.currentValue)
+                return;
             return networkService.createNewBmsEndpoint(groupId, obj);
         });
     }
@@ -535,11 +566,13 @@ class BacnetUtilities {
         return {};
     }
     static _getObjValue(value) {
-        var _a;
         if (typeof value !== "object")
             return value;
-        let temp_value = Array.isArray(value) ? (_a = value[0]) === null || _a === void 0 ? void 0 : _a.value : value.value;
-        return typeof temp_value === "object" ? "" : temp_value;
+        let temp_value = Array.isArray(value) ? value[0] : value;
+        if (typeof temp_value !== "object")
+            return temp_value;
+        return temp_value && temp_value.value ? temp_value.value : "";
+        // return typeof temp_value === "object" ? "" : temp_value;
     }
     static _formatCurrentValue(value, type) {
         if ([GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT, GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
@@ -564,6 +597,22 @@ class BacnetUtilities {
         if (property)
             return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
         return;
+    }
+    // public static _formatMultipleProperty(data: any) {
+    //    return lodash.flattenDeep(data.map(object => {
+    //       const { values } = object;
+    //       return values.map(({ value }) => {
+    //          return value
+    //       })
+    //    }))
+    // }
+    static getChildrenObj(parentId, relationName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
+            const obj = {};
+            children.forEach(el => obj[el.idNetwork.get()] = el);
+            return obj;
+        });
     }
 }
 exports.default = BacnetUtilities;
