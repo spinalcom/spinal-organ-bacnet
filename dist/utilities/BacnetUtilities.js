@@ -44,7 +44,7 @@ class BacnetUtilities {
     ////////////////////////////////////////////////////////////////
     ////                  READ BACNET DATA                        //
     ////////////////////////////////////////////////////////////////
-    static readPropertyMutltiple(address, requestArray, argClient) {
+    static readPropertyMultiple(address, requestArray, argClient) {
         return new Promise((resolve, reject) => {
             try {
                 const client = argClient || new bacnet();
@@ -84,7 +84,7 @@ class BacnetUtilities {
             try {
                 const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
                 let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST];
-                let func = deviceAcceptSegmentation ? this.readPropertyMutltiple : this.readProperty;
+                let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
                 const data = yield func.call(this, device.address, ...params, argClient);
                 values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
             }
@@ -165,7 +165,7 @@ class BacnetUtilities {
                         { id: GlobalVariables_1.PropertyIds.PROP_MIN_PRES_VALUE }
                     ]
                 }));
-                const data = yield this.readPropertyMutltiple(device.address, requestArray, argClient);
+                const data = yield this.readPropertyMultiple(device.address, requestArray, argClient);
                 return data.values.map(el => {
                     const { objectId } = el;
                     const obj = {
@@ -270,7 +270,7 @@ class BacnetUtilities {
             try {
                 const client = argClient || new bacnet();
                 const requestArray = children.map(el => ({ objectId: el, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }] }));
-                const data = yield this.readPropertyMutltiple(device.address, requestArray, client);
+                const data = yield this.readPropertyMultiple(device.address, requestArray, client);
                 const dataFormated = data.values.map(el => {
                     const value = this._getObjValue(el.values[0].value);
                     return {
@@ -339,26 +339,35 @@ class BacnetUtilities {
     }
     static _createEndpointByArray(networkService, groupId, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
-            const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el));
-            const endpoints = yield Promise.all(promises);
-            return endpoints;
+            const childNetwork = yield this.getChildrenObj(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
+            let counter = 0;
+            while (counter < endpointArray.length) {
+                const item = endpointArray[counter];
+                if (childNetwork[item.id]) {
+                    console.log(item.id, "already exists");
+                    counter++;
+                    continue;
+                }
+                yield this._createEndpoint(networkService, groupId, item);
+                counter++;
+            }
         });
     }
     static _createEndpoint(networkService, groupId, endpointObj) {
         return __awaiter(this, void 0, void 0, function* () {
-            const exist = yield this._itemExistInChild(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, endpointObj.id);
-            if (exist)
-                return exist;
             const obj = {
                 id: endpointObj.id,
                 typeId: endpointObj.typeId,
-                name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
+                name: endpointObj.object_name,
                 path: "",
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,
                 type: endpointObj.type,
             };
-            return networkService.createNewBmsEndpoint(groupId, obj);
+            if (obj.name && typeof obj.name === "string" && obj.name.trim()) {
+                console.log("creating", endpointObj.id);
+                return networkService.createNewBmsEndpoint(groupId, obj);
+            }
         });
     }
     static _itemExistInChild(parentId, relationName, childNetworkId) {
@@ -381,18 +390,6 @@ class BacnetUtilities {
             catch (error) {
                 throw error;
             }
-            // const client = argClient || new bacnet();
-            // return new Promise((resolve, reject) => {
-            //    client.readProperty(address, objectId,propertyId,(err,data) => {
-            //       if(err) {
-            //          reject(err);
-            //          console.error(err);
-            //          return;
-            //       }
-            //       const formated: any = this._formatProperty(data);
-            //       resolve(formated);
-            //    })
-            // });
         });
     }
     static _formatProperty(object) {
@@ -446,6 +443,14 @@ class BacnetUtilities {
         if (property)
             return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
         return;
+    }
+    static getChildrenObj(parentId, relationName) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
+            const obj = {};
+            children.forEach(el => obj[el.idNetwork.get()] = el);
+            return obj;
+        });
     }
 }
 exports.default = BacnetUtilities;

@@ -82,7 +82,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 spinalBacnetValueModel.setProgressState();
             }
             while (!isError && listes.length > 0) {
-                const item = listes.shift();
+                const item = listes.pop();
                 if (item) {
                     const [key, value] = item;
                     try {
@@ -93,13 +93,13 @@ class SpinalDevice extends events_1.EventEmitter {
                         }
                     }
                     catch (error) {
-                        isError = true;
+                        isError = error;
                     }
                 }
             }
             if (spinalBacnetValueModel) {
                 if (isError) {
-                    console.log("set error model");
+                    console.log("set error model", isError);
                     spinalBacnetValueModel.setErrorState();
                     return;
                 }

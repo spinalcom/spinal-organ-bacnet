@@ -15,7 +15,7 @@ export declare class SpinalDevice extends EventEmitter {
     checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{
         instance: number;
         type: string;
-    }>): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown][]>;
+    }>): Promise<void[]>;
     updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{
         instance: number;
         type: number;

@@ -24,7 +24,7 @@
 
 import * as lodash from "lodash";
 import * as bacnet from "bacstack";
-import { SpinalGraphService } from "spinal-env-viewer-graph-service";
+import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
 import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
@@ -40,7 +40,7 @@ export default class BacnetUtilities {
    ////                  READ BACNET DATA                        //
    ////////////////////////////////////////////////////////////////
 
-   public static readPropertyMutltiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
+   public static readPropertyMultiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
       return new Promise((resolve, reject) => {
          try {
             const client = argClient || new bacnet();
@@ -83,7 +83,7 @@ export default class BacnetUtilities {
       try {
          const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
          let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, PropertyIds.PROP_OBJECT_LIST];
-         let func = deviceAcceptSegmentation ? this.readPropertyMutltiple : this.readProperty;
+         let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
 
          const data = await func.call(this, device.address, ...params, argClient);
          values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
@@ -177,7 +177,7 @@ export default class BacnetUtilities {
                { id: PropertyIds.PROP_MIN_PRES_VALUE }
             ]
          }))
-         const data = await this.readPropertyMutltiple(device.address, requestArray, argClient);
+         const data = await this.readPropertyMultiple(device.address, requestArray, argClient);
          return data.values.map(el => {
             const { objectId } = el;
 
@@ -296,7 +296,7 @@ export default class BacnetUtilities {
       try {
          const client = argClient || new bacnet();
          const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
-         const data = await this.readPropertyMutltiple(device.address, requestArray, client);
+         const data = await this.readPropertyMultiple(device.address, requestArray, client);
          const dataFormated = data.values.map(el => {
             const value = this._getObjValue(el.values[0].value);
             return {
@@ -362,27 +362,37 @@ export default class BacnetUtilities {
    }
 
    public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any) {
-      const promises = endpointArray.map(el => this._createEndpoint(networkService, groupId, el))
-      const endpoints = await Promise.all(promises);
-      return endpoints;
+      const childNetwork = await this.getChildrenObj(groupId, SpinalBmsEndpoint.relationName);
+      let counter = 0;
+      while (counter < endpointArray.length) {
+         const item = endpointArray[counter];
+         if (childNetwork[item.id]) {
+            console.log(item.id, "already exists");
+            counter++;
+            continue;
+         }
+
+         await this._createEndpoint(networkService, groupId, item);
+         counter++;
+      }
    }
 
    public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
 
-      const exist = await this._itemExistInChild(groupId, SpinalBmsEndpoint.relationName, endpointObj.id);
-      if (exist) return exist;
-
       const obj: any = {
          id: endpointObj.id,
          typeId: endpointObj.typeId,
-         name: endpointObj.object_name.length > 0 ? endpointObj.object_name : `endpoint_${endpointObj.id}`,
+         name: endpointObj.object_name,
          path: "",
          currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
          unit: endpointObj.units,
          type: endpointObj.type,
       }
 
-      return networkService.createNewBmsEndpoint(groupId, obj);
+      if (obj.name && typeof obj.name === "string" && obj.name.trim()) {
+         console.log("creating", endpointObj.id);
+         return networkService.createNewBmsEndpoint(groupId, obj);
+      }
 
    }
 
@@ -409,21 +419,6 @@ export default class BacnetUtilities {
       } catch (error) {
          throw error;
       }
-
-      // const client = argClient || new bacnet();
-      // return new Promise((resolve, reject) => {
-      //    client.readProperty(address, objectId,propertyId,(err,data) => {
-      //       if(err) {
-      //          reject(err);
-      //          console.error(err);
-      //          return;
-      //       }
-
-      //       const formated: any = this._formatProperty(data);
-
-      //       resolve(formated);
-      //    })
-      // });
    }
 
 
@@ -463,13 +458,10 @@ export default class BacnetUtilities {
    }
 
    public static _formatCurrentValue(value: any, type: number | string) {
-
       if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
          return value ? true : false;
       }
-
       return value;
-
    }
 
    public static _getPropertyNameByCode(type: number) {
@@ -490,6 +482,15 @@ export default class BacnetUtilities {
       return;
    }
 
+   private static async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
+      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
+      const obj = {};
+      children.forEach(el => obj[el.idNetwork.get()] = el);
+
+      return obj;
+   }
+
+
    // public static _formatMultipleProperty(data: any) {
    //    return lodash.flattenDeep(data.map(object => {
    //       const { values } = object;
@@ -499,6 +500,7 @@ export default class BacnetUtilities {
    //       })
    //    }))
    // }
+
 
 
 
