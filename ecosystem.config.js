@@ -1,7 +1,7 @@
 require("json5/lib/register");
 const pm2 = require("pm2");
 
-const config = require("./config.json5");
+const config = require("./config.js");
 const name = config.spinalConnector.name;
 
 module.exports = {

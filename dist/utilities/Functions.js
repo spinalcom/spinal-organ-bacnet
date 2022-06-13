@@ -1,4 +1,27 @@
 "use strict";
+/*
+ * Copyright 2022 SpinalCom - www.spinalcom.com
+ *
+ * This file is part of SpinalCore.
+ *
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ *
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ *
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -44,28 +67,21 @@ const connectionErrorCallback = (err) => {
 exports.connectionErrorCallback = connectionErrorCallback;
 const CreateOrganConfigFile = (spinalConnection, path, connectorName) => {
     return new Promise((resolve) => {
-        spinalConnection.load_or_make_dir(`${path}`, (directory) => {
-            for (let index = 0; index < directory.length; index++) {
-                const element = directory[index];
-                const elementName = element.name.get();
-                if (elementName.toLowerCase() === `${connectorName}.conf`.toLowerCase()) {
-                    console.log("organ found !");
-                    return element.load(file => {
-                        WaitModelReady().then(() => {
-                            resolve(file);
-                        });
-                    });
-                }
+        spinalConnection.load_or_make_dir(`${path}`, (directory) => __awaiter(void 0, void 0, void 0, function* () {
+            const found = yield findFileInDirectory(directory, connectorName);
+            if (found) {
+                console.log("organ found !");
+                return resolve(found);
             }
             console.log("organ not found");
             const model = new spinal_model_bacnet_1.SpinalOrganConfigModel(connectorName);
             WaitModelReady().then(() => {
-                const file = new spinal_core_connectorjs_type_1.File(`${connectorName}.conf`, model, undefined);
+                const file = new spinal_core_connectorjs_type_1.File(`${connectorName}.conf`, model, { model_type: model.type.get() });
                 directory.push(file);
                 console.log("organ created");
                 return resolve(model);
             });
-        });
+        }));
     });
 };
 exports.CreateOrganConfigFile = CreateOrganConfigFile;
@@ -82,6 +98,22 @@ const GetPm2Instance = (organName) => {
     });
 };
 exports.GetPm2Instance = GetPm2Instance;
+function findFileInDirectory(directory, fileName) {
+    return new Promise((resolve, reject) => {
+        for (let index = 0; index < directory.length; index++) {
+            const element = directory[index];
+            const elementName = element.name.get();
+            if (elementName.toLowerCase() === `${fileName}.conf`.toLowerCase()) {
+                return element.load(file => {
+                    WaitModelReady().then(() => {
+                        resolve(file);
+                    });
+                });
+            }
+        }
+        resolve();
+    });
+}
 ////////////////////////////////////////////////
 ////                 CALLBACKS                //
 ////////////////////////////////////////////////

@@ -1,3 +1,27 @@
+/*
+ * Copyright 2022 SpinalCom - www.spinalcom.com
+ * 
+ * This file is part of SpinalCore.
+ * 
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ * 
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ * 
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
+
 import { FileSystem, File } from "spinal-core-connectorjs_type";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import {
@@ -39,25 +63,19 @@ export const connectionErrorCallback = (err?) => {
 export const CreateOrganConfigFile = (spinalConnection: any, path: string, connectorName: string) => {
 
    return new Promise((resolve) => {
-      spinalConnection.load_or_make_dir(`${path}`, (directory) => {
+      spinalConnection.load_or_make_dir(`${path}`, async (directory) => {
 
-         for (let index = 0; index < directory.length; index++) {
-            const element = directory[index];
-            const elementName = element.name.get();
-            if (elementName.toLowerCase() === `${connectorName}.conf`.toLowerCase()) {
-               console.log("organ found !");
-               return element.load(file => {
-                  WaitModelReady().then(() => {
-                     resolve(file)
-                  })
-               });
-            }
+         const found = await findFileInDirectory(directory, connectorName);
+         if (found) {
+            console.log("organ found !");
+            return resolve(found);
          }
+
 
          console.log("organ not found");
          const model = new SpinalOrganConfigModel(connectorName);
          WaitModelReady().then(() => {
-            const file = new File(`${connectorName}.conf`, model, undefined)
+            const file = new File(`${connectorName}.conf`, model, { model_type: model.type.get() })
             directory.push(file);
             console.log("organ created");
             return resolve(model);
@@ -82,6 +100,26 @@ export const GetPm2Instance = (organName: string) => {
    });
 }
 
+
+function findFileInDirectory(directory: spinal.Directory, fileName: string): Promise<spinal.File | void> {
+   return new Promise((resolve, reject) => {
+      for (let index = 0; index < directory.length; index++) {
+         const element = directory[index];
+         const elementName = element.name.get();
+         if (elementName.toLowerCase() === `${fileName}.conf`.toLowerCase()) {
+
+            return element.load(file => {
+               WaitModelReady().then(() => {
+                  resolve(file)
+               })
+            });
+         }
+      }
+
+      resolve();
+   });
+
+}
 
 ////////////////////////////////////////////////
 ////                 CALLBACKS                //

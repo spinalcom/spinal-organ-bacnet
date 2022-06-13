@@ -1,12 +1,13 @@
 {
   "name": "spinal-organ-bacnet",
-  "version": "1.5.7",
+  "version": "2.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/index.js",
-    "pm2": "npm run build && pm2 start ecosystem.config.js"
+    "pm2": "npm run build && pm2 start ecosystem.config.js",
+    "postinstall": "npm dedupe"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +16,7 @@
     "@datastructures-js/priority-queue": "^5.1.1",
     "bacstack": "file:./lib/bacstack",
     "big-json": "^3.1.0",
+    "dotenv": "^16.0.1",
     "json5": "^2.2.0",
     "lodash": "^4.17.20",
     "pm2": "^4.5.6",
