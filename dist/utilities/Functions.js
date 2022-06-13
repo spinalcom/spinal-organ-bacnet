@@ -103,23 +103,26 @@ const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(voi
 });
 exports.SpinalDiscoverCallback = SpinalDiscoverCallback;
 const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e, _f;
     yield WaitModelReady();
     try {
-        const { networkService, device, organ, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
-        if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
-            return;
-        if (spinalBacnetValueModel.state.get() === 'wait') {
-            const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
-            yield spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
-        }
-        else {
-            return spinalBacnetValueModel.remToNode();
-        }
+        spinalBacnetValueModel.organ.load((organ) => __awaiter(void 0, void 0, void 0, function* () {
+            var _e, _f;
+            if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
+                return;
+            const { networkService, device, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+            if (spinalBacnetValueModel.state.get() === 'wait') {
+                const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
+                yield spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
+            }
+            else {
+                return spinalBacnetValueModel.remToNode();
+            }
+        }));
     }
     catch (error) {
-        console.error(error);
-        spinalBacnetValueModel.setErrorState();
+        // console.error(error);
+        yield spinalBacnetValueModel.setErrorState();
+        return spinalBacnetValueModel.remToNode();
     }
 });
 exports.SpinalBacnetValueModelCallback = SpinalBacnetValueModelCallback;

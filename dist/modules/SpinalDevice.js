@@ -1,4 +1,27 @@
 "use strict";
+/*
+ * Copyright 2021 SpinalCom - www.spinalcom.com
+ *
+ * This file is part of SpinalCore.
+ *
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ *
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ *
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -49,7 +72,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 sensors = GlobalVariables_1.SENSOR_TYPES;
             }
             const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists, this.client);
+            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
             const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
             const listes = Array.from(Object.keys(children)).map((el) => [el, children[el]]);
             const maxLength = listes.length;
@@ -59,7 +82,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 spinalBacnetValueModel.setProgressState();
             }
             while (!isError && listes.length > 0) {
-                const item = listes.shift();
+                const item = listes.pop();
                 if (item) {
                     const [key, value] = item;
                     try {
@@ -70,13 +93,13 @@ class SpinalDevice extends events_1.EventEmitter {
                         }
                     }
                     catch (error) {
-                        isError = true;
+                        isError = error;
                     }
                 }
             }
             if (spinalBacnetValueModel) {
                 if (isError) {
-                    console.log("set error model");
+                    console.log("set error model", isError);
                     spinalBacnetValueModel.setErrorState();
                     return;
                 }
