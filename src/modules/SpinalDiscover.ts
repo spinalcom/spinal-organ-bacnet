@@ -1,3 +1,27 @@
+/*
+ * Copyright 2022 SpinalCom - www.spinalcom.com
+ * 
+ * This file is part of SpinalCore.
+ * 
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ * 
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ * 
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
+
 import * as bacnet from 'bacstack';
 import { EventEmitter } from "events";
 import { SpinalQueuing } from '../utilities/SpinalQueuing';
@@ -9,15 +33,21 @@ import { SpinalDisoverModel, STATES } from 'spinal-model-bacnet';
 import { SpinalNetworkServiceUtilities } from '../utilities/SpinalNetworkServiceUtilities';
 
 class Discover extends EventEmitter {
-   private _discoverQueue: SpinalQueuing = new SpinalQueuing();
+   private _discoverQueue: SpinalQueuing<SpinalDisoverModel> = new SpinalQueuing();
    private _isProcess: boolean = false;
 
    constructor() {
       super();
-      this.listenEvent();
+      this._listenEvent();
    }
 
-   private listenEvent() {
+
+
+   public addToQueue(model: SpinalDisoverModel) {
+      this._discoverQueue.addToQueue(model);
+   }
+
+   private _listenEvent() {
       this._discoverQueue.on("start", () => {
          if (!this._isProcess) {
             this._isProcess = true;
@@ -30,14 +60,11 @@ class Discover extends EventEmitter {
       })
    }
 
-   public addToQueue(model: SpinalDisoverModel) {
-      this._discoverQueue.addToQueue(model);
-   }
-
    private _discoverNext() {
       if (!this._discoverQueue.isEmpty()) {
          const model = this._discoverQueue.dequeue();
          const spinalDiscover = new SpinalDiscover(model);
+         spinalDiscover.init();
          let timeout = false;
 
          let bindSateProcess = model.state.bind(() => {
@@ -81,17 +108,17 @@ export class SpinalDiscover {
    private devices: Map<number, SpinalDevice> = new Map();
    private discoverModel: any;
 
-   constructor(model) {
+   constructor(model: SpinalDisoverModel) {
       this.discoverModel = model;
       this.CONNECTION_TIME_OUT = model.network?.timeout?.get() || 45000;
 
-      this.init(model)
+      // this.init(model)
    }
 
-   public init(model: any) {
+   public init(): void {
       this.client = new bacnet({
-         broadcastAddress: model.network?.address?.get(),
-         port: model.network?.port?.get() || 47808,
+         broadcastAddress: this.discoverModel.network?.address?.get(),
+         port: this.discoverModel.network?.port?.get() || 47808,
          adpuTimeout: 6000
       })
 
@@ -100,27 +127,27 @@ export class SpinalDiscover {
          this.client.close();
       });
 
-      this.bindState();
+      this._bindState();
    }
 
-   private bindState(): void {
+   private _bindState(): void {
       this.bindSateProcess = this.discoverModel.state.bind(() => {
          switch (this.discoverModel.state.get()) {
             case STATES.discovering:
                console.log("discovering");
-               this.discover();
+               this._discover();
                break;
             case STATES.creating:
-               this.createNodes();
+               this._createNodes();
             default:
                break;
          }
       })
    }
 
-   private async discover() {
+   private async _discover(): Promise<void> {
       try {
-         const queue = await this.getDevicesQueue();
+         const queue = await this._getDevicesQueue();
 
          let isFinish = false;
 
@@ -128,8 +155,8 @@ export class SpinalDiscover {
             const item = queue.dequeue();
 
             if (typeof item !== "undefined") {
-               const info = await this.createSpinalDevice(item);
-               if (info) this.addDeviceFound(info);
+               const info = await this._createSpinalDevice(item);
+               if (info) this._addDeviceFound(info);
             } else {
                console.log("isFinish");
                isFinish = true;
@@ -153,8 +180,8 @@ export class SpinalDiscover {
 
    }
 
-   private getDevicesQueue(): Promise<SpinalQueuing> {
-      const queue: SpinalQueuing = new SpinalQueuing();
+   private _getDevicesQueue(): Promise<SpinalQueuing<IDevice>> {
+      const queue: SpinalQueuing<IDevice> = new SpinalQueuing();
       return new Promise((resolve, reject) => {
 
          // if (this.discoverModel.network?.useBroadcast?.get()) {
@@ -190,9 +217,6 @@ export class SpinalDiscover {
                clearTimeout(timeOutId);
             }
 
-            console.log(device);
-
-
             const { address, deviceId } = device;
             const found = res.find(el => el.address === address && el.deviceId === deviceId);
             if (!found) {
@@ -209,7 +233,7 @@ export class SpinalDiscover {
 
    }
 
-   private createSpinalDevice(device): Promise<IDevice | void> {
+   private _createSpinalDevice(device: IDevice): Promise<IDevice | void> {
 
       return new Promise((resolve, reject) => {
          const spinalDevice = new SpinalDevice(device, this.client);
@@ -220,6 +244,7 @@ export class SpinalDiscover {
          })
 
          spinalDevice.on("error", () => {
+            console.log(device.address, "not found");
             resolve();
          })
 
@@ -227,32 +252,43 @@ export class SpinalDiscover {
       });
    }
 
-   private addDeviceFound(device: IDevice): void {
+   private _addDeviceFound(device: IDevice): void {
       console.log("device found", device.address);
       this.discoverModel.devices.push(device);
    }
 
-   private async createNodes() {
+   private async _createNodes(): Promise<void> {
       console.log("creating nodes...");
 
       try {
-         const queue = new SpinalQueuing();
-         queue.setQueue(Array.from(this.devices.keys()));
+         // const queue = new SpinalQueuing();
+         // queue.setQueue(this.discoverModel.devices);
+         const queue = this._getDevicesSelected();
          const { networkService, network } = await SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
-         const devices = await this.getDevices(network.id.get());
+         const devices = await this._getDevicesNodes(network.id.get());
 
 
          let isFinish = false;
 
          while (!isFinish) {
-            const value = queue.dequeue();
-            if (typeof value !== "undefined") {
-               const node = devices.find(el => el.idNetwork.get() == value);
-               const device = this.devices.get(value);
-               await device.createStructureNodes(networkService, node, network.id.get());
+            const device = queue.dequeue();
+
+            if (typeof device !== "undefined") {
+               const deviceId = device.deviceId.get()
+               const node = devices[deviceId];
+               const spinalDevice = this.devices.get(deviceId);
+               await spinalDevice.createStructureNodes(networkService, node, network.id.get());
             } else {
                isFinish = true;
             }
+            // const value = queue.dequeue();
+            // if (typeof value !== "undefined") {
+            //    const node = devices[value];
+            //    const device = this.devices.get(value);
+            //    await device.createStructureNodes(networkService, node, network.id.get());
+            // } else {
+            //    isFinish = true;
+            // }
          }
 
          this.discoverModel.setCreatedMode();
@@ -267,8 +303,27 @@ export class SpinalDiscover {
 
    }
 
-   private getDevices(id: string): Promise<SpinalNodeRef[]> {
-      return SpinalGraphService.getChildren(id, [SpinalBmsDevice.relationName])
+   private _getDevicesNodes(id: string): Promise<{ [key: number]: SpinalNodeRef }> {
+      const obj = {};
+      return SpinalGraphService.getChildren(id, [SpinalBmsDevice.relationName]).then((result) => {
+         result.forEach(el => {
+            obj[el.idNetwork.get()] = el;
+         })
+
+         return obj;
+      }).catch((err) => {
+         return obj;
+      });
+   }
+
+   private _getDevicesSelected(): SpinalQueuing<spinal.Model> {
+      const queue: SpinalQueuing<spinal.Model> = new SpinalQueuing();
+      for (let i = 0; i < this.discoverModel.devices.length; i++) {
+         const element = this.discoverModel.devices[i];
+         queue.addToQueue(element);
+      }
+
+      return queue;
    }
 
 }

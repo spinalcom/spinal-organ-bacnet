@@ -39,7 +39,7 @@ import { spinalPilot } from "../modules/SpinalPilot";
 const Q = require('q');
 const pm2 = require("pm2");
 
-const WaitModelReady = () => {
+const WaitModelReady = (): Promise<any> => {
    const deferred = Q.defer();
    const WaitModelReadyLoop = (defer) => {
       if (FileSystem._sig_server === false) {
@@ -54,13 +54,13 @@ const WaitModelReady = () => {
    return WaitModelReadyLoop(deferred);
 };
 
-export const connectionErrorCallback = (err?) => {
+export const connectionErrorCallback = (err?: Error): void => {
    if (!err) console.error('Error Connect');
    else console.error('Error Connect', err)
    process.exit(0);
 }
 
-export const CreateOrganConfigFile = (spinalConnection: any, path: string, connectorName: string) => {
+export const CreateOrganConfigFile = (spinalConnection: any, path: string, connectorName: string): Promise<SpinalOrganConfigModel> => {
 
    return new Promise((resolve) => {
       spinalConnection.load_or_make_dir(`${path}`, async (directory) => {
@@ -101,7 +101,7 @@ export const GetPm2Instance = (organName: string) => {
 }
 
 
-function findFileInDirectory(directory: spinal.Directory, fileName: string): Promise<spinal.File | void> {
+function findFileInDirectory(directory: spinal.Directory, fileName: string): Promise<SpinalOrganConfigModel | void> {
    return new Promise((resolve, reject) => {
       for (let index = 0; index < directory.length; index++) {
          const element = directory[index];
@@ -126,7 +126,7 @@ function findFileInDirectory(directory: spinal.Directory, fileName: string): Pro
 ////////////////////////////////////////////////
 
 
-export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel) => {
+export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> => {
 
    await WaitModelReady();
 
@@ -148,7 +148,7 @@ export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverMo
 }
 
 
-export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: SpinalBacnetValueModel, organModel: SpinalOrganConfigModel) => {
+export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: SpinalBacnetValueModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> => {
    await WaitModelReady();
 
    try {
@@ -179,7 +179,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
 }
 
 
-export const SpinalListnerCallback = async (spinalListenerModel: SpinalListenerModel, organModel: SpinalOrganConfigModel) => {
+export const SpinalListnerCallback = async (spinalListenerModel: SpinalListenerModel, organModel: SpinalOrganConfigModel): Promise<void> => {
    await WaitModelReady();
 
    spinalListenerModel.organ.load((organ) => {
@@ -192,7 +192,7 @@ export const SpinalListnerCallback = async (spinalListenerModel: SpinalListenerM
    })
 }
 
-export const SpinalPilotCallback = async (spinalPilotModel: SpinalPilotModel, organModel: SpinalOrganConfigModel) => {
+export const SpinalPilotCallback = async (spinalPilotModel: SpinalPilotModel, organModel: SpinalOrganConfigModel): Promise<void> => {
    await WaitModelReady();
    if (spinalPilotModel.organ?.id.get() === organModel.id?.get()) {
       spinalPilot.addToPilotList(spinalPilotModel);

@@ -75,7 +75,7 @@ export default class BacnetUtilities {
    ////////////////////////////////////////////////////////////////
    ////                  GET ALL OBJECT LIST                     //
    ////////////////////////////////////////////////////////////////
-   public static async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<Array<IObjectId>> {
+   public static async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]> {
       console.log("getting object list");
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
       let values;
@@ -100,7 +100,7 @@ export default class BacnetUtilities {
    }
 
 
-   public static async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet) {
+   public static async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]> {
       const list = [];
       let error;
       let index = 1;
@@ -132,7 +132,7 @@ export default class BacnetUtilities {
    ////                  GET OBJECT DETAIL                       //
    ////////////////////////////////////////////////////////////////
 
-   public static async _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<Array<{ [key: string]: string | boolean | number }>> {
+   public static async _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<{ [key: string]: string | boolean | number }[]> {
 
       let objectLists = [...objects];
 
@@ -150,7 +150,6 @@ export default class BacnetUtilities {
          const object: any = objectLists.shift();
          if (object) {
             try {
-
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
             } catch (err) { }
@@ -163,7 +162,7 @@ export default class BacnetUtilities {
 
    }
 
-   public static async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<Array<any>> {
+   public static async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]> {
 
       try {
          const requestArray: IRequestArray[] = objects.map(el => ({
@@ -339,13 +338,13 @@ export default class BacnetUtilities {
    ////                       Endpoints                          //
    ////////////////////////////////////////////////////////////////
 
-   public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any) {
+   public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]> {
       const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
       const groupId = endpointGroup.id.get();
       return this._createEndpointByArray(networkService, groupId, endpointArray);
    }
 
-   public static async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string) {
+   public static async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef> {
       const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
 
       const exist = await this._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
@@ -361,8 +360,9 @@ export default class BacnetUtilities {
       return endpointGroup;
    }
 
-   public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any) {
+   public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<SpinalNodeRef[]> {
       const childNetwork = await this.getChildrenObj(groupId, SpinalBmsEndpoint.relationName);
+      const nodeCreated = []
       let counter = 0;
       while (counter < endpointArray.length) {
          const item = endpointArray[counter];
@@ -372,12 +372,15 @@ export default class BacnetUtilities {
             continue;
          }
 
-         await this._createEndpoint(networkService, groupId, item);
+         const ref = await this._createEndpoint(networkService, groupId, item);
+         if (ref) nodeCreated.push(ref);
          counter++;
       }
+
+      return nodeCreated;
    }
 
-   public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any) {
+   public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef> {
 
       const obj: any = {
          id: endpointObj.id,
@@ -396,7 +399,7 @@ export default class BacnetUtilities {
 
    }
 
-   public static async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number) {
+   public static async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef> {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
       const found = children.find(el => el.idNetwork.get() == childNetworkId);
 
@@ -422,7 +425,7 @@ export default class BacnetUtilities {
    }
 
 
-   public static _formatProperty(object) {
+   public static _formatProperty(object): { [key: string]: boolean | string | number } {
       if (object) {
          const { values, property } = object;
 
@@ -450,27 +453,27 @@ export default class BacnetUtilities {
 
    }
 
-   public static _getObjValue(value: any) {
+   public static _getObjValue(value: any): boolean | string | number {
       if (typeof value !== "object") return value;
 
       let temp_value = Array.isArray(value) ? value[0]?.value : value.value;
       return typeof temp_value === "object" ? "" : temp_value;
    }
 
-   public static _formatCurrentValue(value: any, type: number | string) {
+   public static _formatCurrentValue(value: any, type: number | string): boolean | string | number {
       if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
          return value ? true : false;
       }
       return value;
    }
 
-   public static _getPropertyNameByCode(type: number) {
+   public static _getPropertyNameByCode(type: number): string {
       const property = PropertyNames[type];
       if (property) return property.toLocaleLowerCase().replace('prop_', '');
       return;
    }
 
-   public static _getObjectTypeByCode(typeCode: number | string) {
+   public static _getObjectTypeByCode(typeCode: number | string): string {
       const property = ObjectTypesCode[typeCode];
       if (property) return property.toLocaleLowerCase().replace('object_', '');
       return;

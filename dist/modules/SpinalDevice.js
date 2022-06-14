@@ -40,7 +40,7 @@ const events_1 = require("events");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalDevice extends events_1.EventEmitter {
-    constructor(device, client, networkService) {
+    constructor(device, client) {
         super();
         this.device = device;
         this.client = client || new bacnet();
@@ -55,7 +55,7 @@ class SpinalDevice extends events_1.EventEmitter {
     createStructureNodes(networkService, node, parentId) {
         // this.networkService = networkService;
         if (node) {
-            return;
+            return Promise.resolve(node);
         }
         ;
         return this._createDevice(networkService, parentId);
@@ -63,18 +63,8 @@ class SpinalDevice extends events_1.EventEmitter {
     createDeviceItemList(networkService, node, spinalBacnetValueModel) {
         return __awaiter(this, void 0, void 0, function* () {
             const deviceId = node.getId().get();
-            let sensors;
-            if (spinalBacnetValueModel) {
-                sensors = spinalBacnetValueModel.sensor.get();
-                spinalBacnetValueModel.setRecoverState();
-            }
-            else {
-                sensors = GlobalVariables_1.SENSOR_TYPES;
-            }
-            const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
-            const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
-            const listes = Array.from(Object.keys(children)).map((el) => [el, children[el]]);
+            let sensors = this._getSensors(spinalBacnetValueModel);
+            const listes = yield this._getObjecListDetails(sensors);
             const maxLength = listes.length;
             let isError = false;
             if (spinalBacnetValueModel) {
@@ -179,6 +169,21 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const formated = yield BacnetUtilities_1.BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
             return formated[BacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(PropertyId)];
+        });
+    }
+    _getSensors(spinalBacnetValueModel) {
+        if (spinalBacnetValueModel) {
+            spinalBacnetValueModel.setRecoverState();
+            return spinalBacnetValueModel.sensor.get();
+        }
+        return GlobalVariables_1.SENSOR_TYPES;
+    }
+    _getObjecListDetails(sensors) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
+            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
+            const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
+            return Array.from(Object.keys(children)).map((el) => [el, children[el]]);
         });
     }
 }

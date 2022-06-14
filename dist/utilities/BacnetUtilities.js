@@ -340,6 +340,7 @@ class BacnetUtilities {
     static _createEndpointByArray(networkService, groupId, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
             const childNetwork = yield this.getChildrenObj(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
+            const nodeCreated = [];
             let counter = 0;
             while (counter < endpointArray.length) {
                 const item = endpointArray[counter];
@@ -348,9 +349,12 @@ class BacnetUtilities {
                     counter++;
                     continue;
                 }
-                yield this._createEndpoint(networkService, groupId, item);
+                const ref = yield this._createEndpoint(networkService, groupId, item);
+                if (ref)
+                    nodeCreated.push(ref);
                 counter++;
             }
+            return nodeCreated;
         });
     }
     static _createEndpoint(networkService, groupId, endpointObj) {
