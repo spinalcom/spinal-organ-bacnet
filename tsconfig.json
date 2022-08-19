@@ -2,9 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "*": [
-        "types/*"
-      ]
+      "*": ["types/*"]
     },
     "skipLibCheck": false,
     "target": "es2015",
@@ -15,11 +13,6 @@
     "moduleResolution": "node",
     "resolveJsonModule": true
   },
-  "include": [
-    "src/**/*.ts",
-  ],
-  "exclude": [
-    "node_modules",
-    "src/old/*"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "src/old/*"]
 }

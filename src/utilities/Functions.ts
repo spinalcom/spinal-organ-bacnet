@@ -116,7 +116,7 @@ function findFileInDirectory(directory: spinal.Directory, fileName: string): Pro
          }
       }
 
-      resolve();
+      resolve(undefined);
    });
 
 }

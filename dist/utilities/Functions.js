@@ -111,7 +111,7 @@ function findFileInDirectory(directory, fileName) {
                 });
             }
         }
-        resolve();
+        resolve(undefined);
     });
 }
 ////////////////////////////////////////////////
