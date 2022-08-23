@@ -369,6 +369,7 @@ export default class BacnetUtilities {
          if (childNetwork[item.id]) {
             console.log(item.id, "already exists");
             counter++;
+            nodeCreated.push(childNetwork[item.id])
             continue;
          }
 

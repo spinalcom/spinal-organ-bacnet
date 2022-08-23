@@ -1,15 +1,6 @@
 /// <reference types="node" />
 import { EventEmitter } from "events";
 import { SpinalDisoverModel } from 'spinal-model-bacnet';
-declare class Discover extends EventEmitter {
-    private _discoverQueue;
-    private _isProcess;
-    constructor();
-    addToQueue(model: SpinalDisoverModel): void;
-    private _listenEvent;
-    private _discoverNext;
-}
-export declare const discover: Discover;
 export declare class SpinalDiscover {
     private bindSateProcess;
     private client;
@@ -27,4 +18,13 @@ export declare class SpinalDiscover {
     private _getDevicesNodes;
     private _getDevicesSelected;
 }
+declare class Discover extends EventEmitter {
+    private _discoverQueue;
+    private _isProcess;
+    constructor();
+    addToQueue(model: SpinalDisoverModel): void;
+    private _listenEvent;
+    private _discoverNext;
+}
+export declare const discover: Discover;
 export {};

@@ -347,6 +347,7 @@ class BacnetUtilities {
                 if (childNetwork[item.id]) {
                     console.log(item.id, "already exists");
                     counter++;
+                    nodeCreated.push(childNetwork[item.id]);
                     continue;
                 }
                 const ref = yield this._createEndpoint(networkService, groupId, item);

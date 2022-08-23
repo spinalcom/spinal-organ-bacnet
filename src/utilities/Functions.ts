@@ -29,17 +29,17 @@ import {
    SpinalOrganConfigModel, SpinalBacnetValueModel,
    SpinalPilotModel, STATES
 } from "spinal-model-bacnet";
-
+import { discover } from "../modules/SpinalDiscover";
 import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
 
-import { SpinalDiscover, discover } from "../modules/SpinalDiscover";
+
 import { spinalMonitoring } from "../modules/SpinalMonitoring";
-import { spinalPilot } from "../modules/SpinalPilot";
+import { spinalPilot } from "../modules/SpinalPilot copy";
 
 const Q = require('q');
 const pm2 = require("pm2");
 
-const WaitModelReady = (): Promise<any> => {
+export const WaitModelReady = (): Promise<any> => {
    const deferred = Q.defer();
    const WaitModelReadyLoop = (defer) => {
       if (FileSystem._sig_server === false) {
@@ -126,26 +126,7 @@ function findFileInDirectory(directory: spinal.Directory, fileName: string): Pro
 ////////////////////////////////////////////////
 
 
-export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> => {
 
-   await WaitModelReady();
-
-   if (organModel.id?.get() === spinalDisoverModel.organ?.id?.get()) {
-      const minute = 2 * (60 * 1000)
-      const time = Date.now();
-      const creation = spinalDisoverModel.creation?.get() || 0;
-
-      // Check if model is not timeout.
-      if ((time - creation) >= minute || spinalDisoverModel.state.get() === STATES.created) {
-         spinalDisoverModel.setTimeoutMode();
-         return spinalDisoverModel.remove();
-      }
-
-      discover.addToQueue(spinalDisoverModel)
-      // new SpinalDiscover(spinalDisoverModel);
-   }
-
-}
 
 
 export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: SpinalBacnetValueModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> => {
@@ -188,14 +169,35 @@ export const SpinalListnerCallback = async (spinalListenerModel: SpinalListenerM
             spinalMonitoring.addToMonitoringList(spinalListenerModel);
          }
       }
-
    })
 }
 
-export const SpinalPilotCallback = async (spinalPilotModel: SpinalPilotModel, organModel: SpinalOrganConfigModel): Promise<void> => {
+export const SpinalDiscoverCallback = async (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> => {
+
    await WaitModelReady();
-   if (spinalPilotModel.organ?.id.get() === organModel.id?.get()) {
-      spinalPilot.addToPilotList(spinalPilotModel);
+
+   if (organModel.id?.get() === spinalDisoverModel.organ?.id?.get()) {
+      const minute = 2 * (60 * 1000)
+      const time = Date.now();
+      const creation = spinalDisoverModel.creation?.get() || 0;
+
+      // Check if model is not timeout.
+      if ((time - creation) >= minute || spinalDisoverModel.state.get() === STATES.created) {
+         spinalDisoverModel.setTimeoutMode();
+         return spinalDisoverModel.remove();
+      }
+
+      discover.addToQueue(spinalDisoverModel)
+      // new SpinalDiscover(spinalDisoverModel);
    }
+
 }
 
+
+
+export const SpinalPilotCallback = async (spinalPilotModel: SpinalPilotModel, organModel: SpinalOrganConfigModel): Promise<void> => {
+    await WaitModelReady();
+    if (spinalPilotModel.organ?.id.get() === organModel.id?.get()) {
+       spinalPilot.addToPilotList(spinalPilotModel);
+    }
+ }

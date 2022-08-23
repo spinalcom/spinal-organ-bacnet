@@ -32,7 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalDiscover = exports.discover = void 0;
+exports.discover = exports.SpinalDiscover = void 0;
 const bacnet = require("bacstack");
 const events_1 = require("events");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
@@ -41,58 +41,6 @@ const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
-class Discover extends events_1.EventEmitter {
-    constructor() {
-        super();
-        this._discoverQueue = new SpinalQueuing_1.SpinalQueuing();
-        this._isProcess = false;
-        this._listenEvent();
-    }
-    addToQueue(model) {
-        this._discoverQueue.addToQueue(model);
-    }
-    _listenEvent() {
-        this._discoverQueue.on("start", () => {
-            if (!this._isProcess) {
-                this._isProcess = true;
-                this._discoverNext();
-            }
-        });
-        this.on("next", () => {
-            this._discoverNext();
-        });
-    }
-    _discoverNext() {
-        if (!this._discoverQueue.isEmpty()) {
-            const model = this._discoverQueue.dequeue();
-            const spinalDiscover = new SpinalDiscover(model);
-            spinalDiscover.init();
-            let timeout = false;
-            let bindSateProcess = model.state.bind(() => {
-                const state = model.state.get();
-                switch (state) {
-                    case spinal_model_bacnet_1.STATES.discovered:
-                        model.state.unbind(bindSateProcess);
-                        if (!timeout) {
-                            this.emit("next");
-                        }
-                        break;
-                    case spinal_model_bacnet_1.STATES.timeout:
-                        if (!timeout) {
-                            this.emit("next");
-                        }
-                        timeout = true;
-                    default:
-                        break;
-                }
-            });
-        }
-        else {
-            this._isProcess = false;
-        }
-    }
-}
-exports.discover = new Discover();
 class SpinalDiscover {
     constructor(model) {
         var _a, _b;
@@ -284,4 +232,56 @@ class SpinalDiscover {
     }
 }
 exports.SpinalDiscover = SpinalDiscover;
+class Discover extends events_1.EventEmitter {
+    constructor() {
+        super();
+        this._discoverQueue = new SpinalQueuing_1.SpinalQueuing();
+        this._isProcess = false;
+        this._listenEvent();
+    }
+    addToQueue(model) {
+        this._discoverQueue.addToQueue(model);
+    }
+    _listenEvent() {
+        this._discoverQueue.on("start", () => {
+            if (!this._isProcess) {
+                this._isProcess = true;
+                this._discoverNext();
+            }
+        });
+        this.on("next", () => {
+            this._discoverNext();
+        });
+    }
+    _discoverNext() {
+        if (!this._discoverQueue.isEmpty()) {
+            const model = this._discoverQueue.dequeue();
+            const spinalDiscover = new SpinalDiscover(model);
+            spinalDiscover.init();
+            let timeout = false;
+            let bindSateProcess = model.state.bind(() => {
+                const state = model.state.get();
+                switch (state) {
+                    case spinal_model_bacnet_1.STATES.discovered:
+                        model.state.unbind(bindSateProcess);
+                        if (!timeout) {
+                            this.emit("next");
+                        }
+                        break;
+                    case spinal_model_bacnet_1.STATES.timeout:
+                        if (!timeout) {
+                            this.emit("next");
+                        }
+                        timeout = true;
+                    default:
+                        break;
+                }
+            });
+        }
+        else {
+            this._isProcess = false;
+        }
+    }
+}
+exports.discover = new Discover();
 //# sourceMappingURL=SpinalDiscover.js.map

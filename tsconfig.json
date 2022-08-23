@@ -4,7 +4,7 @@
     "paths": {
       "*": ["types/*"]
     },
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "target": "es2015",
     "module": "commonjs",
     "outDir": "dist",

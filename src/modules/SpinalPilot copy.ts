@@ -30,24 +30,62 @@ import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalV
 import * as bacnet from "bacstack";
 
 
+
+
+
+
 class SpinalPilot {
-   constructor() {
-      
+   private queue: SpinalQueuing<SpinalPilotModel> = new SpinalQueuing();
+   private isProcessing: boolean = false;
+
+   constructor() { }
+
+   init() {
+      this.queue.on("start", () => {
+         console.log("start pilot...");
+         this.pilot();
+      })
    }
 
-   public async sendPilotRequest(request) {
-      try {
-         await this.writeProperties(request)
-         console.log("success");
-      } catch (error) {
-         console.error(error.message);
+   public async addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void> {
+      console.log("addToQueue");
+
+      this.queue.addToQueue(spinalPilotModel);
+   }
+
+   private async pilot() {
+      if (!this.isProcessing) {
+         this.isProcessing = true;
+         // console.log(this.queue);
+         while (!this.queue.isEmpty()) {
+            const pilot = this.queue.dequeue();
+
+            if (pilot?.isNormal()) {
+               pilot.setProcessMode();
+               try {
+                  await this.writeProperties(pilot?.requests.get())
+                  console.log("success");
+                  pilot.setSuccessMode();
+                  await pilot.removeToNode();
+               } catch (error) {
+                  console.error(error.message);
+                  pilot.setErrorMode();
+                  await pilot.removeToNode();
+               }
+
+            } else {
+               console.log("remove");
+               await pilot.removeToNode();
+            }
+
+            // console.log("pilot",pilot)
+         }
+
+         this.isProcessing = false;
       }
    }
-   
-   
-   public async writeProperties(requests: IRequest[] = []) {
-      if(!Array.isArray(requests)) requests = [requests];
-   
+
+   private async writeProperties(requests: IRequest[] = []) {
       for (let index = 0; index < requests.length; index++) {
          const req = requests[index];
          try {
@@ -55,7 +93,7 @@ class SpinalPilot {
          } catch (error) {
             throw error;
          }
-   
+
       }
    }
 
@@ -103,8 +141,8 @@ class SpinalPilot {
          case ObjectTypes.OBJECT_MULTI_STATE_OUTPUT:
          case ObjectTypes.OBJECT_MULTI_STATE_VALUE:
             return [
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
+               APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL,
                APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
             ]
@@ -126,11 +164,23 @@ class SpinalPilot {
             ]
       }
    }
+
+   // private transformBacnetErrorToObj(error) {
+   //    console.log(error);
+
+   //    const message = error.message.match(/Code\:\d+/);
+   //    console.log(message);
+
+   //    // return message.replace("Code:",'')
+
+
+   // }
 }
 
-
 const spinalPilot = new SpinalPilot();
-
+spinalPilot.init();
 
 export default spinalPilot;
-export {spinalPilot }
+export {
+   spinalPilot
+}

@@ -32,14 +32,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalPilotCallback = exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.SpinalDiscoverCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = void 0;
+exports.SpinalPilotCallback = exports.SpinalDiscoverCallback = exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = exports.WaitModelReady = void 0;
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
-const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
 const SpinalDiscover_1 = require("../modules/SpinalDiscover");
+const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
 const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
-const SpinalPilot_1 = require("../modules/SpinalPilot");
+const SpinalPilot_copy_1 = require("../modules/SpinalPilot copy");
 const Q = require('q');
 const pm2 = require("pm2");
 const WaitModelReady = () => {
@@ -57,6 +57,7 @@ const WaitModelReady = () => {
     };
     return WaitModelReadyLoop(deferred);
 };
+exports.WaitModelReady = WaitModelReady;
 const connectionErrorCallback = (err) => {
     if (!err)
         console.error('Error Connect');
@@ -75,7 +76,7 @@ const CreateOrganConfigFile = (spinalConnection, path, connectorName) => {
             }
             console.log("organ not found");
             const model = new spinal_model_bacnet_1.SpinalOrganConfigModel(connectorName);
-            WaitModelReady().then(() => {
+            exports.WaitModelReady().then(() => {
                 const file = new spinal_core_connectorjs_type_1.File(`${connectorName}.conf`, model, { model_type: model.type.get() });
                 directory.push(file);
                 console.log("organ created");
@@ -105,7 +106,7 @@ function findFileInDirectory(directory, fileName) {
             const elementName = element.name.get();
             if (elementName.toLowerCase() === `${fileName}.conf`.toLowerCase()) {
                 return element.load(file => {
-                    WaitModelReady().then(() => {
+                    exports.WaitModelReady().then(() => {
                         resolve(file);
                     });
                 });
@@ -117,29 +118,12 @@ function findFileInDirectory(directory, fileName) {
 ////////////////////////////////////////////////
 ////                 CALLBACKS                //
 ////////////////////////////////////////////////
-const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d;
-    yield WaitModelReady();
-    if (((_a = organModel.id) === null || _a === void 0 ? void 0 : _a.get()) === ((_c = (_b = spinalDisoverModel.organ) === null || _b === void 0 ? void 0 : _b.id) === null || _c === void 0 ? void 0 : _c.get())) {
-        const minute = 2 * (60 * 1000);
-        const time = Date.now();
-        const creation = ((_d = spinalDisoverModel.creation) === null || _d === void 0 ? void 0 : _d.get()) || 0;
-        // Check if model is not timeout.
-        if ((time - creation) >= minute || spinalDisoverModel.state.get() === spinal_model_bacnet_1.STATES.created) {
-            spinalDisoverModel.setTimeoutMode();
-            return spinalDisoverModel.remove();
-        }
-        SpinalDiscover_1.discover.addToQueue(spinalDisoverModel);
-        // new SpinalDiscover(spinalDisoverModel);
-    }
-});
-exports.SpinalDiscoverCallback = SpinalDiscoverCallback;
 const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    yield WaitModelReady();
+    yield exports.WaitModelReady();
     try {
         spinalBacnetValueModel.organ.load((organ) => __awaiter(void 0, void 0, void 0, function* () {
-            var _e, _f;
-            if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
+            var _a, _b;
+            if (organ && ((_a = organ.id) === null || _a === void 0 ? void 0 : _a.get()) !== ((_b = organModel.id) === null || _b === void 0 ? void 0 : _b.get()))
                 return;
             const { networkService, device, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
             if (spinalBacnetValueModel.state.get() === 'wait') {
@@ -159,7 +143,7 @@ const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => _
 });
 exports.SpinalBacnetValueModelCallback = SpinalBacnetValueModelCallback;
 const SpinalListnerCallback = (spinalListenerModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    yield WaitModelReady();
+    yield exports.WaitModelReady();
     spinalListenerModel.organ.load((organ) => {
         var _a, _b;
         if (organ) {
@@ -170,11 +154,28 @@ const SpinalListnerCallback = (spinalListenerModel, organModel) => __awaiter(voi
     });
 });
 exports.SpinalListnerCallback = SpinalListnerCallback;
+const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
+    var _c, _d, _e, _f;
+    yield exports.WaitModelReady();
+    if (((_c = organModel.id) === null || _c === void 0 ? void 0 : _c.get()) === ((_e = (_d = spinalDisoverModel.organ) === null || _d === void 0 ? void 0 : _d.id) === null || _e === void 0 ? void 0 : _e.get())) {
+        const minute = 2 * (60 * 1000);
+        const time = Date.now();
+        const creation = ((_f = spinalDisoverModel.creation) === null || _f === void 0 ? void 0 : _f.get()) || 0;
+        // Check if model is not timeout.
+        if ((time - creation) >= minute || spinalDisoverModel.state.get() === spinal_model_bacnet_1.STATES.created) {
+            spinalDisoverModel.setTimeoutMode();
+            return spinalDisoverModel.remove();
+        }
+        SpinalDiscover_1.discover.addToQueue(spinalDisoverModel);
+        // new SpinalDiscover(spinalDisoverModel);
+    }
+});
+exports.SpinalDiscoverCallback = SpinalDiscoverCallback;
 const SpinalPilotCallback = (spinalPilotModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
     var _g, _h;
-    yield WaitModelReady();
+    yield exports.WaitModelReady();
     if (((_g = spinalPilotModel.organ) === null || _g === void 0 ? void 0 : _g.id.get()) === ((_h = organModel.id) === null || _h === void 0 ? void 0 : _h.get())) {
-        SpinalPilot_1.spinalPilot.addToPilotList(spinalPilotModel);
+        SpinalPilot_copy_1.spinalPilot.addToPilotList(spinalPilotModel);
     }
 });
 exports.SpinalPilotCallback = SpinalPilotCallback;

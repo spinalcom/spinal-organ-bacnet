@@ -1,4 +1,5 @@
 import { SpinalListenerModel } from "spinal-model-bacnet";
+import { IDevice } from "../Interfaces";
 declare class SpinalMonitoring {
     private queue;
     private priorityQueue;
@@ -13,6 +14,8 @@ declare class SpinalMonitoring {
     startDeviceInitialisation(): Promise<void>;
     startMonitoring(): Promise<void>;
     private _createMaps;
+    private _bindEndpoints;
+    sendUpdateRequest(endpointElement: any, organNode: any, device: IDevice, newValue: any): Promise<void>;
     private _addToMap;
     private removeToMaps;
     private _addIntervalToPriorityQueue;
@@ -21,6 +24,7 @@ declare class SpinalMonitoring {
     private funcToExecute;
     private getValidIntervals;
     private waitFct;
+    private _formatByInterval;
 }
 declare const spinalMonitoring: SpinalMonitoring;
 export default spinalMonitoring;

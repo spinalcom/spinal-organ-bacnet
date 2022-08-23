@@ -1,12 +1,8 @@
-import { SpinalPilotModel } from "spinal-model-bacnet";
+import { IRequest } from "spinal-model-bacnet";
 declare class SpinalPilot {
-    private queue;
-    private isProcessing;
     constructor();
-    init(): void;
-    addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void>;
-    private pilot;
-    private writeProperties;
+    sendPilotRequest(request: any): Promise<void>;
+    writeProperties(requests?: IRequest[]): Promise<void>;
     private writeProperty;
     private useDataType;
     private getDataTypes;

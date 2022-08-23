@@ -66,15 +66,19 @@ const listenLoadType = (connect, organModel) => {
     // return new Promise((resolve, reject) => {
     loadTypeInSpinalCore(connect, 'SpinalDisoverModel', (spinalDisoverModel) => {
         Functions_1.SpinalDiscoverCallback(spinalDisoverModel, organModel);
+        // const child = fork("../fork_process/Discover");
+        // child.send({ organModel, model: spinalDisoverModel });
     }, Functions_1.connectionErrorCallback);
     loadTypeInSpinalCore(connect, 'SpinalListenerModel', (spinalListenerModel) => {
         Functions_1.SpinalListnerCallback(spinalListenerModel, organModel);
+        // const child = fork("../fork_process/Listener");
+        // child.send({ organModel, spinalListenerModel });
     }, Functions_1.connectionErrorCallback);
     loadTypeInSpinalCore(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
         Functions_1.SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
     }, Functions_1.connectionErrorCallback);
     loadTypeInSpinalCore(connect, 'SpinalPilotModel', (spinalPilotModel) => {
-        Functions_1.SpinalPilotCallback(spinalPilotModel, organModel);
+        // SpinalPilotCallback(spinalPilotModel, organModel);
     }, Functions_1.connectionErrorCallback);
     // });
 };

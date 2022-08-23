@@ -32,72 +32,6 @@ import { IDevice } from "../Interfaces/IDevice";
 import { SpinalDisoverModel, STATES } from 'spinal-model-bacnet';
 import { SpinalNetworkServiceUtilities } from '../utilities/SpinalNetworkServiceUtilities';
 
-class Discover extends EventEmitter {
-   private _discoverQueue: SpinalQueuing<SpinalDisoverModel> = new SpinalQueuing();
-   private _isProcess: boolean = false;
-
-   constructor() {
-      super();
-      this._listenEvent();
-   }
-
-
-
-   public addToQueue(model: SpinalDisoverModel) {
-      this._discoverQueue.addToQueue(model);
-   }
-
-   private _listenEvent() {
-      this._discoverQueue.on("start", () => {
-         if (!this._isProcess) {
-            this._isProcess = true;
-            this._discoverNext();
-         }
-      })
-
-      this.on("next", () => {
-         this._discoverNext();
-      })
-   }
-
-   private _discoverNext() {
-      if (!this._discoverQueue.isEmpty()) {
-         const model = this._discoverQueue.dequeue();
-         const spinalDiscover = new SpinalDiscover(model);
-         spinalDiscover.init();
-         let timeout = false;
-
-         let bindSateProcess = model.state.bind(() => {
-            const state = model.state.get()
-
-            switch (state) {
-               case STATES.discovered:
-                  model.state.unbind(bindSateProcess);
-                  if (!timeout) {
-                     this.emit("next");
-                  }
-                  break;
-               case STATES.timeout:
-                  if (!timeout) {
-                     this.emit("next");
-                  }
-
-                  timeout = true;
-
-               default:
-                  break;
-            }
-         })
-      } else {
-         this._isProcess = false;
-      }
-   }
-
-}
-
-export const discover = new Discover();
-
-
 
 
 export class SpinalDiscover {
@@ -327,4 +261,75 @@ export class SpinalDiscover {
    }
 
 }
+
+
+class Discover extends EventEmitter {
+   private _discoverQueue: SpinalQueuing<SpinalDisoverModel> = new SpinalQueuing();
+   private _isProcess: boolean = false;
+
+   constructor() {
+      super();
+      this._listenEvent();
+   }
+
+
+
+   public addToQueue(model: SpinalDisoverModel) {
+      this._discoverQueue.addToQueue(model);
+   }
+
+   private _listenEvent() {
+      this._discoverQueue.on("start", () => {
+         if (!this._isProcess) {
+            this._isProcess = true;
+            this._discoverNext();
+         }
+      })
+
+      this.on("next", () => {
+         this._discoverNext();
+      })
+   }
+
+   private _discoverNext() {
+      if (!this._discoverQueue.isEmpty()) {
+         const model = this._discoverQueue.dequeue();
+         const spinalDiscover = new SpinalDiscover(model);
+         spinalDiscover.init();
+         let timeout = false;
+
+         let bindSateProcess = model.state.bind(() => {
+            const state = model.state.get()
+
+            switch (state) {
+               case STATES.discovered:
+                  model.state.unbind(bindSateProcess);
+                  if (!timeout) {
+                     this.emit("next");
+                  }
+                  break;
+               case STATES.timeout:
+                  if (!timeout) {
+                     this.emit("next");
+                  }
+
+                  timeout = true;
+
+               default:
+                  break;
+            }
+         })
+      } else {
+         this._isProcess = false;
+      }
+   }
+
+}
+
+export const discover = new Discover();
+
+
+
+
+
 

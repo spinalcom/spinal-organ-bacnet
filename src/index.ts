@@ -25,6 +25,7 @@
 require("json5/lib/register");
 
 import { spinalCore } from "spinal-core-connectorjs_type";
+import { fork } from "child_process";
 
 import {
    SpinalDisoverModel, SpinalListenerModel,
@@ -32,9 +33,9 @@ import {
 } from "spinal-model-bacnet";
 
 import {
-   SpinalDiscoverCallback, SpinalListnerCallback,
+   SpinalListnerCallback,
    SpinalBacnetValueModelCallback, connectionErrorCallback,
-   CreateOrganConfigFile, GetPm2Instance, SpinalPilotCallback
+   CreateOrganConfigFile, GetPm2Instance, SpinalDiscoverCallback
 } from './utilities/Functions';
 
 
@@ -63,7 +64,7 @@ CreateOrganConfigFile(connect, path, name).then((organModel: SpinalOrganConfigMo
 
          if (app) {
             console.log("restart organ", app.pm_id);
-            organModel.restart.set(false)
+            organModel.restart.set(false);
 
             pm2.restart(app.pm_id, (err) => {
                if (err) {
@@ -82,10 +83,16 @@ const listenLoadType = (connect, organModel) => {
    // return new Promise((resolve, reject) => {
    loadTypeInSpinalCore(connect, 'SpinalDisoverModel', (spinalDisoverModel: SpinalDisoverModel) => {
       SpinalDiscoverCallback(spinalDisoverModel, organModel)
+      // const child = fork("../fork_process/Discover");
+      // child.send({ organModel, model: spinalDisoverModel });
+
    }, connectionErrorCallback);
 
    loadTypeInSpinalCore(connect, 'SpinalListenerModel', (spinalListenerModel: SpinalListenerModel) => {
       SpinalListnerCallback(spinalListenerModel, organModel);
+      // const child = fork("../fork_process/Listener");
+      // child.send({ organModel, spinalListenerModel });
+
    }, connectionErrorCallback);
 
    loadTypeInSpinalCore(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel: SpinalBacnetValueModel) => {
@@ -93,7 +100,7 @@ const listenLoadType = (connect, organModel) => {
    }, connectionErrorCallback);
 
    loadTypeInSpinalCore(connect, 'SpinalPilotModel', (spinalPilotModel: SpinalPilotModel) => {
-      SpinalPilotCallback(spinalPilotModel, organModel);
+      // SpinalPilotCallback(spinalPilotModel, organModel);
    }, connectionErrorCallback);
 
 

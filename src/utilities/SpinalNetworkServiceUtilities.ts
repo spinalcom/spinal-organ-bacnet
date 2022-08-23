@@ -22,15 +22,18 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
+import { DeviceProfileUtilities } from "spinal-env-viewer-plugin-network-tree-service";
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { SpinalBacnetValueModel, SpinalDisoverModel, SpinalListenerModel } from "spinal-model-bacnet";
-import { SpinalGraph, SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { SpinalGraph, SpinalGraphService, SpinalNodeRef, SpinalNode } from "spinal-env-viewer-graph-service";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import { IDataMonitor } from "../Interfaces/IDataMonitor";
 import { IDataDiscover } from "../Interfaces/IDataDiscover";
 import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
 
 export class SpinalNetworkServiceUtilities {
+   public static profilDataStore : Map<string, any> = new Map();
+
    constructor() { }
 
    public static async initSpinalDiscoverNetwork(spinalModel: SpinalDisoverModel): Promise<IDataDiscover> {
@@ -82,23 +85,32 @@ export class SpinalNetworkServiceUtilities {
          const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
          const networkService: NetworkService = new NetworkService(saveTimeSeries);
 
-         const [graph, device, network, context, organ] = await Promise.all([
-            // const [graph, device, network, context, organ, profil] = await Promise.all([
+         // const [graph, device, network, context, organ] = await Promise.all([
+         const [graph, device, network, context, organ, profil] = await Promise.all([
             this.loadPtrValue(spinalModel.graph),
             this.loadPtrValue(spinalModel.device),
             this.loadPtrValue(spinalModel.network),
             this.loadPtrValue(spinalModel.context),
             this.loadPtrValue(spinalModel.organ),
-            // this.loadPtrValue(spinalModel.monitor.profil)
+            this.loadPtrValue(spinalModel.monitor.profil)
          ]);
 
 
-         if (graph) (<any>SpinalGraphService)._addNode(graph);
-         if (device) (<any>SpinalGraphService)._addNode(device);
-         if (network) (<any>SpinalGraphService)._addNode(network);
-         if (context) (<any>SpinalGraphService)._addNode(context);
+         //@ts-ignore
+         if (graph) SpinalGraphService._addNode(graph);
+         //@ts-ignore
+         if (device) SpinalGraphService._addNode(device);
+         //@ts-ignore
+         if (network) SpinalGraphService._addNode(network);
+         //@ts-ignore
+         if (context) SpinalGraphService._addNode(context);
+         //@ts-ignore
+         if (profil) SpinalGraphService._addNode(profil);
 
          const spinalDevice: SpinalDevice = new SpinalDevice(device.info.get());
+
+
+         await this._addProfileToMap(profil);
 
          await networkService.init(graph, {
             contextName: context.getName().get(),
@@ -118,7 +130,9 @@ export class SpinalNetworkServiceUtilities {
             spinalModel,
             spinalDevice,
             networkService,
-            network
+            network,
+            profil,
+            organ
          }
          // return monitors.map(({ interval, children }) => {
 
@@ -150,6 +164,27 @@ export class SpinalNetworkServiceUtilities {
       // }
 
    }
+
+   public static getSupervisionDetails(profileId: string) {
+      const data = this.profilDataStore.get(profileId)
+      if(data) return data;
+      return DeviceProfileUtilities.getGlobalSupervisionDetails(profileId);
+   }
+
+
+   // public static getSuperVisionItems(profileId: string) {
+   //    const data = this._getSupervisionDetails(profileId);
+   //    const res = [];
+
+   //    for (const key in data) {
+   //       if (Object.prototype.hasOwnProperty.call(data, key)) {
+   //          const liste = Array.isArray(data[key]) ? data[key] : [data[key]];
+   //          liste.forEach(({children}) => {
+   //             if(!children) continue;
+   //          })
+   //       }
+   //    }
+   // }
 
 
    /////////////////////////////////////////////////////////////
@@ -199,4 +234,14 @@ export class SpinalNetworkServiceUtilities {
       });
 
    }
+
+
+   private static async _addProfileToMap(profileNode: SpinalNode) {
+      const profileId = profileNode.getId().get();
+      if(this.profilDataStore.get(profileId)) return;
+     const details = await this.getSupervisionDetails(profileId);
+     this.profilDataStore.set(profileId, details);
+   }
+
+  
 }

@@ -33,26 +33,59 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalPilot = void 0;
+const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const bacnet = require("bacstack");
 class SpinalPilot {
     constructor() {
+        this.queue = new SpinalQueuing_1.SpinalQueuing();
+        this.isProcessing = false;
     }
-    sendPilotRequest(request) {
+    init() {
+        this.queue.on("start", () => {
+            console.log("start pilot...");
+            this.pilot();
+        });
+    }
+    addToPilotList(spinalPilotModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            try {
-                yield this.writeProperties(request);
-                console.log("success");
-            }
-            catch (error) {
-                console.error(error.message);
+            console.log("addToQueue");
+            this.queue.addToQueue(spinalPilotModel);
+        });
+    }
+    pilot() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.isProcessing) {
+                this.isProcessing = true;
+                // console.log(this.queue);
+                while (!this.queue.isEmpty()) {
+                    const pilot = this.queue.dequeue();
+                    if (pilot === null || pilot === void 0 ? void 0 : pilot.isNormal()) {
+                        pilot.setProcessMode();
+                        try {
+                            yield this.writeProperties(pilot === null || pilot === void 0 ? void 0 : pilot.requests.get());
+                            console.log("success");
+                            pilot.setSuccessMode();
+                            yield pilot.removeToNode();
+                        }
+                        catch (error) {
+                            console.error(error.message);
+                            pilot.setErrorMode();
+                            yield pilot.removeToNode();
+                        }
+                    }
+                    else {
+                        console.log("remove");
+                        yield pilot.removeToNode();
+                    }
+                    // console.log("pilot",pilot)
+                }
+                this.isProcessing = false;
             }
         });
     }
     writeProperties(requests = []) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!Array.isArray(requests))
-                requests = [requests];
             for (let index = 0; index < requests.length; index++) {
                 const req = requests[index];
                 try {
@@ -129,5 +162,6 @@ class SpinalPilot {
 }
 const spinalPilot = new SpinalPilot();
 exports.spinalPilot = spinalPilot;
+spinalPilot.init();
 exports.default = spinalPilot;
-//# sourceMappingURL=SpinalPilot.js.map
+//# sourceMappingURL=SpinalPilot%20copy.js.map
