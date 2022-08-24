@@ -42,7 +42,7 @@ class SpinalPilot {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 yield this.writeProperties(request);
-                console.log("success");
+                // console.log("success");
             }
             catch (error) {
                 console.error(error.message);
@@ -79,7 +79,7 @@ class SpinalPilot {
                 }
             }
             if (!success) {
-                throw new Error("error");
+                // throw new Error("error");
             }
         });
     }
@@ -105,8 +105,8 @@ class SpinalPilot {
             case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT:
             case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_VALUE:
                 return [
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
+                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL,
                     GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
                 ];

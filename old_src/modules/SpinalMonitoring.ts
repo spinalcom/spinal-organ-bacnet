@@ -115,19 +115,12 @@ class SpinalMonitoring {
          }
 
 
-
          // const monitors = spinalModel.monitor.getMonitoringData();
          // const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitor);
-         // const { toMonitors: intervals, toBind } = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, profil);
+         const { toMonitors: intervals, toBind } = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, profil);
+         await this._bindEndpoints(toBind, organ, spinalDevice.device);
 
-         // await this._bindEndpoints(toBind, organ, spinalDevice.device);
-
-         const { measures, alarms, commands } = await this._getSupervisionDetails(profil.getId().get());
-
-         const measuresInfo = await this._checkAndFormatMeasure(measures, spinalDevice, networkService, spinalModel, network);
-         await this._bindEndpoints(measuresInfo.endpoints, spinalDevice.device);
-
-         for (const { interval, func } of measuresInfo.monitors) {
+         for (const { interval, func } of intervals) {
             this._addToMap(id, interval, func);
          }
 
@@ -143,48 +136,40 @@ class SpinalMonitoring {
 
    }
 
-   private async _getSupervisionDetails(profileId) {
-      const supervisionDetails = await SpinalNetworkServiceUtilities.getSupervisionDetails(profileId);
+   private _bindEndpoints(endpointsList: SpinalNodeRef[], organ: SpinalNode, device: IDevice) {
 
-      return { measures: this._formatByInterval(supervisionDetails.measures), alarms: this._formatByInterval(supervisionDetails.measures), commands: [] }
-   }
-
-   private async _bindEndpoints(endpointsList: SpinalNodeRef[], device: IDevice) {
-      // const promises = endpointsList.map(async (endpointNode) => {
-      for (const endpointNode of endpointsList) {
-         const endpointElement = await endpointNode.element.load();
-         console.log(endpointElement.name.get());
-         endpointElement.currentValue.bind(async () => {
+      const promises = endpointsList.map(async (endpointNode) => {
+         const endpointElement = await endpointNode.getElement();
+         endpointElement.currentValue.bind(() => {
             const newValue = endpointElement.currentValue.get();
-            await this.sendUpdateRequest(endpointElement, device, newValue)
-         }, false);
-      }
+            return this.sendUpdateRequest(endpointElement, organ, device, newValue)
+         })
+      })
 
-      // })
-
-      // return Promise.all(promises)
+      return Promise.all(promises)
    }
 
-   async sendUpdateRequest(endpointElement, device: IDevice, newValue) {
+   async sendUpdateRequest(endpointElement, organNode, device: IDevice, newValue) {
       // const [organNode] = await this.getEndpointOrgan(nodeId);
       // const devices = await this.getDevices(nodeId);
 
-      // const organ = await organNode.element.load();
-      // let organ = organNode;
+      const organ = await organNode.getElement();
+      if (organ) {
 
-      const request = {
-         address: device.address,
-         deviceId: device.deviceId,
-         objectId: { type: endpointElement.typeId.get(), instance: endpointElement.id.get() },
-         value: newValue,
-      };
+         const request = {
+            address: device.address,
+            deviceId: device.deviceId,
+            objectId: { type: endpointElement.typeId.get(), instance: endpointElement.id.get() },
+            value: newValue,
+         };
 
-      console.log(endpointElement.name.get(), "a changé de value", newValue);
-      spinalPilot.sendPilotRequest(request);
+         console.log(endpointElement.name.get(), "a changé de value", newValue);
+         spinalPilot.sendPilotRequest(request);
 
-      // const spinalPilot = new SpinalPilotModel(organ, requests);
-      // await spinalPilot.addToNode(endpointNode);
-      // return spinalPilot;
+         // const spinalPilot = new SpinalPilotModel(organ, requests);
+         // await spinalPilot.addToNode(endpointNode);
+         // return spinalPilot;
+      }
 
    }
 
@@ -215,6 +200,7 @@ class SpinalMonitoring {
          this.priorityQueue.enqueue({ interval }, Date.now() + interval);
       }
    }
+
 
    private async execFunc(functions: { id: string; func: Function }[], interval: number, date?: number) {
 
@@ -248,15 +234,15 @@ class SpinalMonitoring {
 
    private async createDataIfNotExist(spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService, interval: number): Promise<SpinalNodeRef[]> {
       try {
-         // const id = `${spinalDevice.device.deviceId}_${interval}`;
-         // let init = this.initializedMap.get(id);
+         const id = `${spinalDevice.device.deviceId}_${interval}`;
+         let init = this.initializedMap.get(id);
 
-         // if (!init) {
-         // console.log("initialisation");
-         // this.initializedMap.set(id, true);
-         const endpoints = await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-         return lodash.flattenDeep(endpoints);
-         // }
+         if (!init) {
+            // console.log("initialisation");
+            this.initializedMap.set(id, true);
+            const endpoints = await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+            return lodash.flattenDeep(endpoints);
+         }
       } catch (error) {
          console.error(error)
       }
@@ -268,18 +254,18 @@ class SpinalMonitoring {
       }
    }
 
-   private async _checkAndFormatMeasure(measures: any, spinalDevice: SpinalDevice, networkService: NetworkService, spinalModel: SpinalListenerModel, network: SpinalNode) {
+   private async getValidIntervals(spinalDevice: SpinalDevice, networkService: NetworkService, spinalModel: SpinalListenerModel, network: SpinalNode, profil: SpinalNode) {
 
-      const monitors_copy = Object.assign([], measures);
-
+      const { measures, alarms, commands } = await SpinalNetworkServiceUtilities.getSupervisionDetails(profil.getId().get());
+      const monitors_copy = this._formatByInterval(measures);
+      // const monitors_copy = Object.assign([], monitors);
       const res = []
-      const endpoints = [];
-
+      const nodeToBind = []
       while (monitors_copy.length > 0) {
          const { interval, children } = monitors_copy.shift();
          if (isNaN(interval) || interval <= 0 || children.length <= 0) continue;
          const liste = await this.createDataIfNotExist(spinalDevice, children, networkService, interval);
-         endpoints.push(...liste);
+         nodeToBind.push(...liste);
          const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
          res.push({
             interval,
@@ -287,55 +273,25 @@ class SpinalMonitoring {
             func
          })
       }
-
-      return { monitors: res, endpoints };
+      return { toMonitors: res, toBind: nodeToBind };
    }
 
-   private _checkAndFormatCommands(commands: any, spinalDevice: SpinalDevice, networkService: NetworkService, spinalModel: SpinalListenerModel, network: SpinalNode, profil: SpinalNode) {
-      // Function en attente de finalisation
-   }
-
-
-   /*
-      private async getValidIntervals(spinalDevice: SpinalDevice, networkService: NetworkService, spinalModel: SpinalListenerModel, network: SpinalNode, profil: SpinalNode) {
-   
-         const { measures, alarms, commands } = await SpinalNetworkServiceUtilities.getSupervisionDetails(profil.getId().get());
-         const monitors_copy = this._formatByInterval(measures);
-         // const monitors_copy = Object.assign([], monitors);
-         const res = []
-         const nodeToBind = []
-         while (monitors_copy.length > 0) {
-            const { interval, children } = monitors_copy.shift();
-            if (isNaN(interval) || interval <= 0 || children.length <= 0) continue;
-            const liste = await this.createDataIfNotExist(spinalDevice, children, networkService, interval);
-            nodeToBind.push(...liste);
-            const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
-            res.push({
-               interval,
-               children,
-               func
-            })
-         }
-         return { toMonitors: res, toBind: nodeToBind };
-      }
-   private async getValidIntervals(spinalDevice: SpinalDevice, networkService: NetworkService, spinalModel: SpinalListenerModel, network: SpinalNode, monitors: { interval: number; children: [] }[]) {
-      const monitors_copy = Object.assign([], monitors);
-      const res = []
-      while (monitors_copy.length > 0) {
-         const { interval, children } = monitors_copy.shift();
-         if (isNaN(interval) || interval <= 0 || children.length <= 0) continue;
-         await this.createDataIfNotExist(spinalDevice, children, networkService, interval);
-         const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
-         res.push({
-            interval,
-            children,
-            func
-         })
-      }
-      return res;
-   }
-   */
-
+   // private async getValidIntervals(spinalDevice: SpinalDevice, networkService: NetworkService, spinalModel: SpinalListenerModel, network: SpinalNode, monitors: { interval: number; children: [] }[]) {
+   //    const monitors_copy = Object.assign([], monitors);
+   //    const res = []
+   //    while (monitors_copy.length > 0) {
+   //       const { interval, children } = monitors_copy.shift();
+   //       if (isNaN(interval) || interval <= 0 || children.length <= 0) continue;
+   //       await this.createDataIfNotExist(spinalDevice, children, networkService, interval);
+   //       const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
+   //       res.push({
+   //          interval,
+   //          children,
+   //          func
+   //       })
+   //    }
+   //    return res;
+   // }
 
    private waitFct(nb: number): Promise<void> {
       return new Promise((resolve) => {

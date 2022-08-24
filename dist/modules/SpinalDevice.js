@@ -100,14 +100,14 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     checkAndCreateIfNotExist(networkService, objectIds) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("check and create if not exist");
+            console.log(this.device.name, "check and create if not exist");
             const client = new bacnet();
-            // const children = lodash.chunk(objectIds, 60);
-            // const objectListDetails = await this._getAllObjectDetails(children, client);
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectIds, client);
-            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
+            // const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
+            // const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
+            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectIds), function (a) { return a.type; });
             const promises = Array.from(Object.keys(childrenGroups)).map((el) => {
-                return BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, this.device.id, el, childrenGroups[el]);
+                const type_name = BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(el);
+                return BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, this.device, type_name, childrenGroups[el]);
             });
             return Promise.all(promises);
         });

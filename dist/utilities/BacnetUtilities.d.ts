@@ -20,10 +20,10 @@ export default class BacnetUtilities {
     }>>;
     private static getChildrenNewValueWithReadPropertyMultiple;
     private static getChildrenNewValueWithReadProperty;
-    static createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]>;
+    static createEndpointsInGroup(networkService: NetworkService, device: IDevice, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]>;
     static _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef>;
-    static _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<SpinalNodeRef[]>;
-    static _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef>;
+    static _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, device: IDevice): Promise<SpinalNodeRef[]>;
+    static _createEndpoint(networkService: NetworkService, groupId: string, item: any, device: IDevice): Promise<void | SpinalNodeRef>;
     static _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef>;
     static _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
     static _formatProperty(object: any): {

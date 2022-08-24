@@ -152,9 +152,7 @@ export default class BacnetUtilities {
             try {
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
-            } catch (err) { 
-               console.log("echec de recuperation", object);
-            }
+            } catch (err) { }
          }
       }
 
@@ -209,9 +207,8 @@ export default class BacnetUtilities {
 
       const properties = [
          PropertyIds.PROP_OBJECT_NAME, PropertyIds.PROP_PRESENT_VALUE,
-         PropertyIds.PROP_OBJECT_TYPE, 
-         // PropertyIds.PROP_UNITS,
-         // PropertyIds.PROP_MAX_PRES_VALUE, PropertyIds.PROP_MIN_PRES_VALUE
+         PropertyIds.PROP_OBJECT_TYPE, PropertyIds.PROP_UNITS,
+         PropertyIds.PROP_MAX_PRES_VALUE, PropertyIds.PROP_MIN_PRES_VALUE
       ]
 
       const obj = {
@@ -227,18 +224,18 @@ export default class BacnetUtilities {
          try {
             const property = properties.shift();
             if (typeof property !== "undefined") {
-               // console.log("property not undefined",property);
+               console.log("property not undefined");
                const formated = await this._getPropertyValue(device.address, objectId, property, argClient);
 
                for (let key in formated) {
                   obj[key] = formated[key];
                }
             } else {
-               // console.log("property is undefined");
+               console.log("property is undefined");
             }
 
          } catch (error) {
-            // console.error(error);
+            console.error(error);
          }
       }
 
@@ -341,11 +338,10 @@ export default class BacnetUtilities {
    ////                       Endpoints                          //
    ////////////////////////////////////////////////////////////////
 
-   public static async createEndpointsInGroup(networkService: NetworkService, device: IDevice, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]> {
-      const deviceId = <any>device.id;
+   public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]> {
       const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
       const groupId = endpointGroup.id.get();
-      return this._createEndpointByArray(networkService, groupId, endpointArray,device);
+      return this._createEndpointByArray(networkService, groupId, endpointArray);
    }
 
    public static async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef> {
@@ -364,20 +360,20 @@ export default class BacnetUtilities {
       return endpointGroup;
    }
 
-   public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, device: IDevice): Promise<SpinalNodeRef[]> {
+   public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<SpinalNodeRef[]> {
       const childNetwork = await this.getChildrenObj(groupId, SpinalBmsEndpoint.relationName);
       const nodeCreated = []
       let counter = 0;
       while (counter < endpointArray.length) {
          const item = endpointArray[counter];
-         if (childNetwork[item.instance]) {
+         if (childNetwork[item.id]) {
             console.log(item.id, "already exists");
             counter++;
-            nodeCreated.push(childNetwork[item.instance])
+            nodeCreated.push(childNetwork[item.id])
             continue;
          }
 
-         const ref = await this._createEndpoint(networkService, groupId, item,device);
+         const ref = await this._createEndpoint(networkService, groupId, item);
          if (ref) nodeCreated.push(ref);
          counter++;
       }
@@ -385,9 +381,8 @@ export default class BacnetUtilities {
       return nodeCreated;
    }
 
-   public static async _createEndpoint(networkService: NetworkService, groupId: string, item: any, device: IDevice): Promise<void | SpinalNodeRef> {
+   public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef> {
 
-      const endpointObj = await this._getObjectDetailWithReadProperty(device, item);
       const obj: any = {
          id: endpointObj.id,
          typeId: endpointObj.typeId,

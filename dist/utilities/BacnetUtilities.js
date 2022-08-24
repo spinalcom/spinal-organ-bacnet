@@ -143,7 +143,9 @@ class BacnetUtilities {
                         const res = yield func.call(this, device, object, argClient);
                         objectListDetails.push(res);
                     }
-                    catch (err) { }
+                    catch (err) {
+                        console.log("echec de recuperation", object);
+                    }
                 }
             }
             if (deviceAcceptSegmentation)
@@ -192,8 +194,7 @@ class BacnetUtilities {
         return __awaiter(this, void 0, void 0, function* () {
             const properties = [
                 GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE,
-                GlobalVariables_1.PropertyIds.PROP_OBJECT_TYPE, GlobalVariables_1.PropertyIds.PROP_UNITS,
-                GlobalVariables_1.PropertyIds.PROP_MAX_PRES_VALUE, GlobalVariables_1.PropertyIds.PROP_MIN_PRES_VALUE
+                GlobalVariables_1.PropertyIds.PROP_OBJECT_TYPE,
             ];
             const obj = {
                 objectId: objectId,
@@ -207,18 +208,18 @@ class BacnetUtilities {
                 try {
                     const property = properties.shift();
                     if (typeof property !== "undefined") {
-                        console.log("property not undefined");
+                        // console.log("property not undefined",property);
                         const formated = yield this._getPropertyValue(device.address, objectId, property, argClient);
                         for (let key in formated) {
                             obj[key] = formated[key];
                         }
                     }
                     else {
-                        console.log("property is undefined");
+                        // console.log("property is undefined");
                     }
                 }
                 catch (error) {
-                    console.error(error);
+                    // console.error(error);
                 }
             }
             return obj;
@@ -314,11 +315,12 @@ class BacnetUtilities {
     ////////////////////////////////////////////////////////////////
     ////                       Endpoints                          //
     ////////////////////////////////////////////////////////////////
-    static createEndpointsInGroup(networkService, deviceId, groupName, endpointArray) {
+    static createEndpointsInGroup(networkService, device, groupName, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
+            const deviceId = device.id;
             const endpointGroup = yield this._createEndpointsGroup(networkService, deviceId, groupName);
             const groupId = endpointGroup.id.get();
-            return this._createEndpointByArray(networkService, groupId, endpointArray);
+            return this._createEndpointByArray(networkService, groupId, endpointArray, device);
         });
     }
     static _createEndpointsGroup(networkService, deviceId, groupName) {
@@ -337,20 +339,20 @@ class BacnetUtilities {
             return endpointGroup;
         });
     }
-    static _createEndpointByArray(networkService, groupId, endpointArray) {
+    static _createEndpointByArray(networkService, groupId, endpointArray, device) {
         return __awaiter(this, void 0, void 0, function* () {
             const childNetwork = yield this.getChildrenObj(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
             const nodeCreated = [];
             let counter = 0;
             while (counter < endpointArray.length) {
                 const item = endpointArray[counter];
-                if (childNetwork[item.id]) {
+                if (childNetwork[item.instance]) {
                     console.log(item.id, "already exists");
                     counter++;
-                    nodeCreated.push(childNetwork[item.id]);
+                    nodeCreated.push(childNetwork[item.instance]);
                     continue;
                 }
-                const ref = yield this._createEndpoint(networkService, groupId, item);
+                const ref = yield this._createEndpoint(networkService, groupId, item, device);
                 if (ref)
                     nodeCreated.push(ref);
                 counter++;
@@ -358,8 +360,9 @@ class BacnetUtilities {
             return nodeCreated;
         });
     }
-    static _createEndpoint(networkService, groupId, endpointObj) {
+    static _createEndpoint(networkService, groupId, item, device) {
         return __awaiter(this, void 0, void 0, function* () {
+            const endpointObj = yield this._getObjectDetailWithReadProperty(device, item);
             const obj = {
                 id: endpointObj.id,
                 typeId: endpointObj.typeId,

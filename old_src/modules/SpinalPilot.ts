@@ -38,7 +38,7 @@ class SpinalPilot {
    public async sendPilotRequest(request) {
       try {
          await this.writeProperties(request)
-         // console.log("success");
+         console.log("success");
       } catch (error) {
          console.error(error.message);
       }
@@ -74,7 +74,7 @@ class SpinalPilot {
       }
 
       if (!success) {
-         // throw new Error("error");
+         throw new Error("error");
       }
 
    }

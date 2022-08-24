@@ -14,15 +14,17 @@ declare class SpinalMonitoring {
     startDeviceInitialisation(): Promise<void>;
     startMonitoring(): Promise<void>;
     private _createMaps;
+    private _getSupervisionDetails;
     private _bindEndpoints;
-    sendUpdateRequest(endpointElement: any, organNode: any, device: IDevice, newValue: any): Promise<void>;
+    sendUpdateRequest(endpointElement: any, device: IDevice, newValue: any): Promise<void>;
     private _addToMap;
     private removeToMaps;
     private _addIntervalToPriorityQueue;
     private execFunc;
     private createDataIfNotExist;
     private funcToExecute;
-    private getValidIntervals;
+    private _checkAndFormatMeasure;
+    private _checkAndFormatCommands;
     private waitFct;
     private _formatByInterval;
 }

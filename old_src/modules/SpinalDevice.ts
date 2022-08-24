@@ -111,16 +111,15 @@ export class SpinalDevice extends EventEmitter {
    }
 
    public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {
-      console.log(this.device.name, "check and create if not exist");
+      console.log("check and create if not exist");
       const client = new bacnet();
+      // const children = lodash.chunk(objectIds, 60);
+      // const objectListDetails = await this._getAllObjectDetails(children, client);
+      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
 
-      // const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
-
-      // const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
-      const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectIds), function (a) { return a.type });
+      const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
       const promises = Array.from(Object.keys(childrenGroups)).map((el: string) => {
-         const type_name = BacnetUtilities._getObjectTypeByCode(el);
-         return BacnetUtilities.createEndpointsInGroup(networkService, this.device, type_name, childrenGroups[el]);
+         return BacnetUtilities.createEndpointsInGroup(networkService, (<any>this.device).id, el, childrenGroups[el]);
       })
 
       return Promise.all(promises);
