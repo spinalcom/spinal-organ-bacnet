@@ -40,6 +40,13 @@ const config = require("../config.js");
 const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
+// Cette fonction est executée en cas de deconnexion au hub
+spinal_core_connectorjs_type_1.FileSystem.onConnectionError = (error_code) => {
+    setTimeout(() => {
+        console.log('STOP ERROR');
+        process.exit(error_code); // kill le process;
+    }, 5000);
+};
 Functions_1.CreateOrganConfigFile(connect, path, name).then((organModel) => {
     organModel.restart.bind(() => {
         Functions_1.GetPm2Instance(name).then((app) => __awaiter(void 0, void 0, void 0, function* () {

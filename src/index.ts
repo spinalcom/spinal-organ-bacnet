@@ -24,7 +24,7 @@
 
 require("json5/lib/register");
 
-import { spinalCore } from "spinal-core-connectorjs_type";
+import { FileSystem, spinalCore } from "spinal-core-connectorjs_type";
 
 import {
    SpinalDisoverModel, SpinalListenerModel,
@@ -48,6 +48,14 @@ const { protocol, host, port, userId, password, path, name } = config.spinalConn
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinalCore.connect(url);
 
+
+// Cette fonction est executée en cas de deconnexion au hub
+FileSystem.onConnectionError = (error_code: number) => {
+   setTimeout(() => {
+         console.log('STOP ERROR');
+         process.exit(error_code); // kill le process;
+     }, 5000);
+ }
 
 
 CreateOrganConfigFile(connect, path, name).then((organModel: SpinalOrganConfigModel) => {
