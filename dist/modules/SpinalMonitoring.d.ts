@@ -12,6 +12,7 @@ declare class SpinalMonitoring {
     init(): void;
     startDeviceInitialisation(): Promise<void>;
     startMonitoring(): Promise<void>;
+    private _initNetworkUtilities;
     private _createMaps;
     private _addToMap;
     private removeToMaps;

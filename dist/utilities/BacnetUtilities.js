@@ -270,16 +270,22 @@ class BacnetUtilities {
             try {
                 const client = argClient || new bacnet();
                 const requestArray = children.map(el => ({ objectId: el, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }] }));
-                const data = yield this.readPropertyMultiple(device.address, requestArray, client);
-                const dataFormated = data.values.map(el => {
-                    const value = this._getObjValue(el.values[0].value);
-                    return {
-                        id: el.objectId.instance,
-                        type: el.objectId.type,
-                        currentValue: this._formatCurrentValue(value, el.objectId.type)
-                    };
-                });
-                return dataFormated;
+                const list_chunked = lodash.chunk(requestArray, 50);
+                const res = [];
+                while (list_chunked.length > 0) {
+                    const arr = list_chunked.pop();
+                    const data = yield this.readPropertyMultiple(device.address, arr, client);
+                    const dataFormated = data.values.map(el => {
+                        const value = this._getObjValue(el.values[0].value);
+                        return {
+                            id: el.objectId.instance,
+                            type: el.objectId.type,
+                            currentValue: this._formatCurrentValue(value, el.objectId.type)
+                        };
+                    });
+                    res.push(dataFormated);
+                }
+                return lodash.flattenDeep(res);
             }
             catch (error) { }
         });

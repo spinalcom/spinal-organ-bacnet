@@ -17,10 +17,11 @@
     "bacstack": "file:./lib/bacstack",
     "big-json": "^3.1.0",
     "dotenv": "^16.0.1",
-    "json5": "^2.2.0",
-    "lodash": "^4.17.20",
+    "json5": "^2.2.3",
+    "lodash": "^4.17.21",
     "pm2": "^4.5.6",
     "socket.io": "^3.1.1",
+    "spinal-lib-organ-monitoring": "git+https://github.com/spinalcom/spinal-lib-organ-monitoring.git",
     "spinal-model-bacnet": "git+https://github.com/spinalcom/spinal-model-bacnet.git",
     "spinal-model-bmsnetwork": "git+https://github.com/spinalcom/spinal-model-bmsnetwork.git#bacnet",
     "ts-priority-queue": "^0.1.1"

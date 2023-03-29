@@ -45,7 +45,7 @@ class SpinalMonitoring {
         this.isProcessing = false;
         this.intervalTimesMap = new Map();
         this.initializedMap = new Map();
-        this.binded = [];
+        this.binded = new Map();
         this.devices = [];
     }
     addToMonitoringList(spinalListenerModel) {
@@ -61,12 +61,8 @@ class SpinalMonitoring {
     }
     startDeviceInitialisation() {
         return __awaiter(this, void 0, void 0, function* () {
-            const list = this.queue.getQueue();
-            this.queue.refresh();
-            const promises = list.map(el => SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
-            const devices = lodash.flattenDeep(yield Promise.all(promises)).filter(el => typeof el !== "undefined");
-            yield this._createMaps(devices);
-            // await this.addToQueue(filtered);
+            const monitoringData = yield this._initNetworkUtilities();
+            yield this._createMaps(monitoringData);
             if (!this.isProcessing) {
                 this.isProcessing = true;
                 this.startMonitoring();
@@ -91,28 +87,43 @@ class SpinalMonitoring {
             }
         });
     }
+    _initNetworkUtilities() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const list = this.queue.getQueue();
+            this.queue.refresh();
+            const promises = yield list.reduce((prom, el) => __awaiter(this, void 0, void 0, function* () {
+                const liste = yield prom;
+                const res = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(el);
+                list.push(res);
+                return liste;
+            }), Promise.resolve([]));
+            return lodash.flattenDeep(yield Promise.all(promises)).filter(el => typeof el !== "undefined");
+        });
+    }
     _createMaps(devices) {
         return __awaiter(this, void 0, void 0, function* () {
             const devices_copy = Object.assign([], devices);
             while (devices_copy.length > 0) {
                 const { id, spinalModel, spinalDevice, networkService, network } = devices_copy.shift();
-                const listen = spinalModel.listen.get();
-                if (!listen) {
-                    this.removeToMaps(id);
-                    console.log(spinalDevice.device.name, "is stopped");
-                    continue;
-                }
-                const monitors = spinalModel.monitor.getMonitoringData();
-                const intervals = yield this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
-                for (const { interval, func } of intervals) {
-                    this._addToMap(id, interval, func);
-                }
-                if (this.binded.indexOf(id) === -1) {
-                    spinalModel.listen.bind(() => {
-                        console.log("listen changed");
-                        this.addToMonitoringList(spinalModel);
-                    });
-                }
+                const process = this.binded.get(id);
+                if (process)
+                    spinalModel.listen.unbind(process);
+                spinalModel.listen.bind(() => __awaiter(this, void 0, void 0, function* () {
+                    const listen = spinalModel.listen.get();
+                    if (listen) {
+                        const monitors = spinalModel.monitor.getMonitoringData();
+                        const intervals = yield this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
+                        for (const { interval, func } of intervals) {
+                            this._addToMap(id, interval, func);
+                        }
+                        console.log(`${spinalDevice.device.name} is monitored`);
+                    }
+                    else {
+                        this.removeToMaps(id);
+                        console.log(`${spinalDevice.device.name} is stopped`);
+                    }
+                }));
+                // this._bindNode(spinalModel, id, spinalDevice.device.name);
             }
             // const promises = devices.map(async ({ id, spinalModel, spinalDevice, networkService, network }) => {
             //    const listen = spinalModel.listen.get();
@@ -150,38 +161,6 @@ class SpinalMonitoring {
             this.priorityQueue.enqueue({ interval }, Date.now() + interval);
         }
     }
-    // private async _createMaps(devices: Array<IDataMonitor>) {
-    //    for (const { id, spinalModel, spinalDevice, networkService, network } of devices) {
-    //       // spinalModel.listen.bind(async () => {
-    //       const value = spinalModel.listen.get();
-    //       if (!value) {
-    //          this.removeToMaps(id);
-    //          return;
-    //       }
-    //       const monitors = spinalModel.monitor.getMonitoringData();
-    //       const promises = monitors.map(async ({ interval, children }) => {
-    //          if (isNaN(interval) || interval <= 0 || children.length <= 0) return;
-    //          await this.createDataIfNotExist(spinalDevice, children, networkService, network, interval);
-    //          const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
-    //          let value = this.intervalTimesMap.get(interval);
-    //          if (typeof value === "undefined") {
-    //             value = [];
-    //          }
-    //          value.push({ id, func })
-    //          this.intervalTimesMap.set(interval, value);
-    //          const arr = this.priorityQueue.toArray();
-    //          const found = arr.find(({ element }) => {
-    //             return element.interval === interval;
-    //          })
-    //          if (typeof found === "undefined") {
-    //             this.priorityQueue.enqueue({ interval }, Date.now() + interval);
-    //          }
-    //          return;
-    //       })
-    //       return Promise.all(promises);
-    //       // })
-    //    }
-    // }
     execFunc(functions, interval, date) {
         return __awaiter(this, void 0, void 0, function* () {
             if (date && Date.now() < date) {

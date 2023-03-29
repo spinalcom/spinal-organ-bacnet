@@ -25,7 +25,7 @@
 import { SpinalListenerModel } from "spinal-model-bacnet";
 import NetworkService from "spinal-model-bmsnetwork";
 import { MinPriorityQueue } from "@datastructures-js/priority-queue";
-
+import { BindProcess } from "spinal-core-connectorjs_type";
 import { SpinalNetworkServiceUtilities } from "../utilities/SpinalNetworkServiceUtilities";
 import { SpinalQueuing } from "../utilities/SpinalQueuing";
 import { SpinalDevice } from "./SpinalDevice";
@@ -42,7 +42,7 @@ class SpinalMonitoring {
    private isProcessing: boolean = false;
    private intervalTimesMap: Map<number, any> = new Map();
    private initializedMap: Map<string, boolean> = new Map();
-   private binded = []
+   private binded: Map<string, BindProcess> = new Map();
    private devices: Array<string> = [];
 
 
@@ -61,24 +61,19 @@ class SpinalMonitoring {
    }
 
 
+
+
    public async startDeviceInitialisation() {
-      const list = this.queue.getQueue();
-      this.queue.refresh();
+      const monitoringData = await this._initNetworkUtilities();
 
-
-
-      const promises = list.map(el => SpinalNetworkServiceUtilities.initSpinalListenerModel(el));
-
-      const devices = lodash.flattenDeep(await Promise.all(promises)).filter(el => typeof el !== "undefined");
-
-      await this._createMaps(devices);
-      // await this.addToQueue(filtered);
+      await this._createMaps(monitoringData);
 
       if (!this.isProcessing) {
          this.isProcessing = true;
          this.startMonitoring()
       }
    }
+
 
    public async startMonitoring() {
       console.log("start monitoring...");
@@ -103,32 +98,51 @@ class SpinalMonitoring {
       }
    }
 
+   private async _initNetworkUtilities(): Promise<IDataMonitor[]> {
+      const list = this.queue.getQueue();
+      this.queue.refresh();
+
+      const promises = await list.reduce(async (prom, el) => {
+         const liste = await prom;
+         const res = await SpinalNetworkServiceUtilities.initSpinalListenerModel(el)
+         list.push(res);
+         return liste;
+      }, Promise.resolve([]));
+
+      return lodash.flattenDeep(await Promise.all(promises)).filter(el => typeof el !== "undefined");
+   }
+
    private async _createMaps(devices: Array<IDataMonitor>) {
       const devices_copy = Object.assign([], devices);
 
       while (devices_copy.length > 0) {
          const { id, spinalModel, spinalDevice, networkService, network } = devices_copy.shift();
-         const listen = spinalModel.listen.get();
+         const process = this.binded.get(id);
 
-         if (!listen) {
-            this.removeToMaps(id);
-            console.log(spinalDevice.device.name, "is stopped");
+         if (process) spinalModel.listen.unbind(process);
 
-            continue;
-         }
-         const monitors = spinalModel.monitor.getMonitoringData();
-         const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
-         for (const { interval, func } of intervals) {
-            this._addToMap(id, interval, func);
-         }
+         spinalModel.listen.bind(async () => {
+            const listen = spinalModel.listen.get();
+            if (listen) {
+               const monitors = spinalModel.monitor.getMonitoringData();
+               const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
+               for (const { interval, func } of intervals) {
+                  this._addToMap(id, interval, func);
+               }
+               console.log(`${spinalDevice.device.name} is monitored`);
+            } else {
+               this.removeToMaps(id);
+               console.log(`${spinalDevice.device.name} is stopped`);
+            }
 
-         if (this.binded.indexOf(id) === -1) {
-            spinalModel.listen.bind(() => {
-               console.log("listen changed");
+         })
 
-               this.addToMonitoringList(spinalModel);
-            })
-         }
+
+
+
+
+
+         // this._bindNode(spinalModel, id, spinalDevice.device.name);
 
       }
 
@@ -147,6 +161,7 @@ class SpinalMonitoring {
       //    // console.log(intervals);
       // })
    }
+
 
    private _addToMap(id: string, interval: number, func: Function) {
       let value = this.intervalTimesMap.get(interval);
@@ -175,51 +190,6 @@ class SpinalMonitoring {
          this.priorityQueue.enqueue({ interval }, Date.now() + interval);
       }
    }
-
-   // private async _createMaps(devices: Array<IDataMonitor>) {
-   //    for (const { id, spinalModel, spinalDevice, networkService, network } of devices) {
-   //       // spinalModel.listen.bind(async () => {
-   //       const value = spinalModel.listen.get();
-
-   //       if (!value) {
-   //          this.removeToMaps(id);
-   //          return;
-   //       }
-
-   //       const monitors = spinalModel.monitor.getMonitoringData();
-   //       const promises = monitors.map(async ({ interval, children }) => {
-   //          if (isNaN(interval) || interval <= 0 || children.length <= 0) return;
-
-   //          await this.createDataIfNotExist(spinalDevice, children, networkService, network, interval);
-   //          const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
-
-   //          let value = this.intervalTimesMap.get(interval);
-   //          if (typeof value === "undefined") {
-   //             value = [];
-   //          }
-
-   //          value.push({ id, func })
-   //          this.intervalTimesMap.set(interval, value);
-   //          const arr = this.priorityQueue.toArray();
-
-   //          const found = arr.find(({ element }) => {
-   //             return element.interval === interval;
-   //          })
-
-   //          if (typeof found === "undefined") {
-   //             this.priorityQueue.enqueue({ interval }, Date.now() + interval);
-   //          }
-
-   //          return;
-   //       })
-
-   //       return Promise.all(promises);
-   //       // })
-   //    }
-
-   // }
-
-
 
    private async execFunc(functions: { id: string; func: Function }[], interval: number, date?: number) {
 

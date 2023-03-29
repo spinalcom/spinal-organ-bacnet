@@ -37,6 +37,7 @@ import {
    CreateOrganConfigFile, GetPm2Instance, SpinalPilotCallback
 } from './utilities/Functions';
 
+import ConfigFile from "spinal-lib-organ-monitoring";
 
 const pm2 = require("pm2");
 const config = require("../config.js");
@@ -52,39 +53,41 @@ const connect = spinalCore.connect(url);
 // Cette fonction est executée en cas de deconnexion au hub
 FileSystem.onConnectionError = (error_code: number) => {
    setTimeout(() => {
-         console.log('STOP ERROR');
-         process.exit(error_code); // kill le process;
-     }, 5000);
- }
+      console.log('STOP ERROR');
+      process.exit(error_code); // kill le process;
+   }, 5000);
+}
 
 
-CreateOrganConfigFile(connect, path, name).then((organModel: SpinalOrganConfigModel) => {
+CreateOrganConfigFile(connect, path, name)
+   .then(async (organModel: SpinalOrganConfigModel) => {
+      await ConfigFile.init(connect, name, host, protocol, port); // API health
 
-   organModel.restart.bind(() => {
-      GetPm2Instance(name).then(async (app: any) => {
-         const restart = organModel.restart.get();
+      organModel.restart.bind(() => {
+         GetPm2Instance(name).then(async (app: any) => {
+            const restart = organModel.restart.get();
 
-         if (!restart) {
-            listenLoadType(connect, organModel);
-            return;
-         }
+            if (!restart) {
+               listenLoadType(connect, organModel);
+               return;
+            }
 
-         if (app) {
-            console.log("restart organ", app.pm_id);
-            organModel.restart.set(false)
+            if (app) {
+               console.log("restart organ", app.pm_id);
+               organModel.restart.set(false)
 
-            pm2.restart(app.pm_id, (err) => {
-               if (err) {
-                  console.error(err);
-                  return;
-               }
-               console.log("organ restarted with success !");
-            })
-         }
+               pm2.restart(app.pm_id, (err) => {
+                  if (err) {
+                     console.error(err);
+                     return;
+                  }
+                  console.log("organ restarted with success !");
+               })
+            }
 
+         })
       })
    })
-})
 
 const listenLoadType = (connect, organModel) => {
    // return new Promise((resolve, reject) => {
