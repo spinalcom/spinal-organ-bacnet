@@ -28,3 +28,4 @@ export declare class SpinalDevice extends EventEmitter {
     private _getSensors;
     private _getObjecListDetails;
 }
+export declare function addToGetAllBacnetValuesQueue(device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel): void;

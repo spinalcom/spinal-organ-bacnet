@@ -32,10 +32,20 @@ import * as bacnet from "bacstack";
 class SpinalPilot {
    private queue: SpinalQueuing<SpinalPilotModel> = new SpinalQueuing();
    private isProcessing: boolean = false;
+   private static instance: SpinalPilot;
 
-   constructor() { }
+   private constructor() { }
 
-   init() {
+
+   public static getInstance(): SpinalPilot {
+      if (!this.instance) {
+         this.instance = new SpinalPilot();
+         this.instance.init();
+      }
+      return this.instance;
+   }
+
+   private init() {
       this.queue.on("start", () => {
          console.log("start pilot...");
          this.pilot();
@@ -117,7 +127,9 @@ class SpinalPilot {
          const client = new bacnet();
          const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
 
-         client.writeProperty(req.address, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority: 8 }, (err, value) => {
+         const priority = (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;
+
+         client.writeProperty(req.address, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
             if (err) {
                reject(err)
                return;
@@ -172,8 +184,8 @@ class SpinalPilot {
    // }
 }
 
-const spinalPilot = new SpinalPilot();
-spinalPilot.init();
+const spinalPilot = SpinalPilot.getInstance();
+
 
 export default spinalPilot;
 export {

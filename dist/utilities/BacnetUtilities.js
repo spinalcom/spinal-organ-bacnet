@@ -39,12 +39,17 @@ const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-servi
 const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const GlobalVariables_2 = require("../utilities/GlobalVariables");
-class BacnetUtilities {
+class BacnetUtilitiesClass {
     constructor() { }
+    static getInstance() {
+        if (!this.instance)
+            this.instance = new BacnetUtilitiesClass();
+        return this.instance;
+    }
     ////////////////////////////////////////////////////////////////
     ////                  READ BACNET DATA                        //
     ////////////////////////////////////////////////////////////////
-    static readPropertyMultiple(address, requestArray, argClient) {
+    readPropertyMultiple(address, requestArray, argClient) {
         return new Promise((resolve, reject) => {
             try {
                 const client = argClient || new bacnet();
@@ -62,7 +67,7 @@ class BacnetUtilities {
             }
         });
     }
-    static readProperty(address, objectId, propertyId, argClient, clientOptions) {
+    readProperty(address, objectId, propertyId, argClient, clientOptions) {
         const client = argClient || new bacnet();
         const options = clientOptions || {};
         return new Promise((resolve, reject) => {
@@ -74,9 +79,9 @@ class BacnetUtilities {
         });
     }
     ////////////////////////////////////////////////////////////////
-    ////                  GET ALL OBJECT LIST                     //
+    ////                  GET ALL BACNET OBJECT LIST              //
     ////////////////////////////////////////////////////////////////
-    static _getDeviceObjectList(device, SENSOR_TYPES, argClient) {
+    _getDeviceObjectList(device, SENSOR_TYPES, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("getting object list");
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
@@ -97,7 +102,7 @@ class BacnetUtilities {
             return values.filter(item => SENSOR_TYPES.indexOf(item.value.type) !== -1);
         });
     }
-    static getItemListByFragment(device, objectId, argClient) {
+    getItemListByFragment(device, objectId, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             const list = [];
             let error;
@@ -127,7 +132,7 @@ class BacnetUtilities {
     ////////////////////////////////////////////////////////////////
     ////                  GET OBJECT DETAIL                       //
     ////////////////////////////////////////////////////////////////
-    static _getObjectDetail(device, objects, argClient) {
+    _getObjectDetail(device, objects, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             let objectLists = [...objects];
             let objectListDetails = [];
@@ -151,7 +156,7 @@ class BacnetUtilities {
             return objectListDetails;
         });
     }
-    static _getObjectDetailWithReadPropertyMultiple(device, objects, argClient) {
+    _getObjectDetailWithReadPropertyMultiple(device, objects, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const requestArray = objects.map(el => ({
@@ -188,7 +193,7 @@ class BacnetUtilities {
             }
         });
     }
-    static _getObjectDetailWithReadProperty(device, objectId, argClient) {
+    _getObjectDetailWithReadProperty(device, objectId, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             const properties = [
                 GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE,
@@ -252,7 +257,7 @@ class BacnetUtilities {
             // });
         });
     }
-    static _getChildrenNewValue(device, children, argClient) {
+    _getChildrenNewValue(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             const client = argClient || new bacnet();
             const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
@@ -265,7 +270,7 @@ class BacnetUtilities {
             // }
         });
     }
-    static getChildrenNewValueWithReadPropertyMultiple(device, children, argClient) {
+    getChildrenNewValueWithReadPropertyMultiple(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const client = argClient || new bacnet();
@@ -287,10 +292,11 @@ class BacnetUtilities {
                 }
                 return lodash.flattenDeep(res);
             }
-            catch (error) { }
+            catch (error) {
+            }
         });
     }
-    static getChildrenNewValueWithReadProperty(device, children, argClient) {
+    getChildrenNewValueWithReadProperty(device, children, argClient) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
             const client = argClient || new bacnet();
@@ -320,14 +326,14 @@ class BacnetUtilities {
     ////////////////////////////////////////////////////////////////
     ////                       Endpoints                          //
     ////////////////////////////////////////////////////////////////
-    static createEndpointsInGroup(networkService, deviceId, groupName, endpointArray) {
+    createEndpointsInGroup(networkService, deviceId, groupName, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
             const endpointGroup = yield this._createEndpointsGroup(networkService, deviceId, groupName);
             const groupId = endpointGroup.id.get();
             return this._createEndpointByArray(networkService, groupId, endpointArray);
         });
     }
-    static _createEndpointsGroup(networkService, deviceId, groupName) {
+    _createEndpointsGroup(networkService, deviceId, groupName) {
         return __awaiter(this, void 0, void 0, function* () {
             const networkId = GlobalVariables_1.ObjectTypes[`object_${groupName}`.toUpperCase()];
             const exist = yield this._itemExistInChild(deviceId, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, networkId);
@@ -343,7 +349,7 @@ class BacnetUtilities {
             return endpointGroup;
         });
     }
-    static _createEndpointByArray(networkService, groupId, endpointArray) {
+    _createEndpointByArray(networkService, groupId, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
             const childNetwork = yield this.getChildrenObj(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
             const nodeCreated = [];
@@ -363,7 +369,7 @@ class BacnetUtilities {
             return nodeCreated;
         });
     }
-    static _createEndpoint(networkService, groupId, endpointObj) {
+    _createEndpoint(networkService, groupId, endpointObj) {
         return __awaiter(this, void 0, void 0, function* () {
             const obj = {
                 id: endpointObj.id,
@@ -380,7 +386,7 @@ class BacnetUtilities {
             }
         });
     }
-    static _itemExistInChild(parentId, relationName, childNetworkId) {
+    _itemExistInChild(parentId, relationName, childNetworkId) {
         return __awaiter(this, void 0, void 0, function* () {
             const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
             const found = children.find(el => el.idNetwork.get() == childNetworkId);
@@ -390,7 +396,7 @@ class BacnetUtilities {
     //////////////////////////////////////////////////////////////////////
     ////                             OTHER UTILITIES                  ////
     //////////////////////////////////////////////////////////////////////
-    static _getPropertyValue(address, objectId, propertyId, argClient) {
+    _getPropertyValue(address, objectId, propertyId, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const data = yield this.readProperty(address, objectId, propertyId, argClient);
@@ -402,7 +408,7 @@ class BacnetUtilities {
             }
         });
     }
-    static _formatProperty(object) {
+    _formatProperty(object) {
         if (object) {
             const { values, property } = object;
             const obj = {};
@@ -423,38 +429,38 @@ class BacnetUtilities {
         }
         return {};
     }
-    static _getObjValue(value) {
+    _getObjValue(value) {
         var _a;
         if (typeof value !== "object")
             return value;
         let temp_value = Array.isArray(value) ? (_a = value[0]) === null || _a === void 0 ? void 0 : _a.value : value.value;
         return typeof temp_value === "object" ? "" : temp_value;
     }
-    static _formatCurrentValue(value, type) {
+    _formatCurrentValue(value, type) {
         if ([GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT, GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
             return value ? true : false;
         }
         return value;
     }
-    static _getPropertyNameByCode(type) {
+    _getPropertyNameByCode(type) {
         const property = GlobalVariables_1.PropertyNames[type];
         if (property)
             return property.toLocaleLowerCase().replace('prop_', '');
         return;
     }
-    static _getObjectTypeByCode(typeCode) {
+    _getObjectTypeByCode(typeCode) {
         const property = GlobalVariables_1.ObjectTypesCode[typeCode];
         if (property)
             return property.toLocaleLowerCase().replace('object_', '');
         return;
     }
-    static _getUnitsByCode(typeCode) {
+    _getUnitsByCode(typeCode) {
         const property = GlobalVariables_1.UNITS_TYPES[typeCode];
         if (property)
             return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
         return;
     }
-    static getChildrenObj(parentId, relationName) {
+    getChildrenObj(parentId, relationName) {
         return __awaiter(this, void 0, void 0, function* () {
             const children = yield spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(parentId, [relationName]);
             const obj = {};
@@ -463,6 +469,7 @@ class BacnetUtilities {
         });
     }
 }
-exports.default = BacnetUtilities;
+const BacnetUtilities = BacnetUtilitiesClass.getInstance();
 exports.BacnetUtilities = BacnetUtilities;
+exports.default = BacnetUtilities;
 //# sourceMappingURL=BacnetUtilities.js.map

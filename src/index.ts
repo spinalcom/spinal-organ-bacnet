@@ -25,27 +25,14 @@
 require("json5/lib/register");
 
 import { FileSystem, spinalCore } from "spinal-core-connectorjs_type";
-
-import {
-   SpinalDisoverModel, SpinalListenerModel,
-   SpinalOrganConfigModel, SpinalBacnetValueModel, SpinalPilotModel
-} from "spinal-model-bacnet";
-
-import {
-   SpinalDiscoverCallback, SpinalListnerCallback,
-   SpinalBacnetValueModelCallback, connectionErrorCallback,
-   CreateOrganConfigFile, GetPm2Instance, SpinalPilotCallback
-} from './utilities/Functions';
+import { SpinalOrganConfigModel } from "spinal-model-bacnet";
+import { CreateOrganConfigFile, bindAndRestartOrgan } from './utilities/Functions';
 
 import ConfigFile from "spinal-lib-organ-monitoring";
-
 const pm2 = require("pm2");
 const config = require("../config.js");
 
-
 const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
-
-
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinalCore.connect(url);
 
@@ -62,55 +49,9 @@ FileSystem.onConnectionError = (error_code: number) => {
 CreateOrganConfigFile(connect, path, name)
    .then(async (organModel: SpinalOrganConfigModel) => {
       await ConfigFile.init(connect, name, host, protocol, port); // API health
-
-      organModel.restart.bind(() => {
-         GetPm2Instance(name).then(async (app: any) => {
-            const restart = organModel.restart.get();
-
-            if (!restart) {
-               listenLoadType(connect, organModel);
-               return;
-            }
-
-            if (app) {
-               console.log("restart organ", app.pm_id);
-               organModel.restart.set(false)
-
-               pm2.restart(app.pm_id, (err) => {
-                  if (err) {
-                     console.error(err);
-                     return;
-                  }
-                  console.log("organ restarted with success !");
-               })
-            }
-
-         })
-      })
-   })
-
-const listenLoadType = (connect, organModel) => {
-   // return new Promise((resolve, reject) => {
-   loadTypeInSpinalCore(connect, 'SpinalDisoverModel', (spinalDisoverModel: SpinalDisoverModel) => {
-      SpinalDiscoverCallback(spinalDisoverModel, organModel)
-   }, connectionErrorCallback);
-
-   loadTypeInSpinalCore(connect, 'SpinalListenerModel', (spinalListenerModel: SpinalListenerModel) => {
-      SpinalListnerCallback(spinalListenerModel, organModel);
-   }, connectionErrorCallback);
-
-   loadTypeInSpinalCore(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel: SpinalBacnetValueModel) => {
-      SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
-   }, connectionErrorCallback);
-
-   loadTypeInSpinalCore(connect, 'SpinalPilotModel', (spinalPilotModel: SpinalPilotModel) => {
-      SpinalPilotCallback(spinalPilotModel, organModel);
-   }, connectionErrorCallback);
+      bindAndRestartOrgan(connect, name, organModel);
+   }).catch((err) => process.exit(0))
 
 
-   // });
-}
 
-const loadTypeInSpinalCore = (connect, type, callback, errorCallback) => {
-   spinalCore.load_type(connect, type, callback, errorCallback);
-}
+

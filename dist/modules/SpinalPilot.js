@@ -41,6 +41,13 @@ class SpinalPilot {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
         this.isProcessing = false;
     }
+    static getInstance() {
+        if (!this.instance) {
+            this.instance = new SpinalPilot();
+            this.instance.init();
+        }
+        return this.instance;
+    }
     init() {
         this.queue.on("start", () => {
             console.log("start pilot...");
@@ -120,7 +127,8 @@ class SpinalPilot {
         return new Promise((resolve, reject) => {
             const client = new bacnet();
             const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
-            client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority: 8 }, (err, value) => {
+            const priority = (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
+            client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
                 if (err) {
                     reject(err);
                     return;
@@ -160,8 +168,7 @@ class SpinalPilot {
         }
     }
 }
-const spinalPilot = new SpinalPilot();
+const spinalPilot = SpinalPilot.getInstance();
 exports.spinalPilot = spinalPilot;
-spinalPilot.init();
 exports.default = spinalPilot;
 //# sourceMappingURL=SpinalPilot.js.map

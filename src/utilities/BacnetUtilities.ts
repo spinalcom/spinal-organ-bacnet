@@ -32,15 +32,24 @@ import { SEGMENTATIONS } from "../utilities/GlobalVariables";
 
 
 
-export default class BacnetUtilities {
-   constructor() { }
+class BacnetUtilitiesClass {
+   
+   private static instance: BacnetUtilitiesClass;
+
+   private constructor() { }
+
+
+   public static getInstance(): BacnetUtilitiesClass {
+      if (!this.instance) this.instance = new BacnetUtilitiesClass();
+      return this.instance;
+   }
 
 
    ////////////////////////////////////////////////////////////////
    ////                  READ BACNET DATA                        //
    ////////////////////////////////////////////////////////////////
 
-   public static readPropertyMultiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
+   public readPropertyMultiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
       return new Promise((resolve, reject) => {
          try {
             const client = argClient || new bacnet();
@@ -59,7 +68,7 @@ export default class BacnetUtilities {
       });
    }
 
-   public static readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
+   public readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
       const client = argClient || new bacnet();
       const options = clientOptions || {};
 
@@ -73,9 +82,10 @@ export default class BacnetUtilities {
    }
 
    ////////////////////////////////////////////////////////////////
-   ////                  GET ALL OBJECT LIST                     //
+   ////                  GET ALL BACNET OBJECT LIST              //
    ////////////////////////////////////////////////////////////////
-   public static async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]> {
+
+   public async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]> {
       console.log("getting object list");
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
       let values;
@@ -99,8 +109,7 @@ export default class BacnetUtilities {
 
    }
 
-
-   public static async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]> {
+   public async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]> {
       const list = [];
       let error;
       let index = 1;
@@ -132,7 +141,7 @@ export default class BacnetUtilities {
    ////                  GET OBJECT DETAIL                       //
    ////////////////////////////////////////////////////////////////
 
-   public static async _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<{ [key: string]: string | boolean | number }[]> {
+   public async _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<{ [key: string]: string | boolean | number }[]> {
 
       let objectLists = [...objects];
 
@@ -162,7 +171,7 @@ export default class BacnetUtilities {
 
    }
 
-   public static async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]> {
+   public async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]> {
 
       try {
          const requestArray: IRequestArray[] = objects.map(el => ({
@@ -203,7 +212,7 @@ export default class BacnetUtilities {
       }
    }
 
-   public static async _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId, argClient?: any): Promise<any> {
+   public async _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId, argClient?: any): Promise<any> {
 
       const properties = [
          PropertyIds.PROP_OBJECT_NAME, PropertyIds.PROP_PRESENT_VALUE,
@@ -276,7 +285,7 @@ export default class BacnetUtilities {
       // });
    }
 
-   public static async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
+   public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
       const client = argClient || new bacnet();
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
       const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
@@ -290,7 +299,7 @@ export default class BacnetUtilities {
 
    }
 
-   private static async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
+   private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
 
       try {
          const client = argClient || new bacnet();
@@ -316,10 +325,11 @@ export default class BacnetUtilities {
 
          return lodash.flattenDeep(res);
 
-      } catch (error) { }
+      } catch (error) {
+       }
    }
 
-   private static async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
+   private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
       const client = argClient || new bacnet();
       const res = [];
 
@@ -348,13 +358,13 @@ export default class BacnetUtilities {
    ////                       Endpoints                          //
    ////////////////////////////////////////////////////////////////
 
-   public static async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]> {
+   public async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]> {
       const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
       const groupId = endpointGroup.id.get();
       return this._createEndpointByArray(networkService, groupId, endpointArray);
    }
 
-   public static async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef> {
+   public async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef> {
       const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
 
       const exist = await this._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
@@ -370,7 +380,7 @@ export default class BacnetUtilities {
       return endpointGroup;
    }
 
-   public static async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<SpinalNodeRef[]> {
+   public async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<SpinalNodeRef[]> {
       const childNetwork = await this.getChildrenObj(groupId, SpinalBmsEndpoint.relationName);
       const nodeCreated = []
       let counter = 0;
@@ -390,7 +400,7 @@ export default class BacnetUtilities {
       return nodeCreated;
    }
 
-   public static async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef> {
+   public async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef> {
 
       const obj: any = {
          id: endpointObj.id,
@@ -409,20 +419,19 @@ export default class BacnetUtilities {
 
    }
 
-   public static async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef> {
+   public async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef> {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
       const found = children.find(el => el.idNetwork.get() == childNetworkId);
 
       return found;
    }
 
-
    //////////////////////////////////////////////////////////////////////
    ////                             OTHER UTILITIES                  ////
    //////////////////////////////////////////////////////////////////////
 
 
-   public static async _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any> {
+   public async _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any> {
 
       try {
          const data = await this.readProperty(address, objectId, propertyId, argClient);
@@ -435,7 +444,7 @@ export default class BacnetUtilities {
    }
 
 
-   public static _formatProperty(object): { [key: string]: boolean | string | number } {
+   public _formatProperty(object): { [key: string]: boolean | string | number } {
       if (object) {
          const { values, property } = object;
 
@@ -463,39 +472,39 @@ export default class BacnetUtilities {
 
    }
 
-   public static _getObjValue(value: any): boolean | string | number {
+   public _getObjValue(value: any): boolean | string | number {
       if (typeof value !== "object") return value;
 
       let temp_value = Array.isArray(value) ? value[0]?.value : value.value;
       return typeof temp_value === "object" ? "" : temp_value;
    }
 
-   public static _formatCurrentValue(value: any, type: number | string): boolean | string | number {
+   public _formatCurrentValue(value: any, type: number | string): boolean | string | number {
       if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
          return value ? true : false;
       }
       return value;
    }
 
-   public static _getPropertyNameByCode(type: number): string {
+   public _getPropertyNameByCode(type: number): string {
       const property = PropertyNames[type];
       if (property) return property.toLocaleLowerCase().replace('prop_', '');
       return;
    }
 
-   public static _getObjectTypeByCode(typeCode: number | string): string {
+   public _getObjectTypeByCode(typeCode: number | string): string {
       const property = ObjectTypesCode[typeCode];
       if (property) return property.toLocaleLowerCase().replace('object_', '');
       return;
    }
 
-   public static _getUnitsByCode(typeCode: number): string {
+   public _getUnitsByCode(typeCode: number): string {
       const property = UNITS_TYPES[typeCode];
       if (property) return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
       return;
    }
 
-   private static async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
+   private async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
       const obj = {};
       children.forEach(el => obj[el.idNetwork.get()] = el);
@@ -503,23 +512,9 @@ export default class BacnetUtilities {
       return obj;
    }
 
-
-   // public static _formatMultipleProperty(data: any) {
-   //    return lodash.flattenDeep(data.map(object => {
-   //       const { values } = object;
-
-   //       return values.map(({ value }) => {
-   //          return value
-   //       })
-   //    }))
-   // }
-
-
-
-
 }
 
 
-export {
-   BacnetUtilities
-}
+const BacnetUtilities = BacnetUtilitiesClass.getInstance(); 
+export default BacnetUtilities;
+export { BacnetUtilities }

@@ -33,13 +33,13 @@ import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVaria
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
-import { IDevice, IObjectId } from "../Interfaces";
+import { IDevice } from "../Interfaces";
+import SpinalQueuing from "../utilities/SpinalQueuing";
 
 export class SpinalDevice extends EventEmitter {
    public device: IDevice;
    private info;
    private client: bacnet;
-
 
    constructor(device: IDevice, client?: bacnet) {
       super();
@@ -189,7 +189,6 @@ export class SpinalDevice extends EventEmitter {
       return res;
    }
 
-
    private async _getDataValue(address: string, objectId: { type: any; instance: any }, PropertyId: number) {
       const formated: any = await BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
       return formated[BacnetUtilities._getPropertyNameByCode(PropertyId)];
@@ -202,7 +201,6 @@ export class SpinalDevice extends EventEmitter {
       }
 
       return SENSOR_TYPES;
-
    }
 
    private async _getObjecListDetails(sensors: number[]) {
@@ -213,4 +211,21 @@ export class SpinalDevice extends EventEmitter {
 
       return Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
    }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+//             ALL bacnetValues Queue                               //
+//////////////////////////////////////////////////////////////////////
+const allBacnetValueQueue: SpinalQueuing<IDevice> = new SpinalQueuing();
+
+allBacnetValueQueue.on("start", async ({device, node, networkService, spinalBacnetValueModel}:{device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel}) => {
+   while (!allBacnetValueQueue.isEmpty()) {
+      const spinalDevice = new SpinalDevice(device);
+      await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+   }
+})
+
+export function addToGetAllBacnetValuesQueue(device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel) {
+   allBacnetValueQueue.addToQueue({device, node, networkService, spinalBacnetValueModel});
 }

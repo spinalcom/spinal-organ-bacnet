@@ -47,6 +47,7 @@ exports.SENSOR_TYPES = [
     exports.ObjectTypes.OBJECT_MULTI_STATE_INPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_VALUE,
+    //NETWORK
 ];
 /*
 * All property object ({name : code}) of device

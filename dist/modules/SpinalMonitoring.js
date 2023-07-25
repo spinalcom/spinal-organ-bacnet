@@ -48,6 +48,13 @@ class SpinalMonitoring {
         this.binded = new Map();
         this.devices = [];
     }
+    static getInstance() {
+        if (!this.instance) {
+            this.instance = new SpinalMonitoring();
+            this.instance.init();
+        }
+        return this.instance;
+    }
     addToMonitoringList(spinalListenerModel) {
         return __awaiter(this, void 0, void 0, function* () {
             this.queue.addToQueue(spinalListenerModel);
@@ -105,25 +112,25 @@ class SpinalMonitoring {
             const devices_copy = Object.assign([], devices);
             while (devices_copy.length > 0) {
                 const { id, spinalModel, spinalDevice, networkService, network } = devices_copy.shift();
-                const process = this.binded.get(id);
+                let process = this.binded.get(id);
                 if (process)
                     spinalModel.listen.unbind(process);
-                spinalModel.listen.bind(() => __awaiter(this, void 0, void 0, function* () {
+                process = spinalModel.listen.bind(() => __awaiter(this, void 0, void 0, function* () {
                     const listen = spinalModel.listen.get();
-                    if (listen) {
-                        const monitors = spinalModel.monitor.getMonitoringData();
-                        const intervals = yield this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
-                        for (const { interval, func } of intervals) {
-                            this._addToMap(id, interval, func);
-                        }
-                        console.log(`${spinalDevice.device.name} is monitored`);
-                    }
-                    else {
+                    if (!listen) {
                         this.removeToMaps(id);
-                        console.log(`${spinalDevice.device.name} is stopped`);
+                        console.log(spinalDevice.device.name, "is stopped");
+                        return;
                     }
-                }));
-                // this._bindNode(spinalModel, id, spinalDevice.device.name);
+                    const monitors = spinalModel.monitor.getMonitoringData();
+                    const intervals = yield this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
+                    for (const { interval, func } of intervals) {
+                        this._addToMap(id, interval, func);
+                    }
+                    console.log("listen changed");
+                    this.addToMonitoringList(spinalModel);
+                }), true);
+                this.binded.set(id, process);
             }
             // const promises = devices.map(async ({ id, spinalModel, spinalDevice, networkService, network }) => {
             //    const listen = spinalModel.listen.get();
@@ -253,8 +260,8 @@ class SpinalMonitoring {
         });
     }
 }
-const spinalMonitoring = new SpinalMonitoring();
+const spinalMonitoring = SpinalMonitoring.getInstance();
 exports.spinalMonitoring = spinalMonitoring;
-spinalMonitoring.init();
+// spinalMonitoring.init();
 exports.default = spinalMonitoring;
 //# sourceMappingURL=SpinalMonitoring.js.map

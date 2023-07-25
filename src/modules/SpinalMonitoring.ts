@@ -31,11 +31,11 @@ import { SpinalQueuing } from "../utilities/SpinalQueuing";
 import { SpinalDevice } from "./SpinalDevice";
 import * as lodash from "lodash";
 import { SpinalNode } from "spinal-model-graph";
-
 import { IDataMonitor } from "../Interfaces/IDataMonitor";
 
-class SpinalMonitoring {
 
+class SpinalMonitoring {
+   
    private queue: SpinalQueuing<SpinalListenerModel> = new SpinalQueuing();
    // private priorityQueue: MinPriorityQueue<{ interval: number; functions: { id: string; func: Function }[] }> = new MinPriorityQueue();
    private priorityQueue: MinPriorityQueue<{ interval: number; }> = new MinPriorityQueue();
@@ -45,23 +45,29 @@ class SpinalMonitoring {
    private binded: Map<string, BindProcess> = new Map();
    private devices: Array<string> = [];
 
+   private static instance: SpinalMonitoring;
 
-   constructor() { }
+   private constructor() { }
+
+   public static getInstance(): SpinalListenerModel {
+      if (!this.instance) {
+         this.instance = new SpinalMonitoring();
+         this.instance.init();
+      }
+      return this.instance;
+   }
 
    public async addToMonitoringList(spinalListenerModel: SpinalListenerModel): Promise<void> {
       this.queue.addToQueue(spinalListenerModel);
    }
 
-   init() {
+   private init() {
       this.queue.on("start", () => {
          console.log("start initialisation...");
 
          this.startDeviceInitialisation();
       })
    }
-
-
-
 
    public async startDeviceInitialisation() {
       const monitoringData = await this._initNetworkUtilities();
@@ -73,7 +79,6 @@ class SpinalMonitoring {
          this.startMonitoring()
       }
    }
-
 
    public async startMonitoring() {
       console.log("start monitoring...");
@@ -117,33 +122,29 @@ class SpinalMonitoring {
 
       while (devices_copy.length > 0) {
          const { id, spinalModel, spinalDevice, networkService, network } = devices_copy.shift();
-         const process = this.binded.get(id);
+         let process = this.binded.get(id);
 
          if (process) spinalModel.listen.unbind(process);
 
-         spinalModel.listen.bind(async () => {
+         process = spinalModel.listen.bind(async () => {
             const listen = spinalModel.listen.get();
-            if (listen) {
-               const monitors = spinalModel.monitor.getMonitoringData();
-               const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
-               for (const { interval, func } of intervals) {
-                  this._addToMap(id, interval, func);
-               }
-               console.log(`${spinalDevice.device.name} is monitored`);
-            } else {
+            if (!listen) {
                this.removeToMaps(id);
-               console.log(`${spinalDevice.device.name} is stopped`);
+               console.log(spinalDevice.device.name, "is stopped");
+               return;
+            }
+           
+            const monitors = spinalModel.monitor.getMonitoringData();
+            const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
+            for (const { interval, func } of intervals) {
+               this._addToMap(id, interval, func);
             }
 
-         })
+            console.log("listen changed");
+            this.addToMonitoringList(spinalModel);
+         }, true)
 
-
-
-
-
-
-         // this._bindNode(spinalModel, id, spinalDevice.device.name);
-
+         this.binded.set(id, process);
       }
 
 
@@ -287,11 +288,10 @@ class SpinalMonitoring {
             nb >= 0 ? nb : 0);
       });
    }
-
 }
 
-const spinalMonitoring = new SpinalMonitoring();
-spinalMonitoring.init();
+const spinalMonitoring = SpinalMonitoring.getInstance();
+// spinalMonitoring.init();
 
 export default spinalMonitoring;
 export {

@@ -90,6 +90,7 @@ class SpinalNetworkServiceUtilities {
                     this.loadPtrValue(spinalModel.network),
                     this.loadPtrValue(spinalModel.context),
                     this.loadPtrValue(spinalModel.organ),
+                    // this.loadPtrValue(spinalModel.monitor.profil)
                 ]);
                 if (graph)
                     spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);

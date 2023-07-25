@@ -2,9 +2,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "*": ["types/*"]
+      "*": [
+        "types/*"
+      ]
     },
-    "skipLibCheck": false,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "target": "es2015",
     "module": "commonjs",
     "outDir": "dist",
@@ -13,6 +16,11 @@
     "moduleResolution": "node",
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "src/old/*"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/old/*"
+  ]
 }
