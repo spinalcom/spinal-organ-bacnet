@@ -96,12 +96,12 @@ class SpinalMonitoring {
     }
     _initNetworkUtilities() {
         return __awaiter(this, void 0, void 0, function* () {
-            const list = this.queue.getQueue();
+            const queueList = this.queue.getQueue();
             this.queue.refresh();
-            const promises = yield list.reduce((prom, el) => __awaiter(this, void 0, void 0, function* () {
+            const promises = yield queueList.reduce((prom, el) => __awaiter(this, void 0, void 0, function* () {
                 const liste = yield prom;
                 const res = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalListenerModel(el);
-                list.push(res);
+                liste.push(res);
                 return liste;
             }), Promise.resolve([]));
             return lodash.flattenDeep(yield Promise.all(promises)).filter(el => typeof el !== "undefined");

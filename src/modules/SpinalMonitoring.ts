@@ -104,13 +104,13 @@ class SpinalMonitoring {
    }
 
    private async _initNetworkUtilities(): Promise<IDataMonitor[]> {
-      const list = this.queue.getQueue();
+      const queueList = this.queue.getQueue();
       this.queue.refresh();
 
-      const promises = await list.reduce(async (prom, el) => {
+      const promises = await queueList.reduce(async (prom, el) => {
          const liste = await prom;
          const res = await SpinalNetworkServiceUtilities.initSpinalListenerModel(el)
-         list.push(res);
+         liste.push(res);
          return liste;
       }, Promise.resolve([]));
 
