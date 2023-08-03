@@ -39,7 +39,6 @@ class SpinalMonitoring {
    
    private queue: SpinalQueuing<SpinalListenerModel> = new SpinalQueuing();
    // private priorityQueue: MinPriorityQueue<{ interval: number; functions: { id: string; func: Function }[] }> = new MinPriorityQueue();
-   t
    private priorityQueue: MinPriorityQueue<priorityQueueElementType> = new MinPriorityQueue();
    private isProcessing: boolean = false;
    private intervalTimesMap: Map<number, any> = new Map();
