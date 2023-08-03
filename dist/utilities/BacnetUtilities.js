@@ -326,11 +326,11 @@ class BacnetUtilitiesClass {
     ////////////////////////////////////////////////////////////////
     ////                       Endpoints                          //
     ////////////////////////////////////////////////////////////////
-    createEndpointsInGroup(networkService, deviceId, groupName, endpointArray) {
+    createEndpointsInGroup(networkService, deviceId, groupName, endpointArray, deviceName) {
         return __awaiter(this, void 0, void 0, function* () {
             const endpointGroup = yield this._createEndpointsGroup(networkService, deviceId, groupName);
             const groupId = endpointGroup.id.get();
-            return this._createEndpointByArray(networkService, groupId, endpointArray);
+            return this._createEndpointByArray(networkService, groupId, endpointArray, deviceName);
         });
     }
     _createEndpointsGroup(networkService, deviceId, groupName) {
@@ -349,7 +349,7 @@ class BacnetUtilitiesClass {
             return endpointGroup;
         });
     }
-    _createEndpointByArray(networkService, groupId, endpointArray) {
+    _createEndpointByArray(networkService, groupId, endpointArray, deviceName) {
         return __awaiter(this, void 0, void 0, function* () {
             const childNetwork = yield this.getChildrenObj(groupId, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
             const nodeCreated = [];
@@ -357,7 +357,7 @@ class BacnetUtilitiesClass {
             while (counter < endpointArray.length) {
                 const item = endpointArray[counter];
                 if (childNetwork[item.id]) {
-                    console.log(item.id, "already exists");
+                    // console.log(item.id, "already exists", deviceName ? `in "${deviceName}"` : "");
                     counter++;
                     continue;
                 }
@@ -381,7 +381,7 @@ class BacnetUtilitiesClass {
                 type: endpointObj.type,
             };
             if (obj.name && typeof obj.name === "string" && obj.name.trim()) {
-                console.log("creating", endpointObj.id);
+                // console.log("creating", endpointObj.id);
                 return networkService.createNewBmsEndpoint(groupId, obj);
             }
         });

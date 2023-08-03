@@ -1,6 +1,6 @@
 {
   "name": "spinal-organ-bacnet",
-  "version": "2.1.1",
+  "version": "2.2.3",
   "description": "",
   "main": "index.js",
   "scripts": {

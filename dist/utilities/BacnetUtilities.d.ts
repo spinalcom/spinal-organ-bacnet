@@ -22,9 +22,9 @@ declare class BacnetUtilitiesClass {
     }>>;
     private getChildrenNewValueWithReadPropertyMultiple;
     private getChildrenNewValueWithReadProperty;
-    createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any): Promise<SpinalNodeRef[]>;
+    createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
     _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef>;
-    _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any): Promise<SpinalNodeRef[]>;
+    _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
     _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef>;
     _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef>;
     _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;

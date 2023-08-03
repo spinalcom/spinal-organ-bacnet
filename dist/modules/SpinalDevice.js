@@ -77,7 +77,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 if (item) {
                     const [key, value] = item;
                     try {
-                        yield BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
+                        yield BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value, this.device.name);
                         if (spinalBacnetValueModel) {
                             const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                             spinalBacnetValueModel.progress.set(percent);
@@ -108,7 +108,7 @@ class SpinalDevice extends events_1.EventEmitter {
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectIds, client);
             const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
             const promises = Array.from(Object.keys(childrenGroups)).map((el) => {
-                return BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, this.device.id, el, childrenGroups[el]);
+                return BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, this.device.id, el, childrenGroups[el], this.device.name);
             });
             return Promise.all(promises);
         });
