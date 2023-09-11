@@ -217,15 +217,15 @@ export class SpinalDevice extends EventEmitter {
 //////////////////////////////////////////////////////////////////////
 //             ALL bacnetValues Queue                               //
 //////////////////////////////////////////////////////////////////////
-const allBacnetValueQueue: SpinalQueuing<IDevice> = new SpinalQueuing();
+const allBacnetValueQueue: SpinalQueuing<{ device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel }> = new SpinalQueuing();
 
-allBacnetValueQueue.on("start", async ({device, node, networkService, spinalBacnetValueModel}:{device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel}) => {
+allBacnetValueQueue.on("start", async () => {
    while (!allBacnetValueQueue.isEmpty()) {
-      const spinalDevice = new SpinalDevice(device);
-      await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+      const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue(); const spinalDevice = new SpinalDevice(device);
+      await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
    }
 })
 
 export function addToGetAllBacnetValuesQueue(device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel) {
-   allBacnetValueQueue.addToQueue({device, node, networkService, spinalBacnetValueModel});
+   allBacnetValueQueue.addToQueue({ device, node, networkService, spinalBacnetValueModel });
 }
