@@ -68,6 +68,7 @@ class SpinalMonitoring {
         });
         this._itemToAddToMap.on("start", () => __awaiter(this, void 0, void 0, function* () {
             while (!this._itemToAddToMap.isEmpty()) {
+                //@ts-ignore
                 const item = this._itemToAddToMap.dequeue();
                 if (item) {
                     this._addToMap(item.id, item.interval, item.func);
@@ -103,6 +104,7 @@ class SpinalMonitoring {
                     yield this.waitFct(100);
                     continue;
                 }
+                //@ts-ignore
                 const { priority, element } = this.priorityQueue.dequeue();
                 // Si c'est pas le moment de la mise à jour le remettre dans la queue uniquement s'il est toujours monitoré
                 if (priority && Date.now() < priority) {
@@ -292,6 +294,7 @@ class SpinalMonitoring {
         const removed = [];
         const dequeued = [];
         while (!this.priorityQueue.isEmpty()) {
+            //@ts-ignore
             const { element, priority } = this.priorityQueue.dequeue();
             if (element.id === id) {
                 removed.push({ element, priority });

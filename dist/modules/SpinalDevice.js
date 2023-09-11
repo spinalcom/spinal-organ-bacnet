@@ -193,8 +193,9 @@ exports.SpinalDevice = SpinalDevice;
 //             ALL bacnetValues Queue                               //
 //////////////////////////////////////////////////////////////////////
 const allBacnetValueQueue = new SpinalQueuing_1.default();
-allBacnetValueQueue.on("start", ({ device, node, networkService, spinalBacnetValueModel }) => __awaiter(void 0, void 0, void 0, function* () {
+allBacnetValueQueue.on("start", () => __awaiter(void 0, void 0, void 0, function* () {
     while (!allBacnetValueQueue.isEmpty()) {
+        const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue();
         const spinalDevice = new SpinalDevice(device);
         yield spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
     }
