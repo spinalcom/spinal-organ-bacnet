@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import * as bacnet from "bacstack";
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
@@ -8,14 +9,14 @@ export declare class SpinalDevice extends EventEmitter {
     device: IDevice;
     private info;
     private client;
-    constructor(device: IDevice, client?: any, networkService?: NetworkService);
-    init(): Promise<boolean | void>;
-    createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<any>;
-    createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any>;
+    constructor(device: IDevice, client?: bacnet);
+    init(): Promise<void | boolean>;
+    createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef>;
+    createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void>;
     checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{
         instance: number;
         type: string;
-    }>): Promise<[unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown][]>;
+    }>): Promise<SpinalNodeRef[][]>;
     updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{
         instance: number;
         type: number;
@@ -24,4 +25,7 @@ export declare class SpinalDevice extends EventEmitter {
     private _getDeviceInfo;
     private _groupByType;
     private _getDataValue;
+    private _getSensors;
+    private _getObjecListDetails;
 }
+export declare function addToGetAllBacnetValuesQueue(device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel): void;

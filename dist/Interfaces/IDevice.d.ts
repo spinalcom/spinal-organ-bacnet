@@ -4,4 +4,8 @@ export interface IDevice {
     maxApdu?: number;
     segmentation?: number;
     vendorId?: number;
+    name?: string;
+    id?: string | number;
+    typeId?: string;
+    type?: string;
 }

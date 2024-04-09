@@ -1,4 +1,27 @@
 "use strict";
+/*
+ * Copyright 2022 SpinalCom - www.spinalcom.com
+ *
+ * This file is part of SpinalCore.
+ *
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ *
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ *
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -17,6 +40,13 @@ class SpinalPilot {
     constructor() {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
         this.isProcessing = false;
+    }
+    static getInstance() {
+        if (!this.instance) {
+            this.instance = new SpinalPilot();
+            this.instance.init();
+        }
+        return this.instance;
     }
     init() {
         this.queue.on("start", () => {
@@ -97,7 +127,8 @@ class SpinalPilot {
         return new Promise((resolve, reject) => {
             const client = new bacnet();
             const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
-            client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority: 8 }, (err, value) => {
+            const priority = (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
+            client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
                 if (err) {
                     reject(err);
                     return;
@@ -137,8 +168,7 @@ class SpinalPilot {
         }
     }
 }
-const spinalPilot = new SpinalPilot();
+const spinalPilot = SpinalPilot.getInstance();
 exports.spinalPilot = spinalPilot;
-spinalPilot.init();
 exports.default = spinalPilot;
 //# sourceMappingURL=SpinalPilot.js.map

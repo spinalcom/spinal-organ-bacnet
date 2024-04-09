@@ -1,4 +1,27 @@
 "use strict";
+/*
+ * Copyright 2022 SpinalCom - www.spinalcom.com
+ *
+ * This file is part of SpinalCore.
+ *
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ *
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ *
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -9,7 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalPilotCallback = exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.SpinalDiscoverCallback = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = void 0;
+exports.SpinalPilotCallback = exports.SpinalListnerCallback = exports.SpinalBacnetValueModelCallback = exports.SpinalDiscoverCallback = exports.listenLoadType = exports.bindAndRestartOrgan = exports.findFileInDirectory = exports.GetPm2Instance = exports.CreateOrganConfigFile = exports.connectionErrorCallback = exports.WaitModelReady = void 0;
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
@@ -34,6 +57,7 @@ const WaitModelReady = () => {
     };
     return WaitModelReadyLoop(deferred);
 };
+exports.WaitModelReady = WaitModelReady;
 const connectionErrorCallback = (err) => {
     if (!err)
         console.error('Error Connect');
@@ -44,28 +68,21 @@ const connectionErrorCallback = (err) => {
 exports.connectionErrorCallback = connectionErrorCallback;
 const CreateOrganConfigFile = (spinalConnection, path, connectorName) => {
     return new Promise((resolve) => {
-        spinalConnection.load_or_make_dir(`${path}`, (directory) => {
-            for (let index = 0; index < directory.length; index++) {
-                const element = directory[index];
-                const elementName = element.name.get();
-                if (elementName.toLowerCase() === `${connectorName}.conf`.toLowerCase()) {
-                    console.log("organ found !");
-                    return element.load(file => {
-                        WaitModelReady().then(() => {
-                            resolve(file);
-                        });
-                    });
-                }
+        spinalConnection.load_or_make_dir(`${path}`, (directory) => __awaiter(void 0, void 0, void 0, function* () {
+            const found = yield findFileInDirectory(directory, connectorName);
+            if (found) {
+                console.log("organ found !");
+                return resolve(found);
             }
             console.log("organ not found");
             const model = new spinal_model_bacnet_1.SpinalOrganConfigModel(connectorName);
-            WaitModelReady().then(() => {
-                const file = new spinal_core_connectorjs_type_1.File(`${connectorName}.conf`, model, undefined);
+            (0, exports.WaitModelReady)().then(() => {
+                const file = new spinal_core_connectorjs_type_1.File(`${connectorName}.conf`, model, { model_type: model.type.get() });
                 directory.push(file);
                 console.log("organ created");
                 return resolve(model);
             });
-        });
+        }));
     });
 };
 exports.CreateOrganConfigFile = CreateOrganConfigFile;
@@ -82,12 +99,75 @@ const GetPm2Instance = (organName) => {
     });
 };
 exports.GetPm2Instance = GetPm2Instance;
+function findFileInDirectory(directory, fileName) {
+    return new Promise((resolve, reject) => {
+        for (let index = 0; index < directory.length; index++) {
+            const element = directory[index];
+            const elementName = element.name.get();
+            if (elementName.toLowerCase() === `${fileName}.conf`.toLowerCase()) {
+                return element.load(file => {
+                    (0, exports.WaitModelReady)().then(() => {
+                        resolve(file);
+                    });
+                });
+            }
+        }
+        resolve(undefined);
+    });
+}
+exports.findFileInDirectory = findFileInDirectory;
+function bindAndRestartOrgan(connect, organName, organModel) {
+    organModel.restart.bind(() => {
+        (0, exports.GetPm2Instance)(organName).then((app) => __awaiter(this, void 0, void 0, function* () {
+            const restart = organModel.restart.get();
+            if (!restart) {
+                listenLoadType(connect, organModel);
+                return;
+            }
+            if (app) {
+                console.log("restart organ", app.pm_id);
+                organModel.restart.set(false);
+                pm2.restart(app.pm_id, (err) => {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    console.log("organ restarted with success !");
+                });
+            }
+        }));
+    });
+}
+exports.bindAndRestartOrgan = bindAndRestartOrgan;
+function listenLoadType(connect, organModel) {
+    // load all instances of SpinalDisoverModel
+    // it allows to browse bacnet network and get all devices (broadcast or unicast)
+    spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel) => {
+        (0, exports.SpinalDiscoverCallback)(spinalDisoverModel, organModel);
+    }, exports.connectionErrorCallback);
+    // load all instances of SpinalListenerModel
+    // it monitors devices and get new values
+    spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalListenerModel', (spinalListenerModel) => {
+        (0, exports.SpinalListnerCallback)(spinalListenerModel, organModel);
+    }, exports.connectionErrorCallback);
+    // load all instances of SpinalBacnetValueModel
+    // get all bacnet values of device(s) 
+    spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalBacnetValueModel', (spinalBacnetValueModel) => {
+        (0, exports.SpinalBacnetValueModelCallback)(spinalBacnetValueModel, organModel);
+    }, exports.connectionErrorCallback);
+    // load all instances of SpinalPilotModel
+    // Update device bacnet value
+    spinal_core_connectorjs_type_1.spinalCore.load_type(connect, 'SpinalPilotModel', (spinalPilotModel) => {
+        (0, exports.SpinalPilotCallback)(spinalPilotModel, organModel);
+    }, exports.connectionErrorCallback);
+}
+exports.listenLoadType = listenLoadType;
 ////////////////////////////////////////////////
 ////                 CALLBACKS                //
 ////////////////////////////////////////////////
 const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d;
-    yield WaitModelReady();
+    yield (0, exports.WaitModelReady)();
     if (((_a = organModel.id) === null || _a === void 0 ? void 0 : _a.get()) === ((_c = (_b = spinalDisoverModel.organ) === null || _b === void 0 ? void 0 : _b.id) === null || _c === void 0 ? void 0 : _c.get())) {
         const minute = 2 * (60 * 1000);
         const time = Date.now();
@@ -97,34 +177,38 @@ const SpinalDiscoverCallback = (spinalDisoverModel, organModel) => __awaiter(voi
             spinalDisoverModel.setTimeoutMode();
             return spinalDisoverModel.remove();
         }
-        SpinalDiscover_1.discover.addToQueue(spinalDisoverModel);
+        SpinalDiscover_1.spinalDiscover.addToQueue(spinalDisoverModel);
         // new SpinalDiscover(spinalDisoverModel);
     }
 });
 exports.SpinalDiscoverCallback = SpinalDiscoverCallback;
 const SpinalBacnetValueModelCallback = (spinalBacnetValueModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    var _e, _f;
-    yield WaitModelReady();
+    yield (0, exports.WaitModelReady)();
     try {
-        const { networkService, device, organ, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
-        if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
-            return;
-        if (spinalBacnetValueModel.state.get() === 'wait') {
-            const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
-            yield spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
-        }
-        else {
-            return spinalBacnetValueModel.remToNode();
-        }
+        spinalBacnetValueModel.organ.load((organ) => __awaiter(void 0, void 0, void 0, function* () {
+            var _e, _f;
+            if (organ && ((_e = organ.id) === null || _e === void 0 ? void 0 : _e.get()) !== ((_f = organModel.id) === null || _f === void 0 ? void 0 : _f.get()))
+                return;
+            const { networkService, device, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+            if (spinalBacnetValueModel.state.get() === 'wait') {
+                (0, SpinalDevice_1.addToGetAllBacnetValuesQueue)(device, node, networkService, spinalBacnetValueModel);
+                // const spinalDevice = new SpinalDevice(device);
+                // await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
+            }
+            else {
+                return spinalBacnetValueModel.remToNode();
+            }
+        }));
     }
     catch (error) {
-        console.error(error);
-        spinalBacnetValueModel.setErrorState();
+        // console.error(error);
+        yield spinalBacnetValueModel.setErrorState();
+        return spinalBacnetValueModel.remToNode();
     }
 });
 exports.SpinalBacnetValueModelCallback = SpinalBacnetValueModelCallback;
 const SpinalListnerCallback = (spinalListenerModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
-    yield WaitModelReady();
+    yield (0, exports.WaitModelReady)();
     spinalListenerModel.organ.load((organ) => {
         var _a, _b;
         if (organ) {
@@ -137,7 +221,7 @@ const SpinalListnerCallback = (spinalListenerModel, organModel) => __awaiter(voi
 exports.SpinalListnerCallback = SpinalListnerCallback;
 const SpinalPilotCallback = (spinalPilotModel, organModel) => __awaiter(void 0, void 0, void 0, function* () {
     var _g, _h;
-    yield WaitModelReady();
+    yield (0, exports.WaitModelReady)();
     if (((_g = spinalPilotModel.organ) === null || _g === void 0 ? void 0 : _g.id.get()) === ((_h = organModel.id) === null || _h === void 0 ? void 0 : _h.get())) {
         SpinalPilot_1.spinalPilot.addToPilotList(spinalPilotModel);
     }

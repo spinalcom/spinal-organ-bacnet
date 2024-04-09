@@ -4,21 +4,21 @@ export declare enum Events {
     FINISH = "finish",
     START = "start"
 }
-export declare class SpinalQueuing extends EventEmitter {
+export declare class SpinalQueuing<Type> extends EventEmitter {
     private processed;
     private queueList;
     percent: number;
     private length;
     isProcessing: boolean;
-    private debounceStart;
+    private _debounceStart;
     constructor();
     addToQueue(obj: any): number;
-    setQueue(queue: any[]): number;
-    dequeue(): any;
+    setQueue(queue: Type[]): number;
+    dequeue(): Type;
     refresh(): void;
-    getQueue(): any[];
+    getQueue(): Type[];
     isEmpty(): boolean;
-    private begin;
-    private finish;
+    private _begin;
+    private _finish;
 }
 export default SpinalQueuing;

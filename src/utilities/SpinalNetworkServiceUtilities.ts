@@ -1,6 +1,30 @@
+/*
+ * Copyright 2022 SpinalCom - www.spinalcom.com
+ * 
+ * This file is part of SpinalCore.
+ * 
+ * Please read all of the following terms and conditions
+ * of the Free Software license Agreement ("Agreement")
+ * carefully.
+ * 
+ * This Agreement is a legally binding contract between
+ * the Licensee (as defined below) and SpinalCom that
+ * sets forth the terms and conditions that govern your
+ * use of the Program. By installing and/or using the
+ * Program, you agree to abide by all the terms and
+ * conditions stated or referenced herein.
+ * 
+ * If you do not agree to abide by these terms and
+ * conditions, do not demonstrate your acceptance and do
+ * not install or use the Program.
+ * You should have received a copy of the license along
+ * with this file. If not, see
+ * <http://resources.spinalcom.com/licenses.pdf>.
+ */
+
 import { NetworkService } from "spinal-model-bmsnetwork";
 import { SpinalBacnetValueModel, SpinalDisoverModel, SpinalListenerModel } from "spinal-model-bacnet";
-import { SpinalGraph, SpinalGraphService } from "spinal-env-viewer-graph-service";
+import { SpinalGraph, SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import { IDataMonitor } from "../Interfaces/IDataMonitor";
 import { IDataDiscover } from "../Interfaces/IDataDiscover";
@@ -152,7 +176,7 @@ export class SpinalNetworkServiceUtilities {
 
    }
 
-   private static async _getOrCreateNetworkNode(networkInfo: any, networkService: NetworkService) {
+   private static async _getOrCreateNetworkNode(networkInfo: any, networkService: NetworkService): Promise<SpinalNodeRef> {
       const organId = (<any>networkService).networkId;
       const contextId = (<any>networkService).contextId;
 
@@ -167,7 +191,7 @@ export class SpinalNetworkServiceUtilities {
       return networkService.createNewBmsNetwork(organId, networkInfo.type, networkInfo.name);
    }
 
-   private static loadPtrValue(ptrModel): Promise<SpinalGraph<any>> {
+   private static loadPtrValue(ptrModel): Promise<SpinalGraph> {
       return new Promise((resolve, reject) => {
          ptrModel.load((data) => {
             resolve(data);

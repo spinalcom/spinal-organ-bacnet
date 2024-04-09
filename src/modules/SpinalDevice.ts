@@ -33,21 +33,21 @@ import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVaria
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
-import { IDevice, IObjectId } from "../Interfaces";
+import { IDevice } from "../Interfaces";
+import SpinalQueuing from "../utilities/SpinalQueuing";
 
 export class SpinalDevice extends EventEmitter {
    public device: IDevice;
    private info;
-   private client;
+   private client: bacnet;
 
-
-   constructor(device: IDevice, client?: any, networkService?: NetworkService) {
+   constructor(device: IDevice, client?: bacnet) {
       super();
       this.device = device;
       this.client = client || new bacnet();
    }
 
-   public init() {
+   public init(): Promise<void | boolean> {
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
          this.info = deviceInfo;
          console.log("this.info", this.info);
@@ -56,34 +56,23 @@ export class SpinalDevice extends EventEmitter {
       }).catch((err) => this.emit("error", err));
    }
 
-   public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<any> {
+   public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef> {
       // this.networkService = networkService;
 
       if (node) {
-         return;
+         return Promise.resolve(node);
       };
 
       return this._createDevice(networkService, parentId);
    }
 
-   public async createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<any> {
+   public async createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void> {
 
       const deviceId = node.getId().get();
-      let sensors;
+      let sensors = this._getSensors(spinalBacnetValueModel);
 
-      if (spinalBacnetValueModel) {
-         sensors = spinalBacnetValueModel.sensor.get();
-         spinalBacnetValueModel.setRecoverState();
-      } else {
-         sensors = SENSOR_TYPES;
-      }
+      const listes = await this._getObjecListDetails(sensors);
 
-      const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-
-      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), this.client);
-      const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
-
-      const listes = Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
       const maxLength = listes.length;
       let isError = false;
 
@@ -93,25 +82,25 @@ export class SpinalDevice extends EventEmitter {
       }
 
       while (!isError && listes.length > 0) {
-         const item = listes.shift();
+         const item = listes.pop();
          if (item) {
             const [key, value] = item;
 
             try {
-               await BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value);
+               await BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value, this.device.name);
                if (spinalBacnetValueModel) {
                   const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                   spinalBacnetValueModel.progress.set(percent)
                }
             } catch (error) {
-               isError = true;
+               isError = error;
             }
          }
       }
 
       if (spinalBacnetValueModel) {
          if (isError) {
-            console.log("set error model");
+            console.log("set error model", isError);
             spinalBacnetValueModel.setErrorState();
             return;
          }
@@ -121,7 +110,7 @@ export class SpinalDevice extends EventEmitter {
       }
    }
 
-   public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>) {
+   public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {
       console.log("check and create if not exist");
       const client = new bacnet();
       // const children = lodash.chunk(objectIds, 60);
@@ -130,17 +119,17 @@ export class SpinalDevice extends EventEmitter {
 
       const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
       const promises = Array.from(Object.keys(childrenGroups)).map((el: string) => {
-         return BacnetUtilities.createEndpointsInGroup(networkService, (<any>this.device).id, el, childrenGroups[el]);
+         return BacnetUtilities.createEndpointsInGroup(networkService, (<any>this.device).id, el, childrenGroups[el], this.device.name);
       })
 
       return Promise.all(promises);
    }
 
-   public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>) {
+   public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>): Promise<void> {
       try {
          const client = new bacnet();
 
-         console.log(`${new Date()} ===> update ${(<any>this.device).name}`)
+         console.log(`${new Date()} ===> update ${this.device.name}`);
          const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children, client)
 
          const obj: any = {
@@ -162,11 +151,11 @@ export class SpinalDevice extends EventEmitter {
    ////                      PRIVATES                                        ////
    //////////////////////////////////////////////////////////////////////////////
 
-   private _createDevice(networkService: NetworkService, parentId: string): Promise<any> {
+   private _createDevice(networkService: NetworkService, parentId: string): Promise<SpinalNodeRef> {
       return networkService.createNewBmsDevice(parentId, this.info);
    }
 
-   private async _getDeviceInfo(device: IDevice): Promise<any> {
+   private async _getDeviceInfo(device: IDevice): Promise<IDevice> {
 
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
 
@@ -200,10 +189,43 @@ export class SpinalDevice extends EventEmitter {
       return res;
    }
 
-
    private async _getDataValue(address: string, objectId: { type: any; instance: any }, PropertyId: number) {
       const formated: any = await BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
       return formated[BacnetUtilities._getPropertyNameByCode(PropertyId)];
    }
 
+   private _getSensors(spinalBacnetValueModel: SpinalBacnetValueModel): number[] {
+      if (spinalBacnetValueModel) {
+         spinalBacnetValueModel.setRecoverState();
+         return spinalBacnetValueModel.sensor.get();
+      }
+
+      return SENSOR_TYPES;
+   }
+
+   private async _getObjecListDetails(sensors: number[]) {
+      const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
+      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), this.client);
+
+      const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
+
+      return Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
+   }
+}
+
+
+//////////////////////////////////////////////////////////////////////
+//             ALL bacnetValues Queue                               //
+//////////////////////////////////////////////////////////////////////
+const allBacnetValueQueue: SpinalQueuing<{ device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel }> = new SpinalQueuing();
+
+allBacnetValueQueue.on("start", async () => {
+   while (!allBacnetValueQueue.isEmpty()) {
+      const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue(); const spinalDevice = new SpinalDevice(device);
+      await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
+   }
+})
+
+export function addToGetAllBacnetValuesQueue(device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel) {
+   allBacnetValueQueue.addToQueue({ device, node, networkService, spinalBacnetValueModel });
 }
