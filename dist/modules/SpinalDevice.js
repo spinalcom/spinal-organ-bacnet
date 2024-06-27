@@ -49,7 +49,7 @@ class SpinalDevice extends events_1.EventEmitter {
     init() {
         return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
             this.info = deviceInfo;
-            console.log("this.info", this.info);
+            // console.log("this.info", this.info);
             this.emit("initialized", this);
         })).catch((err) => this.emit("error", err));
     }
@@ -69,7 +69,7 @@ class SpinalDevice extends events_1.EventEmitter {
             const maxLength = listes.length;
             let isError = false;
             if (spinalBacnetValueModel) {
-                console.log("set progress mode");
+                // console.log("set progress mode")
                 spinalBacnetValueModel.setProgressState();
             }
             while (!isError && listes.length > 0) {
@@ -90,11 +90,11 @@ class SpinalDevice extends events_1.EventEmitter {
             }
             if (spinalBacnetValueModel) {
                 if (isError) {
-                    console.log("set error model", isError);
+                    // console.log("set error model", isError);
                     spinalBacnetValueModel.setErrorState();
                     return;
                 }
-                console.log("set success model");
+                // console.log("set success model");
                 spinalBacnetValueModel.setSuccessState();
             }
         });

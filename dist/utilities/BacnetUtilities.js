@@ -38,7 +38,7 @@ const bacnet = require("bacstack");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const GlobalVariables_2 = require("../utilities/GlobalVariables");
+const GlobalVariables_2 = require("./GlobalVariables");
 class BacnetUtilitiesClass {
     constructor() { }
     static getInstance() {
@@ -212,18 +212,18 @@ class BacnetUtilitiesClass {
                 try {
                     const property = properties.shift();
                     if (typeof property !== "undefined") {
-                        console.log("property not undefined");
+                        // console.log("property not undefined");
                         const formated = yield this._getPropertyValue(device.address, objectId, property, argClient);
                         for (let key in formated) {
                             obj[key] = formated[key];
                         }
                     }
                     else {
-                        console.log("property is undefined");
+                        // console.log("property is undefined");
                     }
                 }
                 catch (error) {
-                    console.error(error);
+                    // console.error(error);
                 }
             }
             return obj;

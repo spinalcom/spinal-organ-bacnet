@@ -50,7 +50,7 @@ export class SpinalDevice extends EventEmitter {
    public init(): Promise<void | boolean> {
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
          this.info = deviceInfo;
-         console.log("this.info", this.info);
+         // console.log("this.info", this.info);
 
          this.emit("initialized", this);
       }).catch((err) => this.emit("error", err));
@@ -77,7 +77,7 @@ export class SpinalDevice extends EventEmitter {
       let isError = false;
 
       if (spinalBacnetValueModel) {
-         console.log("set progress mode")
+         // console.log("set progress mode")
          spinalBacnetValueModel.setProgressState();
       }
 
@@ -100,12 +100,12 @@ export class SpinalDevice extends EventEmitter {
 
       if (spinalBacnetValueModel) {
          if (isError) {
-            console.log("set error model", isError);
+            // console.log("set error model", isError);
             spinalBacnetValueModel.setErrorState();
             return;
          }
 
-         console.log("set success model");
+         // console.log("set success model");
          spinalBacnetValueModel.setSuccessState();
       }
    }

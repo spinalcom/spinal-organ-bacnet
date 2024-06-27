@@ -1,4 +1,4 @@
-require("json5/lib/register");
+require("json5/lib/register.js");
 const pm2 = require("pm2");
 
 const config = require("./config.js");

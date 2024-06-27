@@ -45,7 +45,8 @@ class SpinalMonitoring {
    private initializedMap: Map<string, boolean> = new Map();
    private binded: Map<string, BindProcess> = new Map();
    private devices: {[key:string] : SpinalListenerModel} = {};
-   private _itemToAddToMap : SpinalQueuing<{ id: string; interval: number; func: Function}> = new SpinalQueuing()
+   private _itemToAddToMap : SpinalQueuing<{ id: string; interval: number; func: Function}> = new SpinalQueuing();
+   private _endpointsCreationQueue : SpinalQueuing<{spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService}> = new SpinalQueuing(); 
    
    private static instance: SpinalMonitoring;
 
@@ -78,6 +79,15 @@ class SpinalMonitoring {
             }
          }
       })
+
+      this._endpointsCreationQueue.on("start", async () => {
+         while (!this._endpointsCreationQueue.isEmpty()) {
+            const { spinalDevice, children, networkService } = this._endpointsCreationQueue.dequeue();
+            // console.log("begin");
+            await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+            // console.log("end")
+         } 
+      })
    }
 
    public async startDeviceInitialisation() {
@@ -98,6 +108,10 @@ class SpinalMonitoring {
                }
             }
          }
+
+         console.log("waiting endpoints creation");
+         await this._waitEndpointCreation();
+         console.log("end of endpoints creation");
 
          this.startMonitoring()
       }
@@ -130,7 +144,7 @@ class SpinalMonitoring {
          
 
          let data = this.intervalTimesMap.get(element.priority);
-         if (!data) continue; // l'element à été supprimer de la liste des devices à monitorer
+         if (!data) continue; // l'element a été supprimer de la liste des devices à monitorer
 
          if (!Array.isArray(data)) data = [data];
 
@@ -282,14 +296,21 @@ class SpinalMonitoring {
 
    private async createDataIfNotExist(spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService, interval: number) {
       try {
-         // const id = `${spinalDevice.device.deviceId}_${interval}`;
-         // let init = this.initializedMap.get(id);
+         // // const id = `${spinalDevice.device.deviceId}_${interval}`;
+         // // let init = this.initializedMap.get(id);
 
-         // if (!init) {
-         //    // console.log("initialisation");
-         //    this.initializedMap.set(id, true);
-            await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-         // }
+         // // if (!init) {
+         // //    // console.log("initialisation");
+         // //    this.initializedMap.set(id, true);
+         //    await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+         // // }
+
+
+
+         // Traiter la creation des endpoinrs dans une Queue, 
+         // pour eviter l'envoie de plusieurs requête bacnet
+         this._endpointsCreationQueue.addToQueue({spinalDevice, children, networkService});
+         
       } catch (error) {
          console.error(error)
       }
@@ -322,6 +343,20 @@ class SpinalMonitoring {
                resolve();
             },
             nb >= 0 ? nb : 0);
+      });
+   }
+
+   private _waitEndpointCreation() {
+      return new Promise((resolve, reject) => {
+         const wait = () => {
+            setTimeout(() => {
+               if(this._endpointsCreationQueue.isEmpty()) resolve(undefined);
+               else wait();
+            }, 400)
+         }
+
+         wait();
+         
       });
    }
 

@@ -28,7 +28,7 @@ import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-servi
 import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
 import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
-import { SEGMENTATIONS } from "../utilities/GlobalVariables";
+import { SEGMENTATIONS } from "./GlobalVariables";
 
 
 
@@ -233,18 +233,18 @@ class BacnetUtilitiesClass {
          try {
             const property = properties.shift();
             if (typeof property !== "undefined") {
-               console.log("property not undefined");
+               // console.log("property not undefined");
                const formated = await this._getPropertyValue(device.address, objectId, property, argClient);
 
                for (let key in formated) {
                   obj[key] = formated[key];
                }
             } else {
-               console.log("property is undefined");
+               // console.log("property is undefined");
             }
 
          } catch (error) {
-            console.error(error);
+            // console.error(error);
          }
       }
 

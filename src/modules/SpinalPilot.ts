@@ -53,7 +53,7 @@ class SpinalPilot {
    }
 
    public async addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void> {
-      console.log("addToQueue");
+      // console.log("addToQueue");
 
       this.queue.addToQueue(spinalPilotModel);
    }

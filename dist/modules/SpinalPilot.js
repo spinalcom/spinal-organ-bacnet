@@ -56,7 +56,7 @@ class SpinalPilot {
     }
     addToPilotList(spinalPilotModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("addToQueue");
+            // console.log("addToQueue");
             this.queue.addToQueue(spinalPilotModel);
         });
     }
