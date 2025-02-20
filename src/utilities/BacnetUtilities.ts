@@ -33,7 +33,7 @@ import { SEGMENTATIONS } from "./GlobalVariables";
 
 
 class BacnetUtilitiesClass {
-   
+
    private static instance: BacnetUtilitiesClass;
 
    private constructor() { }
@@ -326,7 +326,7 @@ class BacnetUtilitiesClass {
          return lodash.flattenDeep(res);
 
       } catch (error) {
-       }
+      }
    }
 
    private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
@@ -358,7 +358,7 @@ class BacnetUtilitiesClass {
    ////                       Endpoints                          //
    ////////////////////////////////////////////////////////////////
 
-   public async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any,deviceName?: string): Promise<SpinalNodeRef[]> {
+   public async createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]> {
       const endpointGroup = await this._createEndpointsGroup(networkService, deviceId, groupName);
       const groupId = endpointGroup.id.get();
       return this._createEndpointByArray(networkService, groupId, endpointArray, deviceName);
@@ -380,7 +380,7 @@ class BacnetUtilitiesClass {
       return endpointGroup;
    }
 
-   public async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any,deviceName?: string): Promise<SpinalNodeRef[]> {
+   public async _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]> {
       const childNetwork = await this.getChildrenObj(groupId, SpinalBmsEndpoint.relationName);
       const nodeCreated = []
       let counter = 0;
@@ -441,6 +441,12 @@ class BacnetUtilitiesClass {
       } catch (error) {
          throw error;
       }
+   }
+
+   public async getDeviceId(address: string, client?: bacnet): Promise<number> {
+      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
+      const data = await this.readProperty(address, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
+      return data.values[0].value.instance;
    }
 
 
@@ -504,6 +510,8 @@ class BacnetUtilitiesClass {
       return;
    }
 
+
+
    private async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
       const obj = {};
@@ -515,6 +523,6 @@ class BacnetUtilitiesClass {
 }
 
 
-const BacnetUtilities = BacnetUtilitiesClass.getInstance(); 
+const BacnetUtilities = BacnetUtilitiesClass.getInstance();
 export default BacnetUtilities;
 export { BacnetUtilities }

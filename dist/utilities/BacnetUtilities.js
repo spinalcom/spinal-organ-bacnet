@@ -408,6 +408,13 @@ class BacnetUtilitiesClass {
             }
         });
     }
+    getDeviceId(address, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID };
+            const data = yield this.readProperty(address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_IDENTIFIER, client);
+            return data.values[0].value.instance;
+        });
+    }
     _formatProperty(object) {
         if (object) {
             const { values, property } = object;

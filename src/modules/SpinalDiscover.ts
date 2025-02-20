@@ -31,6 +31,7 @@ import { SpinalDevice } from './SpinalDevice';
 import { IDevice } from "../Interfaces/IDevice";
 import { SpinalDisoverModel, STATES } from 'spinal-model-bacnet';
 import { SpinalNetworkServiceUtilities } from '../utilities/SpinalNetworkServiceUtilities';
+import { PropertyIds } from '../utilities/GlobalVariables';
 
 
 class SpinalDiscover {
@@ -116,8 +117,6 @@ class SpinalDiscover {
       const queue: SpinalQueuing<IDevice> = new SpinalQueuing();
       return new Promise((resolve, reject) => {
 
-         // if (this.discoverModel.network?.useBroadcast?.get()) {
-         //    console.log("use broadcast");
          let timeOutId;
 
          if (this.discoverModel.network?.useBroadcast?.get()) {
@@ -129,14 +128,12 @@ class SpinalDiscover {
 
             this.client.whoIs();
          } else {
-            // ips.forEach(({ address, deviceId }) => {
-            //    this.client.whoIs({ address })
-            // });
+
             console.log("use unicast");
-            const ips = this.discoverModel.network?.ips?.get() || [];            
-            const devices = ips.reduce((liste, { address, deviceId }) => {
+            const ips = this.discoverModel.network?.ips?.get() || [];
+            const devices = ips.reduce((liste, { address }) => {
                try {
-                  if (address && deviceId) liste.push({ address, deviceId: parseInt(deviceId) });
+                  if (address) liste.push({ address, deviceId: PropertyIds.MAX_BACNET_PROPERTY_ID });
                } catch (error) { }
                return liste;
             }, [])
@@ -144,7 +141,7 @@ class SpinalDiscover {
             queue.setQueue(devices);
          }
 
-         const res = []
+         const res = {};
 
          this.client.on('iAm', (device) => {
             if (typeof timeOutId !== "undefined") {
@@ -152,9 +149,9 @@ class SpinalDiscover {
             }
 
             const { address, deviceId } = device;
-            const found = res.find(el => el.address === address && el.deviceId === deviceId);
-            if (!found) {
-               res.push(device);
+            const key = `${address}-${deviceId}`;
+            if (!res[key]) {
+               res[key] = device;
                queue.addToQueue(device);
             }
          })

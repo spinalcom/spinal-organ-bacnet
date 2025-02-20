@@ -27,5 +27,6 @@ export declare class SpinalDevice extends EventEmitter {
     private _getDataValue;
     private _getSensors;
     private _getObjecListDetails;
+    private _getDeviceId;
 }
 export declare function addToGetAllBacnetValuesQueue(device: IDevice, node: SpinalNodeRef, networkService: NetworkService, spinalBacnetValueModel: SpinalBacnetValueModel): void;

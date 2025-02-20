@@ -41,6 +41,7 @@ const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
+const GlobalVariables_1 = require("../utilities/GlobalVariables");
 class SpinalDiscover {
     constructor(model) {
         var _a, _b;
@@ -113,8 +114,6 @@ class SpinalDiscover {
         const queue = new SpinalQueuing_1.SpinalQueuing();
         return new Promise((resolve, reject) => {
             var _a, _b, _c, _d;
-            // if (this.discoverModel.network?.useBroadcast?.get()) {
-            //    console.log("use broadcast");
             let timeOutId;
             if ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get()) {
                 console.log("use broadcast");
@@ -124,30 +123,27 @@ class SpinalDiscover {
                 this.client.whoIs();
             }
             else {
-                // ips.forEach(({ address, deviceId }) => {
-                //    this.client.whoIs({ address })
-                // });
                 console.log("use unicast");
                 const ips = ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.ips) === null || _d === void 0 ? void 0 : _d.get()) || [];
-                const devices = ips.reduce((liste, { address, deviceId }) => {
+                const devices = ips.reduce((liste, { address }) => {
                     try {
-                        if (address && deviceId)
-                            liste.push({ address, deviceId: parseInt(deviceId) });
+                        if (address)
+                            liste.push({ address, deviceId: GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID });
                     }
                     catch (error) { }
                     return liste;
                 }, []);
                 queue.setQueue(devices);
             }
-            const res = [];
+            const res = {};
             this.client.on('iAm', (device) => {
                 if (typeof timeOutId !== "undefined") {
                     clearTimeout(timeOutId);
                 }
                 const { address, deviceId } = device;
-                const found = res.find(el => el.address === address && el.deviceId === deviceId);
-                if (!found) {
-                    res.push(device);
+                const key = `${address}-${deviceId}`;
+                if (!res[key]) {
+                    res[key] = device;
                     queue.addToQueue(device);
                 }
             });

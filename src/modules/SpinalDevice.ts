@@ -161,8 +161,9 @@ export class SpinalDevice extends EventEmitter {
 
       return {
          name: await this._getDataValue(device.address, objectId, PropertyIds.PROP_OBJECT_NAME),
+         deviceId: await this._getDeviceId(device.address, device.deviceId) || device.deviceId,
          address: device.address,
-         deviceId: device.deviceId,
+         // deviceId: device.deviceId,
          segmentation: device.segmentation || await this._getDataValue(device.address, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
          // objectId: objectId,
          id: objectId.instance,
@@ -210,6 +211,12 @@ export class SpinalDevice extends EventEmitter {
       const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
 
       return Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
+   }
+
+   private async _getDeviceId(deviceAdress: string, deviceId?: number): Promise<number> {
+      if (deviceId && deviceId !== PropertyIds.MAX_BACNET_PROPERTY_ID) return deviceId;
+
+      return BacnetUtilities.getDeviceId(deviceAdress);
    }
 }
 

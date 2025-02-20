@@ -142,8 +142,9 @@ class SpinalDevice extends events_1.EventEmitter {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             return {
                 name: yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
+                deviceId: (yield this._getDeviceId(device.address, device.deviceId)) || device.deviceId,
                 address: device.address,
-                deviceId: device.deviceId,
+                // deviceId: device.deviceId,
                 segmentation: device.segmentation || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
                 // objectId: objectId,
                 id: objectId.instance,
@@ -185,6 +186,13 @@ class SpinalDevice extends events_1.EventEmitter {
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
             const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
             return Array.from(Object.keys(children)).map((el) => [el, children[el]]);
+        });
+    }
+    _getDeviceId(deviceAdress, deviceId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (deviceId && deviceId !== GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID)
+                return deviceId;
+            return BacnetUtilities_1.BacnetUtilities.getDeviceId(deviceAdress);
         });
     }
 }
