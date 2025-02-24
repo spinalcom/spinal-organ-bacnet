@@ -50,6 +50,7 @@ export class SpinalDevice extends EventEmitter {
    public init(): Promise<void | boolean> {
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
          this.info = deviceInfo;
+         this.device = deviceInfo;
          // console.log("this.info", this.info);
 
          this.emit("initialized", this);
@@ -160,16 +161,14 @@ export class SpinalDevice extends EventEmitter {
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
 
       return {
+         id: objectId.instance,
          name: await this._getDataValue(device.address, objectId, PropertyIds.PROP_OBJECT_NAME),
          deviceId: await this._getDeviceId(device.address, device.deviceId) || device.deviceId,
          address: device.address,
-         // deviceId: device.deviceId,
-         segmentation: device.segmentation || await this._getDataValue(device.address, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
-         // objectId: objectId,
-         id: objectId.instance,
          typeId: objectId.type,
          type: BacnetUtilities._getObjectTypeByCode(objectId.type),
-         // instance: objectId.instance,
+         description: await this._getDataValue(device.address, objectId, PropertyIds.PROP_DESCRIPTION),
+         segmentation: device.segmentation || await this._getDataValue(device.address, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
          vendorId: device.vendorId || await this._getDataValue(device.address, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
          maxApdu: device.maxApdu || await this._getDataValue(device.address, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
       }

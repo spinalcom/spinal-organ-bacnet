@@ -8,4 +8,5 @@ export interface IDevice {
     id?: string | number;
     typeId?: string;
     type?: string;
+    description?: string;
 }

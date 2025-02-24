@@ -49,6 +49,7 @@ class SpinalDevice extends events_1.EventEmitter {
     init() {
         return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
             this.info = deviceInfo;
+            this.device = deviceInfo;
             // console.log("this.info", this.info);
             this.emit("initialized", this);
         })).catch((err) => this.emit("error", err));
@@ -141,16 +142,14 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             return {
+                id: objectId.instance,
                 name: yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
                 deviceId: (yield this._getDeviceId(device.address, device.deviceId)) || device.deviceId,
                 address: device.address,
-                // deviceId: device.deviceId,
-                segmentation: device.segmentation || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
-                // objectId: objectId,
-                id: objectId.instance,
                 typeId: objectId.type,
                 type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
-                // instance: objectId.instance,
+                description: yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
+                segmentation: device.segmentation || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
                 vendorId: device.vendorId || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
                 maxApdu: device.maxApdu || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
             };

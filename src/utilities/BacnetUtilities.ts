@@ -306,6 +306,7 @@ class BacnetUtilitiesClass {
          const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
 
          const list_chunked = lodash.chunk(requestArray, 50);
+
          const res = [];
          while (list_chunked.length > 0) {
             const arr = list_chunked.pop();
