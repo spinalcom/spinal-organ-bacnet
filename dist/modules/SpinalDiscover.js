@@ -41,7 +41,6 @@ const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
-const GlobalVariables_1 = require("../utilities/GlobalVariables");
 class SpinalDiscover {
     constructor(model) {
         var _a, _b;
@@ -114,27 +113,7 @@ class SpinalDiscover {
         const queue = new SpinalQueuing_1.SpinalQueuing();
         return new Promise((resolve, reject) => {
             var _a, _b, _c, _d;
-            let timeOutId;
-            if ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get()) {
-                console.log("use broadcast");
-                timeOutId = setTimeout(() => {
-                    reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
-                }, this.CONNECTION_TIME_OUT);
-                this.client.whoIs();
-            }
-            else {
-                console.log("use unicast");
-                const ips = ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.ips) === null || _d === void 0 ? void 0 : _d.get()) || [];
-                const devices = ips.reduce((liste, { address }) => {
-                    try {
-                        if (address)
-                            liste.push({ address, deviceId: GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID });
-                    }
-                    catch (error) { }
-                    return liste;
-                }, []);
-                queue.setQueue(devices);
-            }
+            // listen iAm event
             const res = {};
             this.client.on('iAm', (device) => {
                 if (typeof timeOutId !== "undefined") {
@@ -147,6 +126,32 @@ class SpinalDiscover {
                     queue.addToQueue(device);
                 }
             });
+            let timeOutId;
+            // end of listen iAm event
+            if ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get()) {
+                console.log("use broadcast");
+                timeOutId = setTimeout(() => {
+                    reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
+                }, this.CONNECTION_TIME_OUT);
+                this.client.whoIs();
+            }
+            else {
+                console.log("use unicast");
+                const ips = ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.ips) === null || _d === void 0 ? void 0 : _d.get()) || [];
+                // const devices = ips.reduce((liste, { address }) => {
+                //    try {
+                //       if (address) liste.push({ address, deviceId: PropertyIds.MAX_BACNET_PROPERTY_ID });
+                //    } catch (error) { }
+                //    return liste;
+                // }, [])
+                // queue.setQueue(devices);
+                for (const { address } of ips) {
+                    this.client.whoIs({
+                        address,
+                        dest: { net: '65535', adr: [''] }
+                    });
+                }
+            }
             queue.on("start", () => {
                 resolve(queue);
             });
@@ -167,14 +172,11 @@ class SpinalDiscover {
         });
     }
     _addDeviceFound(device) {
-        console.log("device found", device.address);
         this.discoverModel.devices.push(device);
     }
     _createNodes() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                // const queue = new SpinalQueuing();
-                // queue.setQueue(this.discoverModel.devices);
                 const queue = this._getDevicesSelected();
                 const { networkService, network } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
                 const devices = yield this._getDevicesNodes(network.id.get());

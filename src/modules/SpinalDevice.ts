@@ -44,7 +44,7 @@ export class SpinalDevice extends EventEmitter {
    constructor(device: IDevice, client?: bacnet) {
       super();
       this.device = device;
-      this.client = client || new bacnet();
+      this.client = client || BacnetUtilities.createNewBacnetClient();
    }
 
    public init(): Promise<void | boolean> {
@@ -54,7 +54,10 @@ export class SpinalDevice extends EventEmitter {
          // console.log("this.info", this.info);
 
          this.emit("initialized", this);
-      }).catch((err) => this.emit("error", err));
+      }).catch((err) => {
+         console.error(err);
+         this.emit("error", err)
+      });
    }
 
    public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef> {
@@ -113,7 +116,7 @@ export class SpinalDevice extends EventEmitter {
 
    public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {
       console.log("check and create if not exist");
-      const client = new bacnet();
+      const client = BacnetUtilities.createNewBacnetClient();
       // const children = lodash.chunk(objectIds, 60);
       // const objectListDetails = await this._getAllObjectDetails(children, client);
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
@@ -128,7 +131,7 @@ export class SpinalDevice extends EventEmitter {
 
    public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>): Promise<void> {
       try {
-         const client = new bacnet();
+         const client = BacnetUtilities.createNewBacnetClient();
 
          console.log(`${new Date()} ===> update ${this.device.name}`);
          const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children, client)
@@ -162,15 +165,16 @@ export class SpinalDevice extends EventEmitter {
 
       return {
          id: objectId.instance,
-         name: await this._getDataValue(device.address, objectId, PropertyIds.PROP_OBJECT_NAME),
+         SADR: device.SADR,
+         name: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_NAME),
          deviceId: await this._getDeviceId(device.address, device.deviceId) || device.deviceId,
          address: device.address,
          typeId: objectId.type,
          type: BacnetUtilities._getObjectTypeByCode(objectId.type),
-         description: await this._getDataValue(device.address, objectId, PropertyIds.PROP_DESCRIPTION),
-         segmentation: device.segmentation || await this._getDataValue(device.address, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
-         vendorId: device.vendorId || await this._getDataValue(device.address, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
-         maxApdu: device.maxApdu || await this._getDataValue(device.address, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
+         description: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_DESCRIPTION),
+         segmentation: device.segmentation || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
+         vendorId: device.vendorId || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
+         maxApdu: device.maxApdu || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
       }
 
    }
@@ -189,8 +193,8 @@ export class SpinalDevice extends EventEmitter {
       return res;
    }
 
-   private async _getDataValue(address: string, objectId: { type: any; instance: any }, PropertyId: number) {
-      const formated: any = await BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
+   private async _getDataValue(address: string, sadr: any, objectId: { type: any; instance: any }, PropertyId: number) {
+      const formated: any = await BacnetUtilities._getPropertyValue(address, sadr, objectId, PropertyId);
       return formated[BacnetUtilities._getPropertyNameByCode(PropertyId)];
    }
 
@@ -215,7 +219,8 @@ export class SpinalDevice extends EventEmitter {
    private async _getDeviceId(deviceAdress: string, deviceId?: number): Promise<number> {
       if (deviceId && deviceId !== PropertyIds.MAX_BACNET_PROPERTY_ID) return deviceId;
 
-      return BacnetUtilities.getDeviceId(deviceAdress);
+      return PropertyIds.MAX_BACNET_PROPERTY_ID;
+      // return BacnetUtilities.getDeviceId(deviceAdress);
    }
 }
 
@@ -227,7 +232,8 @@ const allBacnetValueQueue: SpinalQueuing<{ device: IDevice, node: SpinalNodeRef,
 
 allBacnetValueQueue.on("start", async () => {
    while (!allBacnetValueQueue.isEmpty()) {
-      const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue(); const spinalDevice = new SpinalDevice(device);
+      const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue();
+      const spinalDevice = new SpinalDevice(device);
       await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
    }
 })

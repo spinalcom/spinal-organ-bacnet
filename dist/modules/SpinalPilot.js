@@ -35,7 +35,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalPilot = void 0;
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
-const bacnet = require("bacstack");
+const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalPilot {
     constructor() {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
@@ -125,7 +125,7 @@ class SpinalPilot {
     }
     useDataType(req, dataType) {
         return new Promise((resolve, reject) => {
-            const client = new bacnet();
+            const client = BacnetUtilities_1.default.createNewBacnetClient();
             const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
             const priority = (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
             client.writeProperty(req.address, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {

@@ -117,7 +117,25 @@ class SpinalDiscover {
       const queue: SpinalQueuing<IDevice> = new SpinalQueuing();
       return new Promise((resolve, reject) => {
 
+         // listen iAm event
+         const res = {};
+         this.client.on('iAm', (device) => {
+
+            if (typeof timeOutId !== "undefined") {
+               clearTimeout(timeOutId);
+            }
+
+            const { address, deviceId } = device;
+            const key = `${address}-${deviceId}`;
+            if (!res[key]) {
+               res[key] = device;
+               queue.addToQueue(device);
+            }
+         });
+
+
          let timeOutId;
+         // end of listen iAm event
 
          if (this.discoverModel.network?.useBroadcast?.get()) {
             console.log("use broadcast");
@@ -131,30 +149,23 @@ class SpinalDiscover {
 
             console.log("use unicast");
             const ips = this.discoverModel.network?.ips?.get() || [];
-            const devices = ips.reduce((liste, { address }) => {
-               try {
-                  if (address) liste.push({ address, deviceId: PropertyIds.MAX_BACNET_PROPERTY_ID });
-               } catch (error) { }
-               return liste;
-            }, [])
+            // const devices = ips.reduce((liste, { address }) => {
+            //    try {
+            //       if (address) liste.push({ address, deviceId: PropertyIds.MAX_BACNET_PROPERTY_ID });
+            //    } catch (error) { }
+            //    return liste;
+            // }, [])
 
-            queue.setQueue(devices);
+            // queue.setQueue(devices);
+            for (const { address } of ips) {
+               this.client.whoIs({
+                  address,
+                  dest: { net: '65535', adr: [''] }
+               });
+            }
          }
 
-         const res = {};
 
-         this.client.on('iAm', (device) => {
-            if (typeof timeOutId !== "undefined") {
-               clearTimeout(timeOutId);
-            }
-
-            const { address, deviceId } = device;
-            const key = `${address}-${deviceId}`;
-            if (!res[key]) {
-               res[key] = device;
-               queue.addToQueue(device);
-            }
-         })
 
          queue.on("start", () => {
             resolve(queue)
@@ -184,15 +195,13 @@ class SpinalDiscover {
    }
 
    private _addDeviceFound(device: IDevice): void {
-      console.log("device found", device.address);
       this.discoverModel.devices.push(device);
    }
 
    private async _createNodes(): Promise<void> {
 
       try {
-         // const queue = new SpinalQueuing();
-         // queue.setQueue(this.discoverModel.devices);
+
          const queue = this._getDevicesSelected();
          const { networkService, network } = await SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
          const devices = await this._getDevicesNodes(network.id.get());

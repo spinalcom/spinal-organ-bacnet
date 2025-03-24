@@ -22,13 +22,14 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import * as bacnet from 'bacstack';
+import BacnetEnum from './bacnetEnum';
 
-export const ObjectTypes = bacnet.enum.ObjectTypes;
-export const PropertyIds = bacnet.enum.PropertyIds;
-export const ENUM_DISABLE = bacnet.enum.EnableDisable;
-export const APPLICATION_TAGS = bacnet.enum.ApplicationTags;
-export const SEGMENTATIONS = bacnet.enum.Segmentations;
+
+export const ObjectTypes = BacnetEnum.ObjectTypes;
+export const PropertyIds = BacnetEnum.PropertyIds;
+export const ENUM_DISABLE = BacnetEnum.EnableDisable;
+export const APPLICATION_TAGS = BacnetEnum.ApplicationTags;
+export const SEGMENTATIONS = BacnetEnum.Segmentations;
 
 
 /*
@@ -63,7 +64,7 @@ export const PropertyNames: { [key: number]: string } = (function swap(json) {
       ret[json[key]] = key;
    }
    return ret;
-})(bacnet.enum.PropertyIds);
+})(BacnetEnum.PropertyIds);
 
 /*
 * All property object ({code : name}) of device
@@ -74,7 +75,7 @@ export const ObjectTypesCode: { [key: string]: string } = (function swap(json) {
       ret[json[key]] = key;
    }
    return ret;
-})(bacnet.enum.ObjectTypes);
+})(BacnetEnum.ObjectTypes);
 
 /*
 * All property object ({name : code}) of device
@@ -85,5 +86,5 @@ export const UNITS_TYPES: { [key: number]: string } = (function swap(json) {
       ret[json[key]] = key;
    }
    return ret;
-})(bacnet.enum.UnitsId);
+})(BacnetEnum.UnitsId);
 

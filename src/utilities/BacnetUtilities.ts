@@ -44,18 +44,23 @@ class BacnetUtilitiesClass {
       return this.instance;
    }
 
+   public createNewBacnetClient() {
+      const client = new bacnet({ adpuTimeout: 6000 });
+      return client;
+   }
 
    ////////////////////////////////////////////////////////////////
    ////                  READ BACNET DATA                        //
    ////////////////////////////////////////////////////////////////
 
-   public readPropertyMultiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
+   public readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
       return new Promise((resolve, reject) => {
          try {
-            const client = argClient || new bacnet();
+            const client = argClient || this.createNewBacnetClient();
             requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
+            if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
-            client.readPropertyMultiple(address, requestArray, (err, data) => {
+            client.readPropertyMultiple(address, sadr, requestArray, (err, data) => {
                if (err) {
                   reject(err);
                   return;
@@ -68,12 +73,13 @@ class BacnetUtilitiesClass {
       });
    }
 
-   public readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
-      const client = argClient || new bacnet();
+   public readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
+      const client = argClient || this.createNewBacnetClient();
       const options = clientOptions || {};
+      if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
       return new Promise((resolve, reject) => {
-         client.readProperty(address, objectId, propertyId, options, (err, data) => {
+         client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
             if (err) return reject(err);
 
             resolve(data);
@@ -95,10 +101,12 @@ class BacnetUtilitiesClass {
          let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, PropertyIds.PROP_OBJECT_LIST];
          let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
 
-         const data = await func.call(this, device.address, ...params, argClient);
+         const data = await func.call(this, device.address, device.SADR, ...params, argClient);
          values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
 
       } catch (error) {
+         console.error(error);
+
          if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId, argClient);
 
       }
@@ -120,7 +128,7 @@ class BacnetUtilitiesClass {
          while (!error && !finish) {
             try {
                const clientOptions = { arrayIndex: index }
-               const value = await this.readProperty(device.address, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
+               const value = await this.readProperty(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
                if (value) {
                   index++;
                   list.push(...value.values);
@@ -161,7 +169,9 @@ class BacnetUtilitiesClass {
             try {
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
-            } catch (err) { }
+            } catch (err) {
+               console.log(err)
+            }
          }
       }
 
@@ -185,7 +195,7 @@ class BacnetUtilitiesClass {
                { id: PropertyIds.PROP_MIN_PRES_VALUE }
             ]
          }))
-         const data = await this.readPropertyMultiple(device.address, requestArray, argClient);
+         const data = await this.readPropertyMultiple(device.address, device.SADR, requestArray, argClient);
          return data.values.map(el => {
             const { objectId } = el;
 
@@ -234,7 +244,7 @@ class BacnetUtilitiesClass {
             const property = properties.shift();
             if (typeof property !== "undefined") {
                // console.log("property not undefined");
-               const formated = await this._getPropertyValue(device.address, objectId, property, argClient);
+               const formated = await this._getPropertyValue(device.address, device.SADR, objectId, property, argClient);
 
                for (let key in formated) {
                   obj[key] = formated[key];
@@ -286,7 +296,7 @@ class BacnetUtilitiesClass {
    }
 
    public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
-      const client = argClient || new bacnet();
+      const client = argClient || this.createNewBacnetClient();
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
       const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
 
@@ -302,7 +312,7 @@ class BacnetUtilitiesClass {
    private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
 
       try {
-         const client = argClient || new bacnet();
+         const client = argClient || this.createNewBacnetClient();
          const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
 
          const list_chunked = lodash.chunk(requestArray, 50);
@@ -310,7 +320,7 @@ class BacnetUtilitiesClass {
          const res = [];
          while (list_chunked.length > 0) {
             const arr = list_chunked.pop();
-            const data = await this.readPropertyMultiple(device.address, arr, client);
+            const data = await this.readPropertyMultiple(device.address, device.SADR, arr, client);
 
             const dataFormated = data.values.map(el => {
                const value = this._getObjValue(el.values[0].value);
@@ -331,7 +341,7 @@ class BacnetUtilitiesClass {
    }
 
    private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
-      const client = argClient || new bacnet();
+      const client = argClient || this.createNewBacnetClient();
       const res = [];
 
       try {
@@ -341,7 +351,7 @@ class BacnetUtilitiesClass {
             if (obj) {
                try {
                   obj["id"] = obj.instance;
-                  const data = await this.readProperty(device.address, obj, PropertyIds.PROP_PRESENT_VALUE, client);
+                  const data = await this.readProperty(device.address, device.SADR, obj, PropertyIds.PROP_PRESENT_VALUE, client);
                   const value = data.values[0]?.value;
                   obj["currentValue"] = this._getObjValue(value);
                   res.push(obj);
@@ -432,10 +442,10 @@ class BacnetUtilitiesClass {
    //////////////////////////////////////////////////////////////////////
 
 
-   public async _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any> {
+   public async _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any> {
 
       try {
-         const data = await this.readProperty(address, objectId, propertyId, argClient);
+         const data = await this.readProperty(address, sadr, objectId, propertyId, argClient);
          const formated: any = this._formatProperty(data);
          return formated;
 
@@ -444,11 +454,11 @@ class BacnetUtilitiesClass {
       }
    }
 
-   public async getDeviceId(address: string, client?: bacnet): Promise<number> {
-      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
-      const data = await this.readProperty(address, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
-      return data.values[0].value.instance;
-   }
+   // public async getDeviceId(address: string, client?: bacnet): Promise<number> {
+   //    const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
+   //    const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
+   //    return data.values[0].value.instance;
+   // }
 
 
    public _formatProperty(object): { [key: string]: boolean | string | number } {
@@ -526,4 +536,4 @@ class BacnetUtilitiesClass {
 
 const BacnetUtilities = BacnetUtilitiesClass.getInstance();
 export default BacnetUtilities;
-export { BacnetUtilities }
+export { BacnetUtilities };

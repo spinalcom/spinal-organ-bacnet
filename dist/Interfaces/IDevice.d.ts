@@ -9,4 +9,5 @@ export interface IDevice {
     typeId?: string;
     type?: string;
     description?: string;
+    SADR: string;
 }

@@ -6,8 +6,9 @@ declare class BacnetUtilitiesClass {
     private static instance;
     private constructor();
     static getInstance(): BacnetUtilitiesClass;
-    readPropertyMultiple(address: string, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
-    readProperty(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
+    createNewBacnetClient(): any;
+    readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
+    readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
     _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]>;
     getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]>;
     _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<{
@@ -27,8 +28,7 @@ declare class BacnetUtilitiesClass {
     _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
     _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef>;
     _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef>;
-    _getPropertyValue(address: string, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
-    getDeviceId(address: string, client?: bacnet): Promise<number>;
+    _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
     _formatProperty(object: any): {
         [key: string]: boolean | string | number;
     };

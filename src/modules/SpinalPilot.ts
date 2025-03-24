@@ -27,7 +27,7 @@ import { SpinalPilotModel } from "spinal-model-bacnet";
 import { IRequest } from "spinal-model-bacnet";
 import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalVariables";
 
-import * as bacnet from "bacstack";
+import BacnetUtilities from "../utilities/BacnetUtilities";
 
 class SpinalPilot {
    private queue: SpinalQueuing<SpinalPilotModel> = new SpinalQueuing();
@@ -124,7 +124,7 @@ class SpinalPilot {
 
    private useDataType(req: IRequest, dataType: number) {
       return new Promise((resolve, reject) => {
-         const client = new bacnet();
+         const client = BacnetUtilities.createNewBacnetClient();
          const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
 
          const priority = (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;

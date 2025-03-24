@@ -34,7 +34,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addToGetAllBacnetValuesQueue = exports.SpinalDevice = void 0;
 const lodash = require("lodash");
-const bacnet = require("bacstack");
 const events_1 = require("events");
 // import { store } from "../store";
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
@@ -44,7 +43,7 @@ class SpinalDevice extends events_1.EventEmitter {
     constructor(device, client) {
         super();
         this.device = device;
-        this.client = client || new bacnet();
+        this.client = client || BacnetUtilities_1.BacnetUtilities.createNewBacnetClient();
     }
     init() {
         return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
@@ -52,7 +51,10 @@ class SpinalDevice extends events_1.EventEmitter {
             this.device = deviceInfo;
             // console.log("this.info", this.info);
             this.emit("initialized", this);
-        })).catch((err) => this.emit("error", err));
+        })).catch((err) => {
+            console.error(err);
+            this.emit("error", err);
+        });
     }
     createStructureNodes(networkService, node, parentId) {
         // this.networkService = networkService;
@@ -103,7 +105,7 @@ class SpinalDevice extends events_1.EventEmitter {
     checkAndCreateIfNotExist(networkService, objectIds) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("check and create if not exist");
-            const client = new bacnet();
+            const client = BacnetUtilities_1.BacnetUtilities.createNewBacnetClient();
             // const children = lodash.chunk(objectIds, 60);
             // const objectListDetails = await this._getAllObjectDetails(children, client);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectIds, client);
@@ -117,7 +119,7 @@ class SpinalDevice extends events_1.EventEmitter {
     updateEndpoints(networkService, networkNode, children) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const client = new bacnet();
+                const client = BacnetUtilities_1.BacnetUtilities.createNewBacnetClient();
                 console.log(`${new Date()} ===> update ${this.device.name}`);
                 const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children, client);
                 const obj = {
@@ -143,15 +145,16 @@ class SpinalDevice extends events_1.EventEmitter {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             return {
                 id: objectId.instance,
-                name: yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
+                SADR: device.SADR,
+                name: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
                 deviceId: (yield this._getDeviceId(device.address, device.deviceId)) || device.deviceId,
                 address: device.address,
                 typeId: objectId.type,
                 type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
-                description: yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
-                segmentation: device.segmentation || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
-                vendorId: device.vendorId || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                maxApdu: device.maxApdu || (yield this._getDataValue(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
+                description: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
+                segmentation: device.segmentation || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
+                vendorId: device.vendorId || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
+                maxApdu: device.maxApdu || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
             };
         });
     }
@@ -166,9 +169,9 @@ class SpinalDevice extends events_1.EventEmitter {
         }
         return res;
     }
-    _getDataValue(address, objectId, PropertyId) {
+    _getDataValue(address, sadr, objectId, PropertyId) {
         return __awaiter(this, void 0, void 0, function* () {
-            const formated = yield BacnetUtilities_1.BacnetUtilities._getPropertyValue(address, objectId, PropertyId);
+            const formated = yield BacnetUtilities_1.BacnetUtilities._getPropertyValue(address, sadr, objectId, PropertyId);
             return formated[BacnetUtilities_1.BacnetUtilities._getPropertyNameByCode(PropertyId)];
         });
     }
@@ -191,7 +194,8 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             if (deviceId && deviceId !== GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID)
                 return deviceId;
-            return BacnetUtilities_1.BacnetUtilities.getDeviceId(deviceAdress);
+            return GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID;
+            // return BacnetUtilities.getDeviceId(deviceAdress);
         });
     }
 }

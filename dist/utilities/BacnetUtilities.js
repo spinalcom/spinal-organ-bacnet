@@ -46,15 +46,21 @@ class BacnetUtilitiesClass {
             this.instance = new BacnetUtilitiesClass();
         return this.instance;
     }
+    createNewBacnetClient() {
+        const client = new bacnet({ adpuTimeout: 6000 });
+        return client;
+    }
     ////////////////////////////////////////////////////////////////
     ////                  READ BACNET DATA                        //
     ////////////////////////////////////////////////////////////////
-    readPropertyMultiple(address, requestArray, argClient) {
+    readPropertyMultiple(address, sadr, requestArray, argClient) {
         return new Promise((resolve, reject) => {
             try {
-                const client = argClient || new bacnet();
+                const client = argClient || this.createNewBacnetClient();
                 requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
-                client.readPropertyMultiple(address, requestArray, (err, data) => {
+                if (sadr && typeof sadr == "object")
+                    sadr = Object.keys(sadr).length === 0 ? null : sadr;
+                client.readPropertyMultiple(address, sadr, requestArray, (err, data) => {
                     if (err) {
                         reject(err);
                         return;
@@ -67,11 +73,13 @@ class BacnetUtilitiesClass {
             }
         });
     }
-    readProperty(address, objectId, propertyId, argClient, clientOptions) {
-        const client = argClient || new bacnet();
+    readProperty(address, sadr, objectId, propertyId, argClient, clientOptions) {
+        const client = argClient || this.createNewBacnetClient();
         const options = clientOptions || {};
+        if (sadr && typeof sadr == "object")
+            sadr = Object.keys(sadr).length === 0 ? null : sadr;
         return new Promise((resolve, reject) => {
-            client.readProperty(address, objectId, propertyId, options, (err, data) => {
+            client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
                 if (err)
                     return reject(err);
                 resolve(data);
@@ -90,10 +98,11 @@ class BacnetUtilitiesClass {
                 const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
                 let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST];
                 let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
-                const data = yield func.call(this, device.address, ...params, argClient);
+                const data = yield func.call(this, device.address, device.SADR, ...params, argClient);
                 values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
             }
             catch (error) {
+                console.error(error);
                 if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i))
                     values = yield this.getItemListByFragment(device, objectId, argClient);
             }
@@ -112,7 +121,7 @@ class BacnetUtilitiesClass {
                 while (!error && !finish) {
                     try {
                         const clientOptions = { arrayIndex: index };
-                        const value = yield this.readProperty(device.address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
+                        const value = yield this.readProperty(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
                         if (value) {
                             index++;
                             list.push(...value.values);
@@ -148,7 +157,9 @@ class BacnetUtilitiesClass {
                         const res = yield func.call(this, device, object, argClient);
                         objectListDetails.push(res);
                     }
-                    catch (err) { }
+                    catch (err) {
+                        console.log(err);
+                    }
                 }
             }
             if (deviceAcceptSegmentation)
@@ -170,7 +181,7 @@ class BacnetUtilitiesClass {
                         { id: GlobalVariables_1.PropertyIds.PROP_MIN_PRES_VALUE }
                     ]
                 }));
-                const data = yield this.readPropertyMultiple(device.address, requestArray, argClient);
+                const data = yield this.readPropertyMultiple(device.address, device.SADR, requestArray, argClient);
                 return data.values.map(el => {
                     const { objectId } = el;
                     const obj = {
@@ -213,7 +224,7 @@ class BacnetUtilitiesClass {
                     const property = properties.shift();
                     if (typeof property !== "undefined") {
                         // console.log("property not undefined");
-                        const formated = yield this._getPropertyValue(device.address, objectId, property, argClient);
+                        const formated = yield this._getPropertyValue(device.address, device.SADR, objectId, property, argClient);
                         for (let key in formated) {
                             obj[key] = formated[key];
                         }
@@ -259,7 +270,7 @@ class BacnetUtilitiesClass {
     }
     _getChildrenNewValue(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
-            const client = argClient || new bacnet();
+            const client = argClient || this.createNewBacnetClient();
             const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
             const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
             return func.call(this, device, children, client);
@@ -273,13 +284,13 @@ class BacnetUtilitiesClass {
     getChildrenNewValueWithReadPropertyMultiple(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const client = argClient || new bacnet();
+                const client = argClient || this.createNewBacnetClient();
                 const requestArray = children.map(el => ({ objectId: el, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }] }));
                 const list_chunked = lodash.chunk(requestArray, 50);
                 const res = [];
                 while (list_chunked.length > 0) {
                     const arr = list_chunked.pop();
-                    const data = yield this.readPropertyMultiple(device.address, arr, client);
+                    const data = yield this.readPropertyMultiple(device.address, device.SADR, arr, client);
                     const dataFormated = data.values.map(el => {
                         const value = this._getObjValue(el.values[0].value);
                         return {
@@ -299,7 +310,7 @@ class BacnetUtilitiesClass {
     getChildrenNewValueWithReadProperty(device, children, argClient) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const client = argClient || new bacnet();
+            const client = argClient || this.createNewBacnetClient();
             const res = [];
             try {
                 const deep_children = [...children];
@@ -308,7 +319,7 @@ class BacnetUtilitiesClass {
                     if (obj) {
                         try {
                             obj["id"] = obj.instance;
-                            const data = yield this.readProperty(device.address, obj, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, client);
+                            const data = yield this.readProperty(device.address, device.SADR, obj, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, client);
                             const value = (_a = data.values[0]) === null || _a === void 0 ? void 0 : _a.value;
                             obj["currentValue"] = this._getObjValue(value);
                             res.push(obj);
@@ -396,10 +407,10 @@ class BacnetUtilitiesClass {
     //////////////////////////////////////////////////////////////////////
     ////                             OTHER UTILITIES                  ////
     //////////////////////////////////////////////////////////////////////
-    _getPropertyValue(address, objectId, propertyId, argClient) {
+    _getPropertyValue(address, sadr, objectId, propertyId, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const data = yield this.readProperty(address, objectId, propertyId, argClient);
+                const data = yield this.readProperty(address, sadr, objectId, propertyId, argClient);
                 const formated = this._formatProperty(data);
                 return formated;
             }
@@ -408,13 +419,11 @@ class BacnetUtilitiesClass {
             }
         });
     }
-    getDeviceId(address, client) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID };
-            const data = yield this.readProperty(address, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_IDENTIFIER, client);
-            return data.values[0].value.instance;
-        });
-    }
+    // public async getDeviceId(address: string, client?: bacnet): Promise<number> {
+    //    const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
+    //    const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
+    //    return data.values[0].value.instance;
+    // }
     _formatProperty(object) {
         if (object) {
             const { values, property } = object;
