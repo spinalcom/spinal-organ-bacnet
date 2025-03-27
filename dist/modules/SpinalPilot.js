@@ -128,6 +128,9 @@ class SpinalPilot {
             const client = BacnetUtilities_1.default.createNewBacnetClient();
             const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
             const priority = (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
+            if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) {
+                req.SADR = null;
+            }
             client.writeProperty(req.address, req.SADR, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
                 if (err) {
                     reject(err);

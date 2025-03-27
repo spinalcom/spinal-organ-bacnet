@@ -129,6 +129,10 @@ class SpinalPilot {
 
          const priority = (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;
 
+         if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) {
+            req.SADR = null;
+         }
+
          client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
             if (err) {
                reject(err);
