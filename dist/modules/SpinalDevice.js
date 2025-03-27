@@ -143,11 +143,12 @@ class SpinalDevice extends events_1.EventEmitter {
     _getDeviceInfo(device) {
         return __awaiter(this, void 0, void 0, function* () {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+            const deviceId = yield this._getDeviceId(device.address, device.SADR, device.deviceId);
             return {
-                id: objectId.instance,
+                id: deviceId,
                 SADR: device.SADR,
+                deviceId,
                 name: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
-                deviceId: (yield this._getDeviceId(device.address, device.deviceId)) || device.deviceId,
                 address: device.address,
                 typeId: objectId.type,
                 type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
@@ -190,12 +191,11 @@ class SpinalDevice extends events_1.EventEmitter {
             return Array.from(Object.keys(children)).map((el) => [el, children[el]]);
         });
     }
-    _getDeviceId(deviceAdress, deviceId) {
+    _getDeviceId(deviceAdress, sadr, deviceId) {
         return __awaiter(this, void 0, void 0, function* () {
             if (deviceId && deviceId !== GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID)
                 return deviceId;
-            return GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID;
-            // return BacnetUtilities.getDeviceId(deviceAdress);
+            return BacnetUtilities_1.BacnetUtilities.getDeviceId(deviceAdress, sadr);
         });
     }
 }

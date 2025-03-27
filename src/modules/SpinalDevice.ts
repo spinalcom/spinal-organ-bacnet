@@ -162,12 +162,13 @@ export class SpinalDevice extends EventEmitter {
    private async _getDeviceInfo(device: IDevice): Promise<IDevice> {
 
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+      const deviceId = await this._getDeviceId(device.address, device.SADR, device.deviceId);
 
       return {
-         id: objectId.instance,
+         id: deviceId,
          SADR: device.SADR,
+         deviceId,
          name: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_NAME),
-         deviceId: await this._getDeviceId(device.address, device.deviceId) || device.deviceId,
          address: device.address,
          typeId: objectId.type,
          type: BacnetUtilities._getObjectTypeByCode(objectId.type),
@@ -216,11 +217,10 @@ export class SpinalDevice extends EventEmitter {
       return Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
    }
 
-   private async _getDeviceId(deviceAdress: string, deviceId?: number): Promise<number> {
+   private async _getDeviceId(deviceAdress: string, sadr: any, deviceId?: number): Promise<number> {
       if (deviceId && deviceId !== PropertyIds.MAX_BACNET_PROPERTY_ID) return deviceId;
 
-      return PropertyIds.MAX_BACNET_PROPERTY_ID;
-      // return BacnetUtilities.getDeviceId(deviceAdress);
+      return BacnetUtilities.getDeviceId(deviceAdress, sadr);
    }
 }
 

@@ -29,6 +29,7 @@ declare class BacnetUtilitiesClass {
     _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef>;
     _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef>;
     _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
+    getDeviceId(address: string, sadr: any, client?: bacnet): Promise<number>;
     _formatProperty(object: any): {
         [key: string]: boolean | string | number;
     };

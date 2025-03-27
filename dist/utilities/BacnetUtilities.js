@@ -158,7 +158,6 @@ class BacnetUtilitiesClass {
                         objectListDetails.push(res);
                     }
                     catch (err) {
-                        console.log(err);
                     }
                 }
             }
@@ -419,11 +418,13 @@ class BacnetUtilitiesClass {
             }
         });
     }
-    // public async getDeviceId(address: string, client?: bacnet): Promise<number> {
-    //    const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
-    //    const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
-    //    return data.values[0].value.instance;
-    // }
+    getDeviceId(address, sadr, client) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID };
+            const data = yield this.readProperty(address, sadr, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_IDENTIFIER, client);
+            return data.values[0].value.instance;
+        });
+    }
     _formatProperty(object) {
         if (object) {
             const { values, property } = object;

@@ -40,15 +40,14 @@ const lodash = require("lodash");
 class SpinalMonitoring {
     constructor() {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
-        // private priorityQueue: MinPriorityQueue<{ interval: number; functions: { id: string; func: Function }[] }> = new MinPriorityQueue();
         this.priorityQueue = new priority_queue_1.MinPriorityQueue();
-        this.isProcessing = false;
+        this.initilizationIsProcessing = false;
         this.intervalTimesMap = new Map();
-        this.initializedMap = new Map();
         this.binded = new Map();
         this.devices = {};
         this._itemToAddToMap = new SpinalQueuing_1.SpinalQueuing();
         this._endpointsCreationQueue = new SpinalQueuing_1.SpinalQueuing();
+        this._covList = [];
     }
     static getInstance() {
         if (!this.instance) {
@@ -90,8 +89,9 @@ class SpinalMonitoring {
             const monitoringData = yield this._initNetworkUtilities();
             const promises = this._createMaps(monitoringData);
             const data = yield Promise.all(promises);
-            if (!this.isProcessing) {
-                this.isProcessing = true;
+            // if monitoring is not already initialized
+            if (!this.initilizationIsProcessing) {
+                this.initilizationIsProcessing = true;
                 for (const iterator of data.flat()) {
                     if (iterator && iterator.id && iterator.intervals) {
                         for (const { interval, func } of iterator.intervals) {
@@ -104,6 +104,9 @@ class SpinalMonitoring {
                 console.log("end of endpoints creation");
                 this.startMonitoring();
             }
+            // start cov monitoring
+            // spinalCov.addToQueue(this._covList);
+            // this._covList = []; // clear cov list
         });
     }
     startMonitoring() {
@@ -289,11 +292,18 @@ class SpinalMonitoring {
             const res = [];
             while (monitors_copy.length > 0) {
                 const { interval, children } = monitors_copy.shift();
-                if (isNaN(interval) || interval <= 0 || children.length <= 0)
+                if (children.length <= 0)
                     continue;
+                // if cov or 0
+                if (interval.toString().toLowerCase() === "cov" || interval === 0) {
+                    this._covList.push({ spinalModel, spinalDevice, children, networkService, network });
+                }
+                else {
+                    // add interval to pooling list
+                    const func = () => __awaiter(this, void 0, void 0, function* () { return this.funcToExecute(spinalModel, spinalDevice, children, networkService, network); });
+                    res.push({ interval, children, func });
+                }
                 yield this.createDataIfNotExist(spinalDevice, children, networkService, interval);
-                const func = () => __awaiter(this, void 0, void 0, function* () { return this.funcToExecute(spinalModel, spinalDevice, children, networkService, network); });
-                res.push({ interval, children, func });
             }
             return res;
         });

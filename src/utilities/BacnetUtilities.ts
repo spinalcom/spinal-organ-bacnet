@@ -170,7 +170,6 @@ class BacnetUtilitiesClass {
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
             } catch (err) {
-               console.log(err)
             }
          }
       }
@@ -454,11 +453,11 @@ class BacnetUtilitiesClass {
       }
    }
 
-   // public async getDeviceId(address: string, client?: bacnet): Promise<number> {
-   //    const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
-   //    const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
-   //    return data.values[0].value.instance;
-   // }
+   public async getDeviceId(address: string, sadr: any, client?: bacnet): Promise<number> {
+      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
+      const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER, client);
+      return data.values[0].value.instance;
+   }
 
 
    public _formatProperty(object): { [key: string]: boolean | string | number } {
