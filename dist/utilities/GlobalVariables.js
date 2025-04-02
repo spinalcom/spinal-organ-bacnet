@@ -23,7 +23,7 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SENSOR_TYPES = exports.SEGMENTATIONS = exports.APPLICATION_TAGS = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
+exports.COV_EVENTS_NAMES = exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SENSOR_TYPES = exports.SEGMENTATIONS = exports.APPLICATION_TAGS = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
 const bacnetEnum_1 = require("./bacnetEnum");
 exports.ObjectTypes = bacnetEnum_1.default.ObjectTypes;
 exports.PropertyIds = bacnetEnum_1.default.PropertyIds;
@@ -79,4 +79,13 @@ exports.UNITS_TYPES = (function swap(json) {
     }
     return ret;
 })(bacnetEnum_1.default.UnitsId);
+exports.COV_EVENTS_NAMES = {
+    "subscribed": "subscribed",
+    "subscribe": "subscribe",
+    "failed": "failed",
+    "changed": "changed",
+    "unsubscribed": "unsubscribed",
+    "error": "error",
+    "exit": "exit",
+};
 //# sourceMappingURL=GlobalVariables.js.map

@@ -88,3 +88,14 @@ export const UNITS_TYPES: { [key: number]: string } = (function swap(json) {
    return ret;
 })(BacnetEnum.UnitsId);
 
+
+
+export const COV_EVENTS_NAMES = {
+   "subscribed": "subscribed",
+   "subscribe": "subscribe",
+   "failed": "failed",
+   "changed": "changed",
+   "unsubscribed": "unsubscribed",
+   "error": "error",
+   "exit": "exit",
+} as const;

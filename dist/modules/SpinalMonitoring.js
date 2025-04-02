@@ -37,6 +37,7 @@ const priority_queue_1 = require("@datastructures-js/priority-queue");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const lodash = require("lodash");
+const SpinalCov_1 = require("./SpinalCov");
 class SpinalMonitoring {
     constructor() {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
@@ -105,8 +106,8 @@ class SpinalMonitoring {
                 this.startMonitoring();
             }
             // start cov monitoring
-            // spinalCov.addToQueue(this._covList);
-            // this._covList = []; // clear cov list
+            SpinalCov_1.default.addToQueue(this._covList);
+            this._covList = []; // clear cov list
         });
     }
     startMonitoring() {
@@ -292,10 +293,10 @@ class SpinalMonitoring {
             const res = [];
             while (monitors_copy.length > 0) {
                 const { interval, children } = monitors_copy.shift();
-                if (children.length <= 0)
+                if (children.length <= 0 || interval == 0)
                     continue;
                 // if cov or 0
-                if (interval.toString().toLowerCase() === "cov" || interval === 0) {
+                if (interval.toString().toLowerCase() === "cov") {
                     this._covList.push({ spinalModel, spinalDevice, children, networkService, network });
                 }
                 else {

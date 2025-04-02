@@ -117,8 +117,8 @@ class SpinalMonitoring {
       }
 
       // start cov monitoring
-      // spinalCov.addToQueue(this._covList);
-      // this._covList = []; // clear cov list
+      spinalCov.addToQueue(this._covList);
+      this._covList = []; // clear cov list
    }
 
    public async startMonitoring() {
@@ -332,10 +332,10 @@ class SpinalMonitoring {
       const res = []
       while (monitors_copy.length > 0) {
          const { interval, children } = monitors_copy.shift();
-         if (children.length <= 0) continue;
+         if (children.length <= 0 || interval == 0) continue;
 
          // if cov or 0
-         if (interval.toString().toLowerCase() === "cov" || interval === 0) {
+         if (interval.toString().toLowerCase() === "cov") {
             this._covList.push({ spinalModel, spinalDevice, children, networkService, network });
          } else {
             // add interval to pooling list

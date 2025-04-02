@@ -8,5 +8,11 @@ export interface ICovData {
     networkService: NetworkService;
     spinalModel: SpinalListenerModel;
     network: SpinalNode;
-    children: {}[]
+    children: { instance: number; type: number }[];
+}
+
+
+export interface ICovSubscribeReq {
+    ip: string;
+    object: ICovData["children"][0];
 }

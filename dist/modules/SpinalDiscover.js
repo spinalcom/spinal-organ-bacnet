@@ -114,10 +114,24 @@ class SpinalDiscover {
         const queue = new SpinalQueuing_1.SpinalQueuing();
         return new Promise((resolve, reject) => {
             var _a, _b, _c, _d;
+            // wait [CONNECTION_TIME_OUT] ms to get all devices, if not found, add ips not found to queue or reject
+            let timeOutId = setTimeout(() => {
+                var _a, _b;
+                if (!useBroadcast) {
+                    // if use unicast, add ips not found to queue
+                    // because the whoIs not found the device, but readProperty should found it
+                    const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
+                    queue.setQueue(ips);
+                    return;
+                    // return resolve(queue);
+                }
+                reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
+            }, this.CONNECTION_TIME_OUT);
             const useBroadcast = (_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get();
             // listen iAm event
             const deviceDiscovered = {};
             this.client.on('iAm', (device) => {
+                // clear pour que le timeout ne soit pas déclenché, si on a decouvre au moins un device
                 if (typeof timeOutId !== "undefined") {
                     clearTimeout(timeOutId);
                 }
@@ -145,18 +159,6 @@ class SpinalDiscover {
                 }
             }
             // end of send whoIs
-            // wait [CONNECTION_TIME_OUT] ms to get all devices, if not found, add ips not found to queue or reject
-            let timeOutId = setTimeout(() => {
-                var _a, _b;
-                if (!useBroadcast) {
-                    // if use unicast, add ips not found to queue
-                    // because the whoIs not found the device, but readProperty should found it
-                    const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
-                    queue.setQueue(ips);
-                    // return resolve(queue);
-                }
-                reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
-            }, this.CONNECTION_TIME_OUT);
             // listen start event
             queue.once("start", () => {
                 var _a, _b;
@@ -166,7 +168,7 @@ class SpinalDiscover {
                     const temp_queueList = queue.getQueue();
                     const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
                     for (const { address, deviceId } of ips) {
-                        if (!deviceDiscovered[address]) {
+                        if (!deviceDiscovered[`${address}-${deviceId}`]) {
                             temp_queueList.push({ address, deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID });
                         }
                     }

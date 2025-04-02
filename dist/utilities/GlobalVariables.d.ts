@@ -13,3 +13,12 @@ export declare const ObjectTypesCode: {
 export declare const UNITS_TYPES: {
     [key: number]: string;
 };
+export declare const COV_EVENTS_NAMES: {
+    readonly subscribed: "subscribed";
+    readonly subscribe: "subscribe";
+    readonly failed: "failed";
+    readonly changed: "changed";
+    readonly unsubscribed: "unsubscribed";
+    readonly error: "error";
+    readonly exit: "exit";
+};
