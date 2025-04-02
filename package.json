@@ -19,6 +19,7 @@
 		"dotenv": "^16.0.1",
 		"json5": "^2.2.3",
 		"lodash": "^4.17.21",
+		"lodash.debounce": "^4.0.8",
 		"pm2": "^4.5.6",
 		"socket.io": "^3.1.1",
 		"spinal-lib-organ-monitoring": "git+https://github.com/spinalcom/spinal-lib-organ-monitoring.git",
