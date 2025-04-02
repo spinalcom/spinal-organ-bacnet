@@ -131,6 +131,7 @@ class SpinalDiscover {
             // listen iAm event
             const deviceDiscovered = {};
             this.client.on('iAm', (device) => {
+                console.log("device found", device);
                 // clear pour que le timeout ne soit pas déclenché, si on a decouvre au moins un device
                 if (typeof timeOutId !== "undefined") {
                     clearTimeout(timeOutId);
@@ -167,8 +168,9 @@ class SpinalDiscover {
                     // because the whoIs not found the device, but readProperty can found it
                     const temp_queueList = queue.getQueue();
                     const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
+                    const ipsFound = Object.values(deviceDiscovered).map((device) => device.address);
                     for (const { address, deviceId } of ips) {
-                        if (!deviceDiscovered[`${address}-${deviceId}`]) {
+                        if (!deviceDiscovered[`${address}-${deviceId}`] && !ipsFound.includes(address)) {
                             temp_queueList.push({ address, deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID });
                         }
                     }

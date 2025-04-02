@@ -188,6 +188,7 @@ class BacnetUtilitiesClass {
             properties: [
                { id: PropertyIds.PROP_OBJECT_NAME },
                { id: PropertyIds.PROP_PRESENT_VALUE },
+               { id: PropertyIds.PROP_DESCRIPTION },
                { id: PropertyIds.PROP_OBJECT_TYPE },
                { id: PropertyIds.PROP_UNITS },
                { id: PropertyIds.PROP_MAX_PRES_VALUE },
@@ -224,7 +225,7 @@ class BacnetUtilitiesClass {
    public async _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId, argClient?: any): Promise<any> {
 
       const properties = [
-         PropertyIds.PROP_OBJECT_NAME, PropertyIds.PROP_PRESENT_VALUE,
+         PropertyIds.PROP_OBJECT_NAME, PropertyIds.PROP_PRESENT_VALUE, PropertyIds.PROP_DESCRIPTION,
          PropertyIds.PROP_OBJECT_TYPE, PropertyIds.PROP_UNITS,
          PropertyIds.PROP_MAX_PRES_VALUE, PropertyIds.PROP_MIN_PRES_VALUE
       ]

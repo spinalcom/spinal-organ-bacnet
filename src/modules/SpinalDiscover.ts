@@ -135,9 +135,9 @@ class SpinalDiscover {
          const useBroadcast = this.discoverModel.network?.useBroadcast?.get();
 
          // listen iAm event
-         const deviceDiscovered = {};
+         const deviceDiscovered: { [key: string]: IDevice } = {};
          this.client.on('iAm', (device) => {
-
+            console.log("device found", device);
             // clear pour que le timeout ne soit pas déclenché, si on a decouvre au moins un device
             if (typeof timeOutId !== "undefined") {
                clearTimeout(timeOutId);
@@ -181,8 +181,10 @@ class SpinalDiscover {
                const temp_queueList = queue.getQueue();
                const ips = this.discoverModel.network?.ips?.get() || [];
 
+               const ipsFound = Object.values(deviceDiscovered).map((device) => device.address);
+
                for (const { address, deviceId } of ips) {
-                  if (!deviceDiscovered[`${address}-${deviceId}`]) {
+                  if (!deviceDiscovered[`${address}-${deviceId}`] && !ipsFound.includes(address)) {
                      temp_queueList.push({ address, deviceId: deviceId || PropertyIds.MAX_BACNET_PROPERTY_ID } as IDevice);
                   }
                }
