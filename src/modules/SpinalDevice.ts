@@ -212,6 +212,8 @@ export class SpinalDevice extends EventEmitter {
       const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), this.client);
 
+      console.log("objectListDetails", JSON.stringify(objectListDetails));
+
       const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
 
       return Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);

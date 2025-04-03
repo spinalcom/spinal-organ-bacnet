@@ -118,6 +118,7 @@ class SpinalDiscover {
             let timeOutId = setTimeout(() => {
                 var _a, _b;
                 if (!useBroadcast) {
+                    console.log("inside timeout");
                     // if use unicast, add ips not found to queue
                     // because the whoIs not found the device, but readProperty should found it
                     const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
@@ -166,7 +167,7 @@ class SpinalDiscover {
                 if (!useBroadcast) {
                     // if use unicast, add ips not found to queue
                     // because the whoIs not found the device, but readProperty can found it
-                    const temp_queueList = queue.getQueue();
+                    const temp_queueList = [];
                     const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
                     const ipsFound = Object.values(deviceDiscovered).map((device) => device.address);
                     for (const { address, deviceId } of ips) {
@@ -174,7 +175,7 @@ class SpinalDiscover {
                             temp_queueList.push({ address, deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID });
                         }
                     }
-                    queue.setQueue(temp_queueList);
+                    queue.addToQueue(temp_queueList);
                 }
                 resolve(queue);
             });

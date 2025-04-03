@@ -12,7 +12,7 @@ export declare class SpinalQueuing<Type> extends EventEmitter {
     isProcessing: boolean;
     private _debounceStart;
     constructor();
-    addToQueue(obj: any): number;
+    addToQueue(obj: Type | Type[]): number;
     setQueue(queue: Type[]): number;
     dequeue(): Type;
     refresh(): void;

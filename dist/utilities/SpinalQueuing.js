@@ -41,13 +41,15 @@ class SpinalQueuing extends events_1.EventEmitter {
         this._debounceStart = lodash.debounce(this._begin, 3000);
     }
     addToQueue(obj) {
-        this.queueList.push(obj);
+        if (!Array.isArray(obj))
+            obj = [obj];
+        this.queueList = this.queueList.concat(obj);
         this.length = this.queueList.length;
         this._debounceStart();
         return this.length;
     }
     setQueue(queue) {
-        this.queueList.push(...queue);
+        this.queueList = queue;
         this.length = this.queueList.length;
         this._debounceStart();
         return this.length;

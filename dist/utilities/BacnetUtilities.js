@@ -390,6 +390,7 @@ class BacnetUtilitiesClass {
                 currentValue: this._formatCurrentValue(endpointObj.present_value, endpointObj.objectId.type),
                 unit: endpointObj.units,
                 type: endpointObj.type,
+                description: endpointObj.description || "",
             };
             if (obj.name && typeof obj.name === "string" && obj.name.trim()) {
                 // console.log("creating", endpointObj.id);

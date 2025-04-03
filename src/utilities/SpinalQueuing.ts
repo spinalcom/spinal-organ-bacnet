@@ -46,15 +46,17 @@ export class SpinalQueuing<Type> extends EventEmitter {
       super();
    }
 
-   public addToQueue(obj: any): number {
-      this.queueList.push(obj);
+   public addToQueue(obj: Type | Type[]): number {
+      if (!Array.isArray(obj)) obj = [obj];
+
+      this.queueList = this.queueList.concat(obj);
       this.length = this.queueList.length;
       this._debounceStart();
       return this.length;
    }
 
    public setQueue(queue: Type[]): number {
-      this.queueList.push(...queue);
+      this.queueList = queue;
       this.length = this.queueList.length;
       this._debounceStart();
       return this.length;
