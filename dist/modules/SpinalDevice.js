@@ -40,10 +40,11 @@ const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 class SpinalDevice extends events_1.EventEmitter {
+    // private client: bacnet;
     constructor(device, client) {
         super();
         this.device = device;
-        this.client = client || BacnetUtilities_1.BacnetUtilities.createNewBacnetClient();
+        // this.client = client || BacnetUtilities.getClient();
     }
     init() {
         return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
@@ -52,7 +53,7 @@ class SpinalDevice extends events_1.EventEmitter {
             // console.log("this.info", this.info);
             this.emit("initialized", this);
         })).catch((err) => {
-            console.error(err);
+            // console.error(err);
             this.emit("error", err);
         });
     }
@@ -105,7 +106,7 @@ class SpinalDevice extends events_1.EventEmitter {
     checkAndCreateIfNotExist(networkService, objectIds) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("check and create if not exist");
-            const client = BacnetUtilities_1.BacnetUtilities.createNewBacnetClient();
+            const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
             // const children = lodash.chunk(objectIds, 60);
             // const objectListDetails = await this._getAllObjectDetails(children, client);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectIds, client);
@@ -119,20 +120,23 @@ class SpinalDevice extends events_1.EventEmitter {
     updateEndpoints(networkService, networkNode, children) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const client = BacnetUtilities_1.BacnetUtilities.createNewBacnetClient();
+                const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
                 console.log(`${new Date()} ===> update ${this.device.name}`);
                 const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children, client);
                 const obj = {
                     id: this.device.idNetwork,
                     children: this._groupByType(lodash.flattenDeep(objectListDetails))
                 };
-                networkService.updateData(obj, null, networkNode);
+                this.updateEndpointInGraph(obj, networkService, networkNode);
             }
             catch (error) {
                 // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
                 // console.error(error);
             }
         });
+    }
+    updateEndpointInGraph(obj, networkService, networkNode) {
+        networkService.updateData(obj, null, networkNode);
     }
     //////////////////////////////////////////////////////////////////////////////
     ////                      PRIVATES                                        ////
@@ -185,9 +189,10 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getObjecListDetails(sensors) {
         return __awaiter(this, void 0, void 0, function* () {
-            const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), this.client);
-            console.log("objectListDetails", JSON.stringify(objectListDetails));
+            const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
+            const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, client);
+            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), client);
+            // console.log("objectListDetails", JSON.stringify(objectListDetails));
             const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
             return Array.from(Object.keys(children)).map((el) => [el, children[el]]);
         });

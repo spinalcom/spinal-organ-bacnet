@@ -40,7 +40,9 @@ const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const GlobalVariables_2 = require("./GlobalVariables");
 class BacnetUtilitiesClass {
-    constructor() { }
+    constructor() {
+        this._client = null;
+    }
     static getInstance() {
         if (!this.instance)
             this.instance = new BacnetUtilitiesClass();
@@ -48,15 +50,31 @@ class BacnetUtilitiesClass {
     }
     createNewBacnetClient() {
         const client = new bacnet({ adpuTimeout: 6000 });
+        this._listenClientErrorEvent(client);
         return client;
+    }
+    getClient() {
+        return new Promise((resolve) => {
+            if (!this._client) {
+                this._client = this.createNewBacnetClient();
+                // const callback = () => resolve(this._client);
+                resolve(this._client);
+            }
+            return resolve(this._client);
+        });
+    }
+    _listenClientErrorEvent(client) {
+        client.on('error', () => {
+            client = null;
+        });
     }
     ////////////////////////////////////////////////////////////////
     ////                  READ BACNET DATA                        //
     ////////////////////////////////////////////////////////////////
     readPropertyMultiple(address, sadr, requestArray, argClient) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const client = argClient || this.createNewBacnetClient();
+                const client = argClient || (yield this.getClient());
                 requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
                 if (sadr && typeof sadr == "object")
                     sadr = Object.keys(sadr).length === 0 ? null : sadr;
@@ -71,18 +89,20 @@ class BacnetUtilitiesClass {
             catch (error) {
                 reject(error);
             }
-        });
+        }));
     }
     readProperty(address, sadr, objectId, propertyId, argClient, clientOptions) {
-        const client = argClient || this.createNewBacnetClient();
-        const options = clientOptions || {};
-        if (sadr && typeof sadr == "object")
-            sadr = Object.keys(sadr).length === 0 ? null : sadr;
-        return new Promise((resolve, reject) => {
-            client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
-                if (err)
-                    return reject(err);
-                resolve(data);
+        return __awaiter(this, void 0, void 0, function* () {
+            const client = argClient || (yield this.getClient());
+            const options = clientOptions || {};
+            if (sadr && typeof sadr == "object")
+                sadr = Object.keys(sadr).length === 0 ? null : sadr;
+            return new Promise((resolve, reject) => {
+                client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
+                    if (err)
+                        return reject(err);
+                    resolve(data);
+                });
             });
         });
     }
@@ -270,7 +290,7 @@ class BacnetUtilitiesClass {
     }
     _getChildrenNewValue(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
-            const client = argClient || this.createNewBacnetClient();
+            const client = argClient || (yield this.getClient());
             const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
             const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
             return func.call(this, device, children, client);
@@ -284,7 +304,7 @@ class BacnetUtilitiesClass {
     getChildrenNewValueWithReadPropertyMultiple(device, children, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const client = argClient || this.createNewBacnetClient();
+                const client = argClient || (yield this.getClient());
                 const requestArray = children.map(el => ({ objectId: el, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE }] }));
                 const list_chunked = lodash.chunk(requestArray, 50);
                 const res = [];
@@ -310,7 +330,7 @@ class BacnetUtilitiesClass {
     getChildrenNewValueWithReadProperty(device, children, argClient) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            const client = argClient || this.createNewBacnetClient();
+            const client = argClient || (yield this.getClient());
             const res = [];
             try {
                 const deep_children = [...children];

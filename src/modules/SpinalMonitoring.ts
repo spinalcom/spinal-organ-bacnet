@@ -127,7 +127,7 @@ class SpinalMonitoring {
       let p = true;
       while (p) {
          if (this.priorityQueue.isEmpty()) {
-            await this.waitFct(100);
+            await this.waitFct(500);
             continue;
          }
 

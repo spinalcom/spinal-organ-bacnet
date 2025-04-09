@@ -6,7 +6,8 @@ import * as bacnet from "bacstack";
 import BacnetUtilities from "../utilities/BacnetUtilities";
 import { ChildProcess, fork } from "child_process";
 import { error } from "console";
-import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
+import { COV_EVENTS_NAMES, PropertyIds } from "../utilities/GlobalVariables";
+import { SpinalNode } from "spinal-env-viewer-graph-service";
 
 
 
@@ -14,20 +15,27 @@ import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
 class SpinalCov {
     private static _instance: SpinalCov;
     private queue: SpinalQueuing<ICovData> = new SpinalQueuing();
-    private itemMonitored: Map<string, { networkService: NetworkService, spinalDevice: SpinalDevice }> = new Map();
-    private _bacnetClient: bacnet = BacnetUtilities.createNewBacnetClient();
+    private itemMonitored: Map<string, { networkService: NetworkService, network: SpinalNode, spinalDevice: SpinalDevice }> = new Map();
+    private _bacnetClient: bacnet = null;
     private forkedProcess: ChildProcess | null = null;
 
     private constructor() {
         this.queue.on("start", this.monitorQueue.bind(this));
-        this._bacnetClient.on('covNotifyUnconfirmed', (data) => {
-            console.log(data);
-        });
+        this.listenBacnetEvent();
+
     }
 
     static getInstance(): SpinalCov {
         if (!this._instance) this._instance = new SpinalCov();
         return this._instance;
+    }
+
+
+    public async listenBacnetEvent() {
+        this._bacnetClient = await BacnetUtilities.getClient();
+        this._bacnetClient.on('covNotifyUnconfirmed', (data) => {
+            console.log(data);
+        });
     }
 
     public async addToQueue(data: ICovData | ICovData[]): Promise<void> {
@@ -48,9 +56,9 @@ class SpinalCov {
         const list = this.queue.getQueue();
         this.queue.refresh();
 
-        const formatted = list.reduce((l: ICovSubscribeReq[], { networkService, spinalDevice, children }) => {
+        const formatted = list.reduce((l: ICovSubscribeReq[], { networkService, network, spinalDevice, children }) => {
             const ip = spinalDevice.device.address;
-            this.itemMonitored.set(ip, { networkService, spinalDevice }); // Store the device
+            this.itemMonitored.set(ip, { networkService, network, spinalDevice }); // Store the device
 
             return l.concat(this.formatChildren(ip, children));
         }, []);
@@ -84,7 +92,7 @@ class SpinalCov {
         const path = require.resolve("./cov");
         const forked = fork(path);
 
-        forked.on("message", (result: { key: string, eventName: string, error?: Error, data: any }) => {
+        forked.on("message", async (result: { key: string, eventName: string, error?: Error, data: any }) => {
             switch (result.eventName) {
                 case COV_EVENTS_NAMES.subscribed:
                     console.log("[COV] - Subscribed to", result.key);
@@ -94,25 +102,38 @@ class SpinalCov {
                     forked.kill();
                     break;
                 case COV_EVENTS_NAMES.changed:
-                    const [ip, type, instance] = result.key.split("_");
-                    const device = this.itemMonitored.get(ip);
-                    console.log("[COV] - Data changed", result.data);
-            }
+                    await this._updateDeviceValue(result.data.address, result.data.request);
 
+            }
 
         });
 
         forked.on("error", (err) => { });
 
         forked.on("exit", (code) => {
-            console.log("child process exited with code", code);
+            // console.log("child process exited with code", code);
         });
 
         return forked;
     }
 
+    async _updateDeviceValue(address: string, request: any) {
+        const currentValue = request.values.find((v: any) => v.property?.id === PropertyIds.PROP_PRESENT_VALUE);
+        if (!currentValue) return;
 
+        const value = BacnetUtilities._getObjValue(currentValue.value);
 
+        const object = request.monitoredObjectId;
+        const { networkService, network, spinalDevice } = this.itemMonitored.get(address);
+
+        const obj: any = {
+            id: spinalDevice.device?.deviceId,
+            children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],
+        }
+
+        console.log(`[COV] - Updating ${address}_${object.type}_${object.instance}`, value);
+        return spinalDevice.updateEndpointInGraph(obj, networkService, network);
+    }
 
 
 }

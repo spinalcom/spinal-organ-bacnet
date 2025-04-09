@@ -20,7 +20,7 @@ process.on("message", (event) => __awaiter(void 0, void 0, void 0, function* () 
 }));
 function subscribe(data) {
     return __awaiter(this, void 0, void 0, function* () {
-        const client = BacnetUtilities_1.default.createNewBacnetClient();
+        const client = yield BacnetUtilities_1.default.getClient();
         const key = `${data.ip}_${data.object.type}_${data.object.instance}`;
         listenChangeEvent(client, key);
         try {

@@ -124,8 +124,8 @@ class SpinalPilot {
         });
     }
     useDataType(req, dataType) {
-        return new Promise((resolve, reject) => {
-            const client = BacnetUtilities_1.default.createNewBacnetClient();
+        return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
+            const client = yield BacnetUtilities_1.default.getClient();
             const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
             const priority = (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
             if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) {
@@ -138,7 +138,7 @@ class SpinalPilot {
                 }
                 resolve(value);
             });
-        });
+        }));
     }
     getDataTypes(type) {
         switch (type) {

@@ -35,7 +35,7 @@ import { SEGMENTATIONS } from "./GlobalVariables";
 class BacnetUtilitiesClass {
 
    private static instance: BacnetUtilitiesClass;
-
+   private _client: bacnet = null;
    private constructor() { }
 
 
@@ -44,9 +44,29 @@ class BacnetUtilitiesClass {
       return this.instance;
    }
 
-   public createNewBacnetClient() {
+   public createNewBacnetClient(): bacnet {
       const client = new bacnet({ adpuTimeout: 6000 });
+      this._listenClientErrorEvent(client);
       return client;
+   }
+
+   public getClient(): Promise<bacnet> {
+      return new Promise((resolve) => {
+         if (!this._client) {
+            this._client = this.createNewBacnetClient();
+            // const callback = () => resolve(this._client);
+            resolve(this._client);
+         }
+
+         return resolve(this._client);
+      });
+
+   }
+
+   private _listenClientErrorEvent(client: bacnet): void {
+      client.on('error', () => {
+         client = null;
+      });
    }
 
    ////////////////////////////////////////////////////////////////
@@ -54,9 +74,9 @@ class BacnetUtilitiesClass {
    ////////////////////////////////////////////////////////////////
 
    public readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
          try {
-            const client = argClient || this.createNewBacnetClient();
+            const client = argClient || await this.getClient();
             requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
             if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
@@ -73,8 +93,8 @@ class BacnetUtilitiesClass {
       });
    }
 
-   public readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
-      const client = argClient || this.createNewBacnetClient();
+   public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
+      const client = argClient || await this.getClient();
       const options = clientOptions || {};
       if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
@@ -296,7 +316,7 @@ class BacnetUtilitiesClass {
    }
 
    public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
-      const client = argClient || this.createNewBacnetClient();
+      const client = argClient || await this.getClient();
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
       const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
 
@@ -312,7 +332,7 @@ class BacnetUtilitiesClass {
    private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
 
       try {
-         const client = argClient || this.createNewBacnetClient();
+         const client = argClient || await this.getClient();
          const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
 
          const list_chunked = lodash.chunk(requestArray, 50);
@@ -341,7 +361,7 @@ class BacnetUtilitiesClass {
    }
 
    private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
-      const client = argClient || this.createNewBacnetClient();
+      const client = argClient || await this.getClient();
       const res = [];
 
       try {

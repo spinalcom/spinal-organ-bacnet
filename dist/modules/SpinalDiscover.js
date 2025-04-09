@@ -33,7 +33,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalDiscover = void 0;
-const bacnet = require("bacstack");
 const events_1 = require("events");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
@@ -42,6 +41,7 @@ const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
+const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalDiscover {
     constructor(model) {
         var _a, _b;
@@ -51,17 +51,19 @@ class SpinalDiscover {
         // this.init(model)
     }
     init() {
-        var _a, _b, _c, _d;
-        this.client = new bacnet({
-            broadcastAddress: (_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.address) === null || _b === void 0 ? void 0 : _b.get(),
-            port: ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.port) === null || _d === void 0 ? void 0 : _d.get()) || 47808,
-            adpuTimeout: 6000
+        return __awaiter(this, void 0, void 0, function* () {
+            // this.client = new bacnet({
+            //    broadcastAddress: this.discoverModel.network?.address?.get(),
+            //    port: this.discoverModel.network?.port?.get() || 47808,
+            //    adpuTimeout: 6000
+            // })
+            // this.client.on('error', (err) => {
+            // console.log('Error occurred: ', err);
+            // this.client.close();
+            // });
+            this.client = yield BacnetUtilities_1.default.getClient();
+            this._bindState();
         });
-        this.client.on('error', (err) => {
-            console.log('Error occurred: ', err);
-            this.client.close();
-        });
-        this._bindState();
     }
     _bindState() {
         this.bindSateProcess = this.discoverModel.state.bind(() => {
@@ -118,7 +120,7 @@ class SpinalDiscover {
             let timeOutId = setTimeout(() => {
                 var _a, _b;
                 if (!useBroadcast) {
-                    console.log("inside timeout");
+                    // console.log("inside timeout");
                     // if use unicast, add ips not found to queue
                     // because the whoIs not found the device, but readProperty should found it
                     const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];

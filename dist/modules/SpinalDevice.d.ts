@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import * as bacnet from "bacstack";
-import { NetworkService } from "spinal-model-bmsnetwork";
+import { InputDataDevice, NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
@@ -8,7 +8,6 @@ import { IDevice } from "../Interfaces";
 export declare class SpinalDevice extends EventEmitter {
     device: IDevice;
     private info;
-    private client;
     constructor(device: IDevice, client?: bacnet);
     init(): Promise<void | boolean>;
     createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef>;
@@ -21,6 +20,7 @@ export declare class SpinalDevice extends EventEmitter {
         instance: number;
         type: number;
     }>): Promise<void>;
+    updateEndpointInGraph(obj: InputDataDevice, networkService: NetworkService, networkNode: SpinalNode<any>): void;
     private _createDevice;
     private _getDeviceInfo;
     private _groupByType;

@@ -32,6 +32,7 @@ import { IDevice } from "../Interfaces/IDevice";
 import { SpinalDisoverModel, STATES } from 'spinal-model-bacnet';
 import { SpinalNetworkServiceUtilities } from '../utilities/SpinalNetworkServiceUtilities';
 import { PropertyIds } from '../utilities/GlobalVariables';
+import BacnetUtilities from '../utilities/BacnetUtilities';
 
 
 class SpinalDiscover {
@@ -49,18 +50,19 @@ class SpinalDiscover {
       // this.init(model)
    }
 
-   public init(): void {
-      this.client = new bacnet({
-         broadcastAddress: this.discoverModel.network?.address?.get(),
-         port: this.discoverModel.network?.port?.get() || 47808,
-         adpuTimeout: 6000
-      })
+   public async init(): Promise<void> {
+      // this.client = new bacnet({
+      //    broadcastAddress: this.discoverModel.network?.address?.get(),
+      //    port: this.discoverModel.network?.port?.get() || 47808,
+      //    adpuTimeout: 6000
+      // })
 
-      this.client.on('error', (err) => {
-         console.log('Error occurred: ', err);
-         this.client.close();
-      });
+      // this.client.on('error', (err) => {
+      // console.log('Error occurred: ', err);
+      // this.client.close();
+      // });
 
+      this.client = await BacnetUtilities.getClient();
       this._bindState();
    }
 
@@ -120,7 +122,7 @@ class SpinalDiscover {
          // wait [CONNECTION_TIME_OUT] ms to get all devices, if not found, add ips not found to queue or reject
          let timeOutId = setTimeout(() => {
             if (!useBroadcast) {
-               console.log("inside timeout");
+               // console.log("inside timeout");
                // if use unicast, add ips not found to queue
                // because the whoIs not found the device, but readProperty should found it
                const ips = this.discoverModel.network?.ips?.get() || [];

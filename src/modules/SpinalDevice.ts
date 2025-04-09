@@ -24,7 +24,7 @@
 
 import * as lodash from "lodash";
 import * as bacnet from "bacstack";
-import { NetworkService } from "spinal-model-bmsnetwork";
+import { InputDataDevice, NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 
@@ -39,12 +39,12 @@ import SpinalQueuing from "../utilities/SpinalQueuing";
 export class SpinalDevice extends EventEmitter {
    public device: IDevice;
    private info;
-   private client: bacnet;
+   // private client: bacnet;
 
    constructor(device: IDevice, client?: bacnet) {
       super();
       this.device = device;
-      this.client = client || BacnetUtilities.createNewBacnetClient();
+      // this.client = client || BacnetUtilities.getClient();
    }
 
    public init(): Promise<void | boolean> {
@@ -55,7 +55,7 @@ export class SpinalDevice extends EventEmitter {
 
          this.emit("initialized", this);
       }).catch((err) => {
-         console.error(err);
+         // console.error(err);
          this.emit("error", err)
       });
    }
@@ -116,7 +116,7 @@ export class SpinalDevice extends EventEmitter {
 
    public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {
       console.log("check and create if not exist");
-      const client = BacnetUtilities.createNewBacnetClient();
+      const client = await BacnetUtilities.getClient();
       // const children = lodash.chunk(objectIds, 60);
       // const objectListDetails = await this._getAllObjectDetails(children, client);
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
@@ -131,7 +131,7 @@ export class SpinalDevice extends EventEmitter {
 
    public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>): Promise<void> {
       try {
-         const client = BacnetUtilities.createNewBacnetClient();
+         const client = await BacnetUtilities.getClient();
 
          console.log(`${new Date()} ===> update ${this.device.name}`);
          const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children, client)
@@ -141,13 +141,17 @@ export class SpinalDevice extends EventEmitter {
             children: this._groupByType(lodash.flattenDeep(objectListDetails))
          }
 
-         networkService.updateData(obj, null, networkNode);
+         this.updateEndpointInGraph(obj, networkService, networkNode);
       } catch (error) {
          // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
          // console.error(error);
 
       }
 
+   }
+
+   public updateEndpointInGraph(obj: InputDataDevice, networkService: NetworkService, networkNode: SpinalNode<any>) {
+      networkService.updateData(obj, null, networkNode);
    }
 
 
@@ -209,10 +213,11 @@ export class SpinalDevice extends EventEmitter {
    }
 
    private async _getObjecListDetails(sensors: number[]) {
-      const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, this.client);
-      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), this.client);
+      const client = await BacnetUtilities.getClient();
+      const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, client);
+      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), client);
 
-      console.log("objectListDetails", JSON.stringify(objectListDetails));
+      // console.log("objectListDetails", JSON.stringify(objectListDetails));
 
       const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
 

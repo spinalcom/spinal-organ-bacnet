@@ -14,7 +14,7 @@ process.on("message", async (event: { data: ICovSubscribeReq[], eventName: strin
 
 
 async function subscribe(data: ICovSubscribeReq) {
-    const client = BacnetUtilities.createNewBacnetClient();
+    const client = await BacnetUtilities.getClient();
     const key = `${data.ip}_${data.object.type}_${data.object.instance}`;
 
     listenChangeEvent(client, key);

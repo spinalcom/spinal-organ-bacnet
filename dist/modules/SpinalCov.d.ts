@@ -7,10 +7,12 @@ declare class SpinalCov {
     private forkedProcess;
     private constructor();
     static getInstance(): SpinalCov;
+    listenBacnetEvent(): Promise<void>;
     addToQueue(data: ICovData | ICovData[]): Promise<void>;
     monitorQueue(): Promise<void>;
     private formatChildren;
     private createForkedProcess;
+    _updateDeviceValue(address: string, request: any): Promise<void>;
 }
 declare const spinalCov: SpinalCov;
 export default spinalCov;

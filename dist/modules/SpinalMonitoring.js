@@ -117,7 +117,7 @@ class SpinalMonitoring {
             let p = true;
             while (p) {
                 if (this.priorityQueue.isEmpty()) {
-                    yield this.waitFct(100);
+                    yield this.waitFct(500);
                     continue;
                 }
                 //@ts-ignore

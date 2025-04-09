@@ -123,8 +123,8 @@ class SpinalPilot {
    }
 
    private useDataType(req: IRequest, dataType: number) {
-      return new Promise((resolve, reject) => {
-         const client = BacnetUtilities.createNewBacnetClient();
+      return new Promise(async (resolve, reject) => {
+         const client = await BacnetUtilities.getClient();
          const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
 
          const priority = (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;

@@ -4,9 +4,12 @@ import { NetworkService } from "spinal-model-bmsnetwork";
 import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
 declare class BacnetUtilitiesClass {
     private static instance;
+    private _client;
     private constructor();
     static getInstance(): BacnetUtilitiesClass;
-    createNewBacnetClient(): any;
+    createNewBacnetClient(): bacnet;
+    getClient(): Promise<bacnet>;
+    private _listenClientErrorEvent;
     readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
     readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
     _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]>;
