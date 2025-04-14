@@ -111,7 +111,6 @@ class BacnetUtilitiesClass {
     ////////////////////////////////////////////////////////////////
     _getDeviceObjectList(device, SENSOR_TYPES, argClient) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("getting object list");
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             let values;
             try {
@@ -122,11 +121,10 @@ class BacnetUtilitiesClass {
                 values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
             }
             catch (error) {
-                console.error(error);
                 if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i))
                     values = yield this.getItemListByFragment(device, objectId, argClient);
             }
-            if (typeof values === "undefined")
+            if (typeof values === "undefined" || !(values === null || values === void 0 ? void 0 : values.length))
                 throw "No values found";
             return values.filter(item => SENSOR_TYPES.indexOf(item.value.type) !== -1);
         });
@@ -177,8 +175,7 @@ class BacnetUtilitiesClass {
                         const res = yield func.call(this, device, object, argClient);
                         objectListDetails.push(res);
                     }
-                    catch (err) {
-                    }
+                    catch (err) { }
                 }
             }
             if (deviceAcceptSegmentation)

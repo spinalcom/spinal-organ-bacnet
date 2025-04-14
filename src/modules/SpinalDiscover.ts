@@ -45,7 +45,7 @@ class SpinalDiscover {
 
    constructor(model: SpinalDisoverModel) {
       this.discoverModel = model;
-      this.CONNECTION_TIME_OUT = model.network?.timeout?.get() || 10000;
+      this.CONNECTION_TIME_OUT = model.network?.timeout?.get() || 15000;
 
       // this.init(model)
    }
@@ -86,6 +86,7 @@ class SpinalDiscover {
       try {
          const queue = await this._getDevicesQueue();
 
+
          let isFinish = false;
 
          while (!isFinish) {
@@ -100,13 +101,15 @@ class SpinalDiscover {
             }
          }
 
-         if (this.discoverModel.devices.length !== 0) {
-            console.log("discovered");
-            this.discoverModel.setDiscoveredMode();
-         } else {
+         if (this.discoverModel.devices.length === 0) {
             console.log("Timeout !");
             this.discoverModel.setTimeoutMode();
+            return;
          }
+
+         this.discoverModel.setDiscoveredMode();
+         console.log("discovered");
+
 
       } catch (error) {
          console.log("Timeout !");
@@ -121,23 +124,22 @@ class SpinalDiscover {
 
          // wait [CONNECTION_TIME_OUT] ms to get all devices, if not found, add ips not found to queue or reject
          let timeOutId = setTimeout(() => {
+            console.log(" inside Timeout !");
             if (!useBroadcast) {
-               // console.log("inside timeout");
                // if use unicast, add ips not found to queue
                // because the whoIs not found the device, but readProperty should found it
-               const ips = this.discoverModel.network?.ips?.get() || [];
-               queue.setQueue(ips);
+               queue.setQueue([]); // set queue to empty, it will call the queue.once
                return;
-               // return resolve(queue);
             }
 
             reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
          }, this.CONNECTION_TIME_OUT);
 
 
+         // get useBroadcast value from model
          const useBroadcast = this.discoverModel.network?.useBroadcast?.get();
 
-         // listen iAm event
+         /////////////////////////////////  listen iAm event
          const deviceDiscovered: { [key: string]: IDevice } = {};
          this.client.on('iAm', (device) => {
             console.log("device found", device);
@@ -153,16 +155,17 @@ class SpinalDiscover {
                queue.addToQueue(device);
             }
          });
+         /////////////////////////////////////////// end of listen iAm event
 
 
-         // end of listen iAm event
-
-         // send whoIs
+         ///////////////////////////////////// send whoIs
          if (useBroadcast) {
             console.log("use broadcast");
-            this.client.whoIs();
+            // send global whoIs
+            this.client.whoIs({ dest: { net: '65535', adr: [''] } });
          } else {
             console.log("use unicast");
+            // send whoIs to each ip
             const ips = this.discoverModel.network?.ips?.get() || [];
             for (const { address } of ips) {
                this.client.whoIs({
@@ -171,14 +174,15 @@ class SpinalDiscover {
                });
             }
          }
-         // end of send whoIs
+         ///////////////////////////////////// end of send whoIs
 
 
 
 
-         // listen start event
+         /////////////////////////// listen start event
          queue.once("start", () => {
             if (!useBroadcast) {
+               console.log("queue.once unicast");
                // if use unicast, add ips not found to queue
                // because the whoIs not found the device, but readProperty can found it
                const temp_queueList = [];
@@ -198,6 +202,7 @@ class SpinalDiscover {
             resolve(queue)
          });
 
+         /////////////////////////////////////////// end of listen start event
       });
 
    }

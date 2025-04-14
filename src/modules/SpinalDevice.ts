@@ -72,46 +72,59 @@ export class SpinalDevice extends EventEmitter {
 
    public async createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void> {
 
-      const deviceId = node.getId().get();
-      let sensors = this._getSensors(spinalBacnetValueModel);
+      try {
+         const deviceId = node.getId().get();
+         let sensors = this._getSensors(spinalBacnetValueModel);
+         console.log(`[${this.device.name}] - getting object list`);
 
-      const listes = await this._getObjecListDetails(sensors);
+         const listes = await this._getObjecListDetails(sensors);
 
-      const maxLength = listes.length;
-      let isError = false;
+         console.log(`[${this.device.name}] - ${listes.length} item(s) found`);
 
-      if (spinalBacnetValueModel) {
-         // console.log("set progress mode")
+         const maxLength = listes.length;
+         // let isError = false;
+
+         // if (spinalBacnetValueModel) {
+
          spinalBacnetValueModel.setProgressState();
-      }
+         // }
 
-      while (!isError && listes.length > 0) {
-         const item = listes.pop();
-         if (item) {
-            const [key, value] = item;
+         console.log(`[${this.device.name}] - creating items in graph`);
 
-            try {
+         while (listes.length > 0) {
+            const item = listes.pop();
+            if (item) {
+               const [key, value] = item;
+
+               // try {
                await BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value, this.device.name);
                if (spinalBacnetValueModel) {
                   const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                   spinalBacnetValueModel.progress.set(percent)
                }
-            } catch (error) {
-               isError = error;
+               // } catch (error) {
+               //    isError = error;
+               // }
             }
          }
-      }
 
-      if (spinalBacnetValueModel) {
-         if (isError) {
-            // console.log("set error model", isError);
-            spinalBacnetValueModel.setErrorState();
-            return;
-         }
+         // // if (spinalBacnetValueModel) {
+         // if (isError) {
+         //    // console.log("set error model", isError);
+         //    spinalBacnetValueModel.setErrorState();
+         //    return;
+         // }
 
-         // console.log("set success model");
+         // // console.log("set success model");
+         console.log(`[${this.device.name}] - items created in graph`);
          spinalBacnetValueModel.setSuccessState();
+         // // }
+      } catch (error) {
+         console.log(`[${this.device.name}] - items creation failed`);
+         spinalBacnetValueModel.setErrorState();
+         return;
       }
+
    }
 
    public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {

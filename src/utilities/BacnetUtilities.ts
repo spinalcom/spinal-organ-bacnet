@@ -112,7 +112,6 @@ class BacnetUtilitiesClass {
    ////////////////////////////////////////////////////////////////
 
    public async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]> {
-      console.log("getting object list");
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
       let values;
 
@@ -125,13 +124,10 @@ class BacnetUtilitiesClass {
          values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
 
       } catch (error) {
-         console.error(error);
-
          if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId, argClient);
-
       }
 
-      if (typeof values === "undefined") throw "No values found";
+      if (typeof values === "undefined" || !values?.length) throw "No values found";
 
       return values.filter(item => SENSOR_TYPES.indexOf(item.value.type) !== -1);
 
@@ -189,8 +185,7 @@ class BacnetUtilitiesClass {
             try {
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
-            } catch (err) {
-            }
+            } catch (err) { }
          }
       }
 

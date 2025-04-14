@@ -67,39 +67,48 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     createDeviceItemList(networkService, node, spinalBacnetValueModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            const deviceId = node.getId().get();
-            let sensors = this._getSensors(spinalBacnetValueModel);
-            const listes = yield this._getObjecListDetails(sensors);
-            const maxLength = listes.length;
-            let isError = false;
-            if (spinalBacnetValueModel) {
-                // console.log("set progress mode")
+            try {
+                const deviceId = node.getId().get();
+                let sensors = this._getSensors(spinalBacnetValueModel);
+                console.log(`[${this.device.name}] - getting object list`);
+                const listes = yield this._getObjecListDetails(sensors);
+                console.log(`[${this.device.name}] - ${listes.length} item(s) found`);
+                const maxLength = listes.length;
+                // let isError = false;
+                // if (spinalBacnetValueModel) {
                 spinalBacnetValueModel.setProgressState();
-            }
-            while (!isError && listes.length > 0) {
-                const item = listes.pop();
-                if (item) {
-                    const [key, value] = item;
-                    try {
+                // }
+                console.log(`[${this.device.name}] - creating items in graph`);
+                while (listes.length > 0) {
+                    const item = listes.pop();
+                    if (item) {
+                        const [key, value] = item;
+                        // try {
                         yield BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value, this.device.name);
                         if (spinalBacnetValueModel) {
                             const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                             spinalBacnetValueModel.progress.set(percent);
                         }
-                    }
-                    catch (error) {
-                        isError = error;
+                        // } catch (error) {
+                        //    isError = error;
+                        // }
                     }
                 }
-            }
-            if (spinalBacnetValueModel) {
-                if (isError) {
-                    // console.log("set error model", isError);
-                    spinalBacnetValueModel.setErrorState();
-                    return;
-                }
-                // console.log("set success model");
+                // // if (spinalBacnetValueModel) {
+                // if (isError) {
+                //    // console.log("set error model", isError);
+                //    spinalBacnetValueModel.setErrorState();
+                //    return;
+                // }
+                // // console.log("set success model");
+                console.log(`[${this.device.name}] - items created in graph`);
                 spinalBacnetValueModel.setSuccessState();
+                // // }
+            }
+            catch (error) {
+                console.log(`[${this.device.name}] - items creation failed`);
+                spinalBacnetValueModel.setErrorState();
+                return;
             }
         });
     }
