@@ -71,8 +71,10 @@ class SpinalDevice extends events_1.EventEmitter {
                 const deviceId = node.getId().get();
                 let sensors = this._getSensors(spinalBacnetValueModel);
                 console.log(`[${this.device.name}] - getting object list`);
-                const listes = yield this._getObjecListDetails(sensors);
-                console.log(`[${this.device.name}] - ${listes.length} item(s) found`);
+                const objectListDetails = yield this._getObjecListDetails(sensors);
+                console.log(`[${this.device.name}] - ${objectListDetails.length} item(s) found`);
+                const itemsGrouped = lodash.groupBy(objectListDetails, function (a) { return a.type; });
+                const listes = Array.from(Object.keys(itemsGrouped)).map((key) => [key, itemsGrouped[key]]);
                 const maxLength = listes.length;
                 // let isError = false;
                 // if (spinalBacnetValueModel) {
@@ -102,12 +104,12 @@ class SpinalDevice extends events_1.EventEmitter {
                 // }
                 // // console.log("set success model");
                 console.log(`[${this.device.name}] - items created in graph`);
-                spinalBacnetValueModel.setSuccessState();
+                yield spinalBacnetValueModel.setSuccessState();
                 // // }
             }
             catch (error) {
                 console.log(`[${this.device.name}] - items creation failed`);
-                spinalBacnetValueModel.setErrorState();
+                yield spinalBacnetValueModel.setErrorState();
                 return;
             }
         });
@@ -201,9 +203,8 @@ class SpinalDevice extends events_1.EventEmitter {
             const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
             const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, client);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), client);
+            return objectListDetails;
             // console.log("objectListDetails", JSON.stringify(objectListDetails));
-            const children = lodash.groupBy(objectListDetails, function (a) { return a.type; });
-            return Array.from(Object.keys(children)).map((el) => [el, children[el]]);
         });
     }
     _getDeviceId(deviceAdress, sadr, deviceId) {

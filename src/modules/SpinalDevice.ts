@@ -77,9 +77,13 @@ export class SpinalDevice extends EventEmitter {
          let sensors = this._getSensors(spinalBacnetValueModel);
          console.log(`[${this.device.name}] - getting object list`);
 
-         const listes = await this._getObjecListDetails(sensors);
+         const objectListDetails = await this._getObjecListDetails(sensors);
 
-         console.log(`[${this.device.name}] - ${listes.length} item(s) found`);
+         console.log(`[${this.device.name}] - ${objectListDetails.length} item(s) found`);
+
+         const itemsGrouped = lodash.groupBy(objectListDetails, function (a) { return a.type });
+
+         const listes = Array.from(Object.keys(itemsGrouped)).map((key: string) => [key, itemsGrouped[key]]);
 
          const maxLength = listes.length;
          // let isError = false;
@@ -117,11 +121,11 @@ export class SpinalDevice extends EventEmitter {
 
          // // console.log("set success model");
          console.log(`[${this.device.name}] - items created in graph`);
-         spinalBacnetValueModel.setSuccessState();
+         await spinalBacnetValueModel.setSuccessState();
          // // }
       } catch (error) {
          console.log(`[${this.device.name}] - items creation failed`);
-         spinalBacnetValueModel.setErrorState();
+         await spinalBacnetValueModel.setErrorState();
          return;
       }
 
@@ -229,12 +233,10 @@ export class SpinalDevice extends EventEmitter {
       const client = await BacnetUtilities.getClient();
       const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, client);
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), client);
-
+      return objectListDetails;
       // console.log("objectListDetails", JSON.stringify(objectListDetails));
 
-      const children = lodash.groupBy(objectListDetails, function (a) { return a.type });
 
-      return Array.from(Object.keys(children)).map((el: string) => [el, children[el]]);
    }
 
    private async _getDeviceId(deviceAdress: string, sadr: any, deviceId?: number): Promise<number> {
