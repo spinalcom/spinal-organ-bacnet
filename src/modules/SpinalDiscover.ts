@@ -120,11 +120,12 @@ class SpinalDiscover {
 
    private _getDevicesQueue(): Promise<SpinalQueuing<IDevice>> {
       const queue: SpinalQueuing<IDevice> = new SpinalQueuing();
+      const useBroadcast = this.discoverModel.network?.useBroadcast?.get();
+
       return new Promise((resolve, reject) => {
 
          // wait [CONNECTION_TIME_OUT] ms to get all devices, if not found, add ips not found to queue or reject
          let timeOutId = setTimeout(() => {
-            console.log(" inside Timeout !");
             if (!useBroadcast) {
                // if use unicast, add ips not found to queue
                // because the whoIs not found the device, but readProperty should found it
@@ -137,10 +138,10 @@ class SpinalDiscover {
 
 
          // get useBroadcast value from model
-         const useBroadcast = this.discoverModel.network?.useBroadcast?.get();
 
          /////////////////////////////////  listen iAm event
          const deviceDiscovered: { [key: string]: IDevice } = {};
+
          this.client.on('iAm', (device) => {
             console.log("device found", device);
             // clear pour que le timeout ne soit pas déclenché, si on a decouvre au moins un device
@@ -196,6 +197,7 @@ class SpinalDiscover {
                   }
                }
 
+               console.log("ips not found", temp_queueList);
                queue.addToQueue(temp_queueList);
             }
 

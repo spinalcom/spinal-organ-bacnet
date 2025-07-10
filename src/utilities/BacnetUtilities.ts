@@ -51,16 +51,17 @@ class BacnetUtilitiesClass {
    }
 
    public getClient(): Promise<bacnet> {
-      return new Promise((resolve) => {
-         if (!this._client) {
-            this._client = this.createNewBacnetClient();
-            // const callback = () => resolve(this._client);
-            resolve(this._client);
-         }
+      // return new Promise((resolve) => {
+      //    if (!this._client) {
+      //       this._client = this.createNewBacnetClient();
+      //       // const callback = () => resolve(this._client);
+      //       resolve(this._client);
+      //    }
 
-         return resolve(this._client);
-      });
+      //    return resolve(this._client);
+      // });
 
+      return this.createNewBacnetClient();
    }
 
    private _listenClientErrorEvent(client: bacnet): void {
@@ -94,13 +95,18 @@ class BacnetUtilitiesClass {
    }
 
    public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
+      // sadr = { dest: { net: '35383', adr: [''] } };
+      console.log(sadr, "sadr in readProperty");
       const client = argClient || await this.getClient();
       const options = clientOptions || {};
       if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
       return new Promise((resolve, reject) => {
          client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
-            if (err) return reject(err);
+            if (err) {
+               console.error("Error reading property:", err);
+               return reject(err);
+            }
 
             resolve(data);
          })
@@ -111,17 +117,20 @@ class BacnetUtilitiesClass {
    ////                  GET ALL BACNET OBJECT LIST              //
    ////////////////////////////////////////////////////////////////
 
-   public async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]> {
+   public async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet, getListUsingFragment: boolean = false): Promise<IObjectId[]> {
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
       let values;
 
       try {
+         if (getListUsingFragment) throw new Error("reason:4") // Force to use fragment method;
+
          const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
          let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, PropertyIds.PROP_OBJECT_LIST];
          let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
 
          const data = await func.call(this, device.address, device.SADR, ...params, argClient);
          values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
+
 
       } catch (error) {
          if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId, argClient);
@@ -185,7 +194,12 @@ class BacnetUtilitiesClass {
             try {
                const res = await func.call(this, device, object, argClient);
                objectListDetails.push(res);
-            } catch (err) { }
+            } catch (err) {
+               if (deviceAcceptSegmentation) {
+                  const itemsFound = await this._retryGetObjectDetailWithReadProperty(object, device, argClient);
+                  if (itemsFound.length > 0) objectListDetails.push(itemsFound);
+               }
+            }
          }
       }
 
@@ -193,6 +207,18 @@ class BacnetUtilitiesClass {
 
       return objectListDetails;
 
+   }
+
+   private async _retryGetObjectDetailWithReadProperty(items: any, device: IDevice, argClient?: any): Promise<any> {
+      const itemsFound = [];
+      for (const item of items) {
+         try {
+            const res = await this._getObjectDetailWithReadProperty(device, item, argClient);
+            if (res) itemsFound.push(res);
+         } catch (error) { }
+      }
+
+      return itemsFound;
    }
 
    public async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]> {
@@ -440,7 +466,6 @@ class BacnetUtilitiesClass {
       }
 
       if (obj.name && typeof obj.name === "string" && obj.name.trim()) {
-         // console.log("creating", endpointObj.id);
          return networkService.createNewBmsEndpoint(groupId, obj);
       }
 

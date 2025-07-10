@@ -54,14 +54,15 @@ class BacnetUtilitiesClass {
         return client;
     }
     getClient() {
-        return new Promise((resolve) => {
-            if (!this._client) {
-                this._client = this.createNewBacnetClient();
-                // const callback = () => resolve(this._client);
-                resolve(this._client);
-            }
-            return resolve(this._client);
-        });
+        // return new Promise((resolve) => {
+        //    if (!this._client) {
+        //       this._client = this.createNewBacnetClient();
+        //       // const callback = () => resolve(this._client);
+        //       resolve(this._client);
+        //    }
+        //    return resolve(this._client);
+        // });
+        return this.createNewBacnetClient();
     }
     _listenClientErrorEvent(client) {
         client.on('error', () => {
@@ -93,14 +94,18 @@ class BacnetUtilitiesClass {
     }
     readProperty(address, sadr, objectId, propertyId, argClient, clientOptions) {
         return __awaiter(this, void 0, void 0, function* () {
+            // sadr = { dest: { net: '35383', adr: [''] } };
+            console.log(sadr, "sadr in readProperty");
             const client = argClient || (yield this.getClient());
             const options = clientOptions || {};
             if (sadr && typeof sadr == "object")
                 sadr = Object.keys(sadr).length === 0 ? null : sadr;
             return new Promise((resolve, reject) => {
                 client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
-                    if (err)
+                    if (err) {
+                        console.error("Error reading property:", err);
                         return reject(err);
+                    }
                     resolve(data);
                 });
             });
@@ -109,11 +114,13 @@ class BacnetUtilitiesClass {
     ////////////////////////////////////////////////////////////////
     ////                  GET ALL BACNET OBJECT LIST              //
     ////////////////////////////////////////////////////////////////
-    _getDeviceObjectList(device, SENSOR_TYPES, argClient) {
+    _getDeviceObjectList(device, SENSOR_TYPES, argClient, getListUsingFragment = false) {
         return __awaiter(this, void 0, void 0, function* () {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             let values;
             try {
+                if (getListUsingFragment)
+                    throw new Error("reason:4"); // Force to use fragment method;
                 const deviceAcceptSegmentation = [GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_BOTH, GlobalVariables_2.SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
                 let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_LIST];
                 let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
@@ -175,12 +182,32 @@ class BacnetUtilitiesClass {
                         const res = yield func.call(this, device, object, argClient);
                         objectListDetails.push(res);
                     }
-                    catch (err) { }
+                    catch (err) {
+                        if (deviceAcceptSegmentation) {
+                            const itemsFound = yield this._retryGetObjectDetailWithReadProperty(object, device, argClient);
+                            if (itemsFound.length > 0)
+                                objectListDetails.push(itemsFound);
+                        }
+                    }
                 }
             }
             if (deviceAcceptSegmentation)
                 objectListDetails = lodash.flattenDeep(objectListDetails);
             return objectListDetails;
+        });
+    }
+    _retryGetObjectDetailWithReadProperty(items, device, argClient) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const itemsFound = [];
+            for (const item of items) {
+                try {
+                    const res = yield this._getObjectDetailWithReadProperty(device, item, argClient);
+                    if (res)
+                        itemsFound.push(res);
+                }
+                catch (error) { }
+            }
+            return itemsFound;
         });
     }
     _getObjectDetailWithReadPropertyMultiple(device, objects, argClient) {
@@ -410,7 +437,6 @@ class BacnetUtilitiesClass {
                 description: endpointObj.description || "",
             };
             if (obj.name && typeof obj.name === "string" && obj.name.trim()) {
-                // console.log("creating", endpointObj.id);
                 return networkService.createNewBmsEndpoint(groupId, obj);
             }
         });

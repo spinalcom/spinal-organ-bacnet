@@ -51,11 +51,9 @@ export class SpinalDevice extends EventEmitter {
       return this._getDeviceInfo(this.device).then(async (deviceInfo) => {
          this.info = deviceInfo;
          this.device = deviceInfo;
-         // console.log("this.info", this.info);
 
          this.emit("initialized", this);
       }).catch((err) => {
-         // console.error(err);
          this.emit("error", err)
       });
    }
@@ -75,9 +73,13 @@ export class SpinalDevice extends EventEmitter {
       try {
          const deviceId = node.getId().get();
          let sensors = this._getSensors(spinalBacnetValueModel);
+
+         let useFragment = true; // TODO: remove this line when useFragment is implemented in the UI
+
+
          console.log(`[${this.device.name}] - getting object list`);
 
-         const objectListDetails = await this._getObjecListDetails(sensors);
+         const objectListDetails = await this._getObjecListDetails(sensors, useFragment);
 
          console.log(`[${this.device.name}] - ${objectListDetails.length} item(s) found`);
 
@@ -100,29 +102,17 @@ export class SpinalDevice extends EventEmitter {
             if (item) {
                const [key, value] = item;
 
-               // try {
                await BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value, this.device.name);
                if (spinalBacnetValueModel) {
                   const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                   spinalBacnetValueModel.progress.set(percent)
                }
-               // } catch (error) {
-               //    isError = error;
-               // }
+
             }
          }
 
-         // // if (spinalBacnetValueModel) {
-         // if (isError) {
-         //    // console.log("set error model", isError);
-         //    spinalBacnetValueModel.setErrorState();
-         //    return;
-         // }
-
-         // // console.log("set success model");
          console.log(`[${this.device.name}] - items created in graph`);
          await spinalBacnetValueModel.setSuccessState();
-         // // }
       } catch (error) {
          console.log(`[${this.device.name}] - items creation failed`);
          await spinalBacnetValueModel.setErrorState();
@@ -132,10 +122,10 @@ export class SpinalDevice extends EventEmitter {
    }
 
    public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {
-      console.log("check and create if not exist");
+      console.log("check and create endpoints, if not exist");
       const client = await BacnetUtilities.getClient();
-      // const children = lodash.chunk(objectIds, 60);
-      // const objectListDetails = await this._getAllObjectDetails(children, client);
+
+
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
 
       const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type });
@@ -160,8 +150,6 @@ export class SpinalDevice extends EventEmitter {
 
          this.updateEndpointInGraph(obj, networkService, networkNode);
       } catch (error) {
-         // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
-         // console.error(error);
 
       }
 
@@ -229,14 +217,12 @@ export class SpinalDevice extends EventEmitter {
       return SENSOR_TYPES;
    }
 
-   private async _getObjecListDetails(sensors: number[]) {
+   private async _getObjecListDetails(sensors: number[], useFragment: boolean = false) {
       const client = await BacnetUtilities.getClient();
-      const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, client);
+      const objectLists = await BacnetUtilities._getDeviceObjectList(this.device, sensors, client, useFragment);
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectLists.map((el: any) => el.value), client);
       return objectListDetails;
       // console.log("objectListDetails", JSON.stringify(objectListDetails));
-
-
    }
 
    private async _getDeviceId(deviceAdress: string, sadr: any, deviceId?: number): Promise<number> {

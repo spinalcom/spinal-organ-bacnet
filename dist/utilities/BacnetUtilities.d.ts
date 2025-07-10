@@ -12,11 +12,12 @@ declare class BacnetUtilitiesClass {
     private _listenClientErrorEvent;
     readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
     readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
-    _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet): Promise<IObjectId[]>;
+    _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet, getListUsingFragment?: boolean): Promise<IObjectId[]>;
     getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]>;
     _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<{
         [key: string]: string | boolean | number;
     }[]>;
+    private _retryGetObjectDetailWithReadProperty;
     _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]>;
     _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId, argClient?: any): Promise<any>;
     _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{

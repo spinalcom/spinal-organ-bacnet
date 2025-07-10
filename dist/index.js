@@ -44,7 +44,7 @@ const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
 // Cette fonction est executée en cas de deconnexion au hub
 spinal_core_connectorjs_type_1.FileSystem.onConnectionError = (error_code) => {
     setTimeout(() => {
-        console.log('STOP ERROR');
+        console.log('disconned from hub, exit with process');
         process.exit(error_code); // kill le process;
     }, 5000);
 };

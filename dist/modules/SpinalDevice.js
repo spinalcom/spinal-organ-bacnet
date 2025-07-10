@@ -50,10 +50,8 @@ class SpinalDevice extends events_1.EventEmitter {
         return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
             this.info = deviceInfo;
             this.device = deviceInfo;
-            // console.log("this.info", this.info);
             this.emit("initialized", this);
         })).catch((err) => {
-            // console.error(err);
             this.emit("error", err);
         });
     }
@@ -70,8 +68,9 @@ class SpinalDevice extends events_1.EventEmitter {
             try {
                 const deviceId = node.getId().get();
                 let sensors = this._getSensors(spinalBacnetValueModel);
+                let useFragment = true; // TODO: remove this line when useFragment is implemented in the UI
                 console.log(`[${this.device.name}] - getting object list`);
-                const objectListDetails = yield this._getObjecListDetails(sensors);
+                const objectListDetails = yield this._getObjecListDetails(sensors, useFragment);
                 console.log(`[${this.device.name}] - ${objectListDetails.length} item(s) found`);
                 const itemsGrouped = lodash.groupBy(objectListDetails, function (a) { return a.type; });
                 const listes = Array.from(Object.keys(itemsGrouped)).map((key) => [key, itemsGrouped[key]]);
@@ -85,27 +84,15 @@ class SpinalDevice extends events_1.EventEmitter {
                     const item = listes.pop();
                     if (item) {
                         const [key, value] = item;
-                        // try {
                         yield BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, deviceId, key, value, this.device.name);
                         if (spinalBacnetValueModel) {
                             const percent = Math.floor((100 * (maxLength - listes.length)) / maxLength);
                             spinalBacnetValueModel.progress.set(percent);
                         }
-                        // } catch (error) {
-                        //    isError = error;
-                        // }
                     }
                 }
-                // // if (spinalBacnetValueModel) {
-                // if (isError) {
-                //    // console.log("set error model", isError);
-                //    spinalBacnetValueModel.setErrorState();
-                //    return;
-                // }
-                // // console.log("set success model");
                 console.log(`[${this.device.name}] - items created in graph`);
                 yield spinalBacnetValueModel.setSuccessState();
-                // // }
             }
             catch (error) {
                 console.log(`[${this.device.name}] - items creation failed`);
@@ -116,10 +103,8 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     checkAndCreateIfNotExist(networkService, objectIds) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("check and create if not exist");
+            console.log("check and create endpoints, if not exist");
             const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
-            // const children = lodash.chunk(objectIds, 60);
-            // const objectListDetails = await this._getAllObjectDetails(children, client);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectIds, client);
             const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
             const promises = Array.from(Object.keys(childrenGroups)).map((el) => {
@@ -141,8 +126,6 @@ class SpinalDevice extends events_1.EventEmitter {
                 this.updateEndpointInGraph(obj, networkService, networkNode);
             }
             catch (error) {
-                // console.log(`${new Date()} ===> error ${(<any>this.device).name}`)
-                // console.error(error);
             }
         });
     }
@@ -198,10 +181,10 @@ class SpinalDevice extends events_1.EventEmitter {
         }
         return GlobalVariables_1.SENSOR_TYPES;
     }
-    _getObjecListDetails(sensors) {
+    _getObjecListDetails(sensors, useFragment = false) {
         return __awaiter(this, void 0, void 0, function* () {
             const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
-            const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, client);
+            const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, client, useFragment);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), client);
             return objectListDetails;
             // console.log("objectListDetails", JSON.stringify(objectListDetails));

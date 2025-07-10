@@ -112,12 +112,13 @@ class SpinalDiscover {
         });
     }
     _getDevicesQueue() {
+        var _a, _b;
         const queue = new SpinalQueuing_1.SpinalQueuing();
+        const useBroadcast = (_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get();
         return new Promise((resolve, reject) => {
-            var _a, _b, _c, _d;
+            var _a, _b;
             // wait [CONNECTION_TIME_OUT] ms to get all devices, if not found, add ips not found to queue or reject
             let timeOutId = setTimeout(() => {
-                console.log(" inside Timeout !");
                 if (!useBroadcast) {
                     // if use unicast, add ips not found to queue
                     // because the whoIs not found the device, but readProperty should found it
@@ -127,7 +128,6 @@ class SpinalDiscover {
                 reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
             }, this.CONNECTION_TIME_OUT);
             // get useBroadcast value from model
-            const useBroadcast = (_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get();
             /////////////////////////////////  listen iAm event
             const deviceDiscovered = {};
             this.client.on('iAm', (device) => {
@@ -153,7 +153,7 @@ class SpinalDiscover {
             else {
                 console.log("use unicast");
                 // send whoIs to each ip
-                const ips = ((_d = (_c = this.discoverModel.network) === null || _c === void 0 ? void 0 : _c.ips) === null || _d === void 0 ? void 0 : _d.get()) || [];
+                const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
                 for (const { address } of ips) {
                     this.client.whoIs({
                         address,
@@ -177,6 +177,7 @@ class SpinalDiscover {
                             temp_queueList.push({ address, deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID });
                         }
                     }
+                    console.log("ips not found", temp_queueList);
                     queue.addToQueue(temp_queueList);
                 }
                 resolve(queue);

@@ -32,7 +32,7 @@ class SpinalCov {
         return __awaiter(this, void 0, void 0, function* () {
             this._bacnetClient = yield BacnetUtilities_1.default.getClient();
             this._bacnetClient.on('covNotifyUnconfirmed', (data) => {
-                console.log(data);
+                console.log("cov notivication", data);
             });
         });
     }

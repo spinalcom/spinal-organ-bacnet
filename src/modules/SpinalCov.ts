@@ -34,7 +34,7 @@ class SpinalCov {
     public async listenBacnetEvent() {
         this._bacnetClient = await BacnetUtilities.getClient();
         this._bacnetClient.on('covNotifyUnconfirmed', (data) => {
-            console.log(data);
+            console.log("cov notivication", data);
         });
     }
 
