@@ -37,7 +37,6 @@ const priority_queue_1 = require("@datastructures-js/priority-queue");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
 const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
 const lodash = require("lodash");
-const SpinalCov_1 = require("./SpinalCov");
 class SpinalMonitoring {
     constructor() {
         this.queue = new SpinalQueuing_1.SpinalQueuing();
@@ -106,7 +105,7 @@ class SpinalMonitoring {
                 this.startMonitoring();
             }
             // start cov monitoring
-            SpinalCov_1.default.addToQueue(this._covList);
+            //spinalCov.addToQueue(this._covList); // comment to disable cov monitoring
             this._covList = []; // clear cov list
         });
     }

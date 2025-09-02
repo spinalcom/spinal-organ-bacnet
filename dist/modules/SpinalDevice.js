@@ -140,21 +140,30 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getDeviceInfo(device) {
         return __awaiter(this, void 0, void 0, function* () {
-            const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
-            const deviceId = yield this._getDeviceId(device.address, device.SADR, device.deviceId);
-            return {
-                id: deviceId,
-                SADR: device.SADR,
-                deviceId,
-                name: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
-                address: device.address,
-                typeId: objectId.type,
-                type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
-                description: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
-                segmentation: device.segmentation || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
-                vendorId: device.vendorId || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                maxApdu: device.maxApdu || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
-            };
+            try {
+                const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+                const deviceId = yield this._getDeviceId(device.address, device.SADR, device.deviceId);
+                return {
+                    id: deviceId,
+                    SADR: device.SADR,
+                    deviceId,
+                    name: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
+                    address: device.address,
+                    typeId: objectId.type,
+                    type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
+                    description: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
+                    segmentation: device.segmentation || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
+                    vendorId: device.vendorId || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
+                    maxApdu: device.maxApdu || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
+                };
+            }
+            catch (error) {
+                if (error.message.includes("ERR_TIMEOUT")) {
+                    throw error;
+                }
+                console.error(`Error getting device info for device at address ${device.address} with ID ${device.deviceId} du to`, error.message);
+                throw error;
+            }
         });
     }
     _groupByType(itemList) {

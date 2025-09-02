@@ -117,7 +117,8 @@ class SpinalMonitoring {
       }
 
       // start cov monitoring
-      spinalCov.addToQueue(this._covList);
+      //spinalCov.addToQueue(this._covList); // comment to disable cov monitoring
+      
       this._covList = []; // clear cov list
    }
 

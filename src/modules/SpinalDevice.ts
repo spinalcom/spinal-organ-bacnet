@@ -169,23 +169,33 @@ export class SpinalDevice extends EventEmitter {
    }
 
    private async _getDeviceInfo(device: IDevice): Promise<IDevice> {
+      try {
+         const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+         const deviceId = await this._getDeviceId(device.address, device.SADR, device.deviceId);
 
-      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
-      const deviceId = await this._getDeviceId(device.address, device.SADR, device.deviceId);
+         return {
+            id: deviceId,
+            SADR: device.SADR,
+            deviceId,
+            name: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_NAME),
+            address: device.address,
+            typeId: objectId.type,
+            type: BacnetUtilities._getObjectTypeByCode(objectId.type),
+            description: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_DESCRIPTION),
+            segmentation: device.segmentation || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
+            vendorId: device.vendorId || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
+            maxApdu: device.maxApdu || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
+         }
+      } catch (error) {
+         if(error.message.includes("ERR_TIMEOUT")){
+            throw error;
+         }
 
-      return {
-         id: deviceId,
-         SADR: device.SADR,
-         deviceId,
-         name: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_NAME),
-         address: device.address,
-         typeId: objectId.type,
-         type: BacnetUtilities._getObjectTypeByCode(objectId.type),
-         description: await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_DESCRIPTION),
-         segmentation: device.segmentation || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_SEGMENTATION_SUPPORTED),
-         vendorId: device.vendorId || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_VENDOR_IDENTIFIER),
-         maxApdu: device.maxApdu || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
+         console.error(`Error getting device info for device at address ${device.address} with ID ${device.deviceId} du to`, error.message);
+         throw error;
       }
+
+      
 
    }
 
