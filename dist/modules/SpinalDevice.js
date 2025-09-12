@@ -32,7 +32,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addToGetAllBacnetValuesQueue = exports.SpinalDevice = void 0;
+exports.SpinalDevice = void 0;
+exports.addToGetAllBacnetValuesQueue = addToGetAllBacnetValuesQueue;
 const lodash = require("lodash");
 const events_1 = require("events");
 // import { store } from "../store";
@@ -190,8 +191,8 @@ class SpinalDevice extends events_1.EventEmitter {
         }
         return GlobalVariables_1.SENSOR_TYPES;
     }
-    _getObjecListDetails(sensors, useFragment = false) {
-        return __awaiter(this, void 0, void 0, function* () {
+    _getObjecListDetails(sensors_1) {
+        return __awaiter(this, arguments, void 0, function* (sensors, useFragment = false) {
             const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
             const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, client, useFragment);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), client);
@@ -222,5 +223,4 @@ allBacnetValueQueue.on("start", () => __awaiter(void 0, void 0, void 0, function
 function addToGetAllBacnetValuesQueue(device, node, networkService, spinalBacnetValueModel) {
     allBacnetValueQueue.addToQueue({ device, node, networkService, spinalBacnetValueModel });
 }
-exports.addToGetAllBacnetValuesQueue = addToGetAllBacnetValuesQueue;
 //# sourceMappingURL=SpinalDevice.js.map

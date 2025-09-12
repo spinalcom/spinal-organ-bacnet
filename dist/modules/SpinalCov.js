@@ -97,8 +97,8 @@ class SpinalCov {
         return forked;
     }
     _updateDeviceValue(address, request) {
-        var _a;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             const currentValue = request.values.find((v) => { var _a; return ((_a = v.property) === null || _a === void 0 ? void 0 : _a.id) === GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE; });
             if (!currentValue)
                 return;

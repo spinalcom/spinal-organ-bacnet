@@ -114,8 +114,8 @@ class BacnetUtilitiesClass {
     ////////////////////////////////////////////////////////////////
     ////                  GET ALL BACNET OBJECT LIST              //
     ////////////////////////////////////////////////////////////////
-    _getDeviceObjectList(device, SENSOR_TYPES, argClient, getListUsingFragment = false) {
-        return __awaiter(this, void 0, void 0, function* () {
+    _getDeviceObjectList(device_1, SENSOR_TYPES_1, argClient_1) {
+        return __awaiter(this, arguments, void 0, function* (device, SENSOR_TYPES, argClient, getListUsingFragment = false) {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             let values;
             try {
@@ -352,8 +352,8 @@ class BacnetUtilitiesClass {
         });
     }
     getChildrenNewValueWithReadProperty(device, children, argClient) {
-        var _a;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             const client = argClient || (yield this.getClient());
             const res = [];
             try {

@@ -22,7 +22,7 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import { FileSystem, File, spinalCore } from "spinal-core-connectorjs_type";
+import { FileSystem, File, spinalCore, Lst } from "spinal-core-connectorjs_type";
 import { addToGetAllBacnetValuesQueue } from "../modules/SpinalDevice";
 import {
    SpinalDisoverModel, SpinalListenerModel,
@@ -126,7 +126,8 @@ export function bindAndRestartOrgan(connect: FileSystem, organName: string, orga
             const restart = organModel.restart.get();
 
             if (!restart) {
-               listenLoadType(connect, organModel);
+               // listenLoadType(connect, organModel); // load_type listener
+               bindModels(organModel); // bind models
                return;
             }
 
@@ -148,7 +149,64 @@ export function bindAndRestartOrgan(connect: FileSystem, organName: string, orga
 }
 
 
+export async function bindModels(organModel: SpinalOrganConfigModel) {
 
+   await organModel._initializeModelsList();
+
+   const listenerAlreadyBinded = new Set<string>();
+   const discoverAlreadyBinded = new Set<string>();
+
+   // bind discover model [discover]
+   organModel.discover.modification_date.bind(async () => {
+      const discoverList = await organModel.getDiscoverModelFromGraph();
+
+      for (const spinalDiscoverModel of discoverList) {
+			if(discoverAlreadyBinded.has(spinalDiscoverModel._server_id)) continue;
+
+			SpinalDiscoverCallback(spinalDiscoverModel, organModel)
+			discoverAlreadyBinded.add(spinalDiscoverModel._server_id);
+		}
+      
+   })
+
+   // bind pilot model [write value to bacnet device]
+   organModel.pilot.modification_date.bind(async () => {
+      const pilotList = await organModel.getPilotModelFromGraph();
+
+		for (const spinalPilotModel of pilotList) {
+			SpinalPilotCallback(spinalPilotModel, organModel);
+		}
+   }, true);
+
+
+   // bind listener model [monitoring bacnet device]
+   organModel.listener.modification_date.bind(async () => {
+      const listenerList = await organModel.getListenerModelFromGraph();
+
+		for (let i = 0; i < listenerList.length; i++) {
+			const spinalListenerModel = listenerList[i];
+
+			if (listenerAlreadyBinded.has(spinalListenerModel._server_id)) continue;
+			
+			SpinalListnerCallback(spinalListenerModel, organModel);
+			listenerAlreadyBinded.add(spinalListenerModel._server_id);
+		}
+   }, true);
+
+
+   // bind bacnet value model [get All bacnet values]
+   organModel.allbacnetCommand.modification_date.bind(async () => {
+      const bacnetValues = await organModel.getBacnetValueModelFromGraph();
+
+		for (const spinalBacnetValue of bacnetValues) {
+			SpinalBacnetValueModelCallback(spinalBacnetValue, organModel);
+		}
+   }, true);
+
+}
+
+
+/*
 export function listenLoadType  (connect: FileSystem, organModel: SpinalOrganConfigModel) {
    // load all instances of SpinalDisoverModel
    // it allows to browse bacnet network and get all devices (broadcast or unicast)
@@ -178,6 +236,7 @@ export function listenLoadType  (connect: FileSystem, organModel: SpinalOrganCon
    }, connectionErrorCallback);
 
 }
+*/
 
 ////////////////////////////////////////////////
 ////                 CALLBACKS                //
@@ -222,7 +281,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
             // await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel)
 
          } else {
-            return spinalBacnetValueModel.remToNode();
+            return spinalBacnetValueModel.removeFromGraph();
          }
       })
 
@@ -230,7 +289,7 @@ export const SpinalBacnetValueModelCallback = async (spinalBacnetValueModel: Spi
       // console.error(error);
 
       await spinalBacnetValueModel.setErrorState();
-      return spinalBacnetValueModel.remToNode();
+      return spinalBacnetValueModel.removeFromGraph();
    }
 
 }

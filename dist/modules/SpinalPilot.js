@@ -73,17 +73,17 @@ class SpinalPilot {
                             yield this.writeProperties(pilot === null || pilot === void 0 ? void 0 : pilot.requests.get());
                             console.log("success");
                             pilot.setSuccessMode();
-                            yield pilot.removeToNode();
+                            yield pilot.removeFromGraph();
                         }
                         catch (error) {
                             console.error(error.message);
                             pilot.setErrorMode();
-                            yield pilot.removeToNode();
+                            yield pilot.removeFromGraph();
                         }
                     }
                     else {
                         console.log("remove");
-                        yield pilot.removeToNode();
+                        yield pilot.removeFromGraph();
                     }
                     // console.log("pilot",pilot)
                 }
@@ -91,8 +91,8 @@ class SpinalPilot {
             }
         });
     }
-    writeProperties(requests = []) {
-        return __awaiter(this, void 0, void 0, function* () {
+    writeProperties() {
+        return __awaiter(this, arguments, void 0, function* (requests = []) {
             for (let index = 0; index < requests.length; index++) {
                 const req = requests[index];
                 try {

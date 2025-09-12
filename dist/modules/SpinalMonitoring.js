@@ -110,8 +110,8 @@ class SpinalMonitoring {
         });
     }
     startMonitoring() {
-        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             console.log("start monitoring...");
             let p = true;
             while (p) {

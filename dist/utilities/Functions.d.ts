@@ -1,12 +1,12 @@
 import { FileSystem } from "spinal-core-connectorjs_type";
-import { SpinalOrganConfigModel } from "spinal-model-bacnet";
+import { SpinalDisoverModel, SpinalListenerModel, SpinalOrganConfigModel, SpinalBacnetValueModel, SpinalPilotModel } from "spinal-model-bacnet";
 export declare const WaitModelReady: () => Promise<any>;
 export declare const connectionErrorCallback: (err?: Error) => void;
 export declare const CreateOrganConfigFile: (spinalConnection: FileSystem, path: string, connectorName: string) => Promise<SpinalOrganConfigModel>;
 export declare const GetPm2Instance: (organName: string) => Promise<any>;
 export declare function findFileInDirectory(directory: spinal.Directory, fileName: string): Promise<SpinalOrganConfigModel | void>;
 export declare function bindAndRestartOrgan(connect: FileSystem, organName: string, organModel: SpinalOrganConfigModel): void;
-export declare function listenLoadType(connect: FileSystem, organModel: SpinalOrganConfigModel): void;
+export declare function bindModels(organModel: SpinalOrganConfigModel): Promise<void>;
 export declare const SpinalDiscoverCallback: (spinalDisoverModel: SpinalDisoverModel, organModel: SpinalOrganConfigModel) => Promise<void | boolean>;
 export declare const SpinalBacnetValueModelCallback: (spinalBacnetValueModel: SpinalBacnetValueModel, organModel: SpinalOrganConfigModel) => Promise<void | boolean>;
 export declare const SpinalListnerCallback: (spinalListenerModel: SpinalListenerModel, organModel: SpinalOrganConfigModel) => Promise<void>;

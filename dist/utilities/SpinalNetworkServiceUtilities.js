@@ -78,8 +78,8 @@ class SpinalNetworkServiceUtilities {
         });
     }
     static initSpinalListenerModel(spinalModel) {
-        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             try {
                 const saveTimeSeries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
                 const networkService = new spinal_model_bmsnetwork_1.NetworkService(saveTimeSeries);
@@ -134,6 +134,14 @@ class SpinalNetworkServiceUtilities {
             catch (error) {
                 return;
             }
+            // return {
+            //    networkService,
+            //    spinalDevice,
+            //    spinalModel,
+            //    network,
+            //    profil,
+            //    monitor: 
+            // }
         });
     }
     /////////////////////////////////////////////////////////////
