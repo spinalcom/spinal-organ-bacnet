@@ -71,16 +71,16 @@ class SpinalPilot {
                   await this.writeProperties(pilot?.requests.get())
                   console.log("success");
                   pilot.setSuccessMode();
-                  await pilot.removeToNode();
+                  await pilot.removeFromNode();
                } catch (error) {
                   console.error(error.message);
                   pilot.setErrorMode();
-                  await pilot.removeToNode();
+                  await pilot.removeFromNode();
                }
 
             } else {
                console.log("remove");
-               await pilot.removeToNode();
+               await pilot.removeFromNode();
             }
 
             // console.log("pilot",pilot)

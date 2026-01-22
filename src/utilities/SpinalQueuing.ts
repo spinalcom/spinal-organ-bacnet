@@ -41,24 +41,29 @@ export class SpinalQueuing<Type> extends EventEmitter {
    public isProcessing: boolean = false;
 
    private _debounceStart = lodash.debounce(this._begin, 3000);
+   private _autoStart: boolean = true;
 
-   constructor() {
+   constructor(autoStart: boolean = true) {
       super();
+      this._autoStart = autoStart;
    }
+
+
 
    public addToQueue(obj: Type | Type[]): number {
       if (!Array.isArray(obj)) obj = [obj];
 
       this.queueList = this.queueList.concat(obj);
       this.length = this.queueList.length;
-      this._debounceStart();
+      if (this._autoStart) this._debounceStart();
+
       return this.length;
    }
 
    public setQueue(queue: Type[]): number {
       this.queueList = queue;
       this.length = this.queueList.length;
-      this._debounceStart();
+      if (this._autoStart) this._debounceStart();
       return this.length;
    }
 
@@ -74,6 +79,7 @@ export class SpinalQueuing<Type> extends EventEmitter {
 
    public refresh(): void {
       this.queueList = [];
+      this.isProcessing = false;
    }
 
    public getQueue(): Type[] {
@@ -83,6 +89,12 @@ export class SpinalQueuing<Type> extends EventEmitter {
    public isEmpty(): boolean {
       return this.queueList.length === 0;
    }
+
+   public start() {
+      this._begin();
+   }
+
+
 
 
    private _begin(): void {

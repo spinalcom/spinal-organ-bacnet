@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import { EventEmitter } from "events";
 export declare enum Events {
     FINISH = "finish",
@@ -11,13 +10,15 @@ export declare class SpinalQueuing<Type> extends EventEmitter {
     private length;
     isProcessing: boolean;
     private _debounceStart;
-    constructor();
+    private _autoStart;
+    constructor(autoStart?: boolean);
     addToQueue(obj: Type | Type[]): number;
     setQueue(queue: Type[]): number;
     dequeue(): Type;
     refresh(): void;
     getQueue(): Type[];
     isEmpty(): boolean;
+    start(): void;
     private _begin;
     private _finish;
 }

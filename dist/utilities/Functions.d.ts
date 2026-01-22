@@ -1,5 +1,5 @@
 import { FileSystem } from "spinal-core-connectorjs_type";
-import { SpinalOrganConfigModel } from "spinal-model-bacnet";
+import { SpinalDisoverModel, SpinalListenerModel, SpinalOrganConfigModel, SpinalBacnetValueModel, SpinalPilotModel } from "spinal-model-bacnet";
 export declare const WaitModelReady: () => Promise<any>;
 export declare const connectionErrorCallback: (err?: Error) => void;
 export declare const CreateOrganConfigFile: (spinalConnection: FileSystem, path: string, connectorName: string) => Promise<SpinalOrganConfigModel>;

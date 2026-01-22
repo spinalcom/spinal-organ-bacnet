@@ -27,8 +27,9 @@ import * as bacnet from "bacstack";
 import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
 import { SpinalBmsEndpointGroup, NetworkService, SpinalBmsEndpoint } from "spinal-model-bmsnetwork";
-import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
+import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty, ICovData } from "../Interfaces";
 import { SEGMENTATIONS } from "./GlobalVariables";
+import { SpinalCov } from "../modules/SpinalCov";
 
 
 
@@ -36,8 +37,16 @@ class BacnetUtilitiesClass {
 
    private static instance: BacnetUtilitiesClass;
    private _client: bacnet = null;
-   private constructor() { }
 
+   private constructor() {
+      console.log("BacnetUtilitiesClass Singleton created");
+   }
+
+   private clientState = {
+      // failed: { count: 0, time: null },
+      // success: { count: 0, time: null },
+      consecutiveFailures: 0
+   }
 
    public static getInstance(): BacnetUtilitiesClass {
       if (!this.instance) this.instance = new BacnetUtilitiesClass();
@@ -45,28 +54,44 @@ class BacnetUtilitiesClass {
    }
 
    public createNewBacnetClient(): bacnet {
-      const client = new bacnet({ adpuTimeout: 6000 });
-      this._listenClientErrorEvent(client);
+      const client = new bacnet({ adpuTimeout: 10000 });
+
+      // this._listenClientErrorEvent(client);
       return client;
    }
 
    public getClient(): Promise<bacnet> {
-      // return new Promise((resolve) => {
-      //    if (!this._client) {
-      //       this._client = this.createNewBacnetClient();
-      //       // const callback = () => resolve(this._client);
-      //       resolve(this._client);
-      //    }
+      return new Promise((resolve) => {
+         if (!this._client) this._client = this.createNewBacnetClient();
 
-      //    return resolve(this._client);
-      // });
+         return resolve(this._client);
+      });
 
-      return this.createNewBacnetClient();
+      // return this.createNewBacnetClient();
+   }
+
+   public incrementState(state: "failed" | "success") {
+      if (state === "failed") {
+         this.clientState.consecutiveFailures++;
+
+         // reset client if consecutive failures
+         if (this.clientState.consecutiveFailures >= 5) {
+
+            this._client = null; // reset client after 5 consecutive failures;
+            SpinalCov.getInstance().restartAllCovSubscriptions();
+
+            this.clientState.consecutiveFailures = 0;
+         }
+
+      } else {
+         this.clientState.consecutiveFailures = 0;
+      }
    }
 
    private _listenClientErrorEvent(client: bacnet): void {
       client.on('error', () => {
-         client = null;
+         console.log("error client");
+         this._client = null;
       });
    }
 
@@ -77,15 +102,19 @@ class BacnetUtilitiesClass {
    public readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple> {
       return new Promise(async (resolve, reject) => {
          try {
-            const client = argClient || await this.getClient();
+            // const client = argClient || await this.getClient();
+            const client = await this.getClient();
             requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
             if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
             client.readPropertyMultiple(address, sadr, requestArray, (err, data) => {
                if (err) {
+                  this.incrementState("failed");
                   reject(err);
                   return;
                }
+
+               this.incrementState("success");
                resolve(data);
             })
          } catch (error) {
@@ -94,20 +123,22 @@ class BacnetUtilitiesClass {
       });
    }
 
+   // public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
    public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
       // sadr = { dest: { net: '35383', adr: [''] } };
-      console.log(sadr, "sadr in readProperty");
-      const client = argClient || await this.getClient();
+      // const client = argClient || await this.getClient();
+      const client = await this.getClient();
       const options = clientOptions || {};
       if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
       return new Promise((resolve, reject) => {
          client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
             if (err) {
-               console.error("Error reading property:", err);
+               this.incrementState("failed");
                return reject(err);
             }
 
+            this.incrementState("success");
             resolve(data);
          })
       });
@@ -215,7 +246,9 @@ class BacnetUtilitiesClass {
          try {
             const res = await this._getObjectDetailWithReadProperty(device, item, argClient);
             if (res) itemsFound.push(res);
-         } catch (error) { }
+         } catch (error) {
+
+         }
       }
 
       return itemsFound;

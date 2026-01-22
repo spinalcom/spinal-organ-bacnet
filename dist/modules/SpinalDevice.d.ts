@@ -1,15 +1,17 @@
-/// <reference types="node" />
 import * as bacnet from "bacstack";
 import { InputDataDevice, NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
 import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
-import { IDevice } from "../Interfaces";
+import { ICovData, IDevice } from "../Interfaces";
 export declare class SpinalDevice extends EventEmitter {
     device: IDevice;
     private info;
+    covData: ICovData[];
     constructor(device: IDevice, client?: bacnet);
     init(): Promise<void | boolean>;
+    pushToCovList(argCovData: ICovData | ICovData[]): number;
+    clearCovList(): void;
     createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef>;
     createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void>;
     checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{

@@ -32,26 +32,30 @@ var Events;
     Events["START"] = "start";
 })(Events || (exports.Events = Events = {}));
 class SpinalQueuing extends events_1.EventEmitter {
-    constructor() {
+    constructor(autoStart = true) {
         super();
         this.processed = [];
         this.queueList = [];
         this.percent = 0;
         this.isProcessing = false;
         this._debounceStart = lodash.debounce(this._begin, 3000);
+        this._autoStart = true;
+        this._autoStart = autoStart;
     }
     addToQueue(obj) {
         if (!Array.isArray(obj))
             obj = [obj];
         this.queueList = this.queueList.concat(obj);
         this.length = this.queueList.length;
-        this._debounceStart();
+        if (this._autoStart)
+            this._debounceStart();
         return this.length;
     }
     setQueue(queue) {
         this.queueList = queue;
         this.length = this.queueList.length;
-        this._debounceStart();
+        if (this._autoStart)
+            this._debounceStart();
         return this.length;
     }
     dequeue() {
@@ -65,12 +69,16 @@ class SpinalQueuing extends events_1.EventEmitter {
     }
     refresh() {
         this.queueList = [];
+        this.isProcessing = false;
     }
     getQueue() {
         return [...this.queueList];
     }
     isEmpty() {
         return this.queueList.length === 0;
+    }
+    start() {
+        this._begin();
     }
     _begin() {
         if (!this.isProcessing) {

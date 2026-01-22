@@ -6,9 +6,11 @@ declare class BacnetUtilitiesClass {
     private static instance;
     private _client;
     private constructor();
+    private clientState;
     static getInstance(): BacnetUtilitiesClass;
     createNewBacnetClient(): bacnet;
     getClient(): Promise<bacnet>;
+    incrementState(state: "failed" | "success"): void;
     private _listenClientErrorEvent;
     readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
     readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;

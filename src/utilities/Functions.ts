@@ -122,34 +122,34 @@ export function findFileInDirectory(directory: spinal.Directory, fileName: strin
 
 export function bindAndRestartOrgan(connect: FileSystem, organName: string, organModel: SpinalOrganConfigModel) {
    organModel.restart.bind(() => {
-         GetPm2Instance(organName).then(async (app: any) => {
-            const restart = organModel.restart.get();
+      GetPm2Instance(organName).then(async (app: any) => {
+         const restart = organModel.restart.get();
 
-            if (!restart) {
-               listenLoadType(connect, organModel);
-               return;
-            }
+         if (!restart) {
+            listenLoadType(connect, organModel);
+            return;
+         }
 
-            if (app) {
-               console.log("restart organ", app.pm_id);
-               organModel.restart.set(false)
+         if (app) {
+            console.log("restart organ", app.pm_id);
+            organModel.restart.set(false)
 
-               pm2.restart(app.pm_id, (err) => {
-                  if (err) {
-                     console.error(err);
-                     return;
-                  }
-                  console.log("organ restarted with success !");
-               })
-            }
+            pm2.restart(app.pm_id, (err) => {
+               if (err) {
+                  console.error(err);
+                  return;
+               }
+               console.log("organ restarted with success !");
+            })
+         }
 
-         })
       })
+   })
 }
 
 
 
-export function listenLoadType  (connect: FileSystem, organModel: SpinalOrganConfigModel) {
+export function listenLoadType(connect: FileSystem, organModel: SpinalOrganConfigModel) {
    // load all instances of SpinalDisoverModel
    // it allows to browse bacnet network and get all devices (broadcast or unicast)
    spinalCore.load_type(connect, 'SpinalDisoverModel', (spinalDisoverModel: SpinalDisoverModel) => {

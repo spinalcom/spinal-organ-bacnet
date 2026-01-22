@@ -84,6 +84,7 @@ exports.COV_EVENTS_NAMES = {
     "subscribe": "subscribe",
     "failed": "failed",
     "changed": "changed",
+    "unsubscribe": "unsubscribe",
     "unsubscribed": "unsubscribed",
     "error": "error",
     "exit": "exit",

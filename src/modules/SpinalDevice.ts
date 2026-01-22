@@ -33,18 +33,18 @@ import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVaria
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
 import { SpinalBacnetValueModel } from "spinal-model-bacnet";
 
-import { IDevice } from "../Interfaces";
+import { ICovData, IDevice, IObjectId } from "../Interfaces";
 import SpinalQueuing from "../utilities/SpinalQueuing";
 
 export class SpinalDevice extends EventEmitter {
    public device: IDevice;
    private info;
+   public covData: ICovData[] = [];
    // private client: bacnet;
 
    constructor(device: IDevice, client?: bacnet) {
       super();
       this.device = device;
-      // this.client = client || BacnetUtilities.getClient();
    }
 
    public init(): Promise<void | boolean> {
@@ -56,6 +56,16 @@ export class SpinalDevice extends EventEmitter {
       }).catch((err) => {
          this.emit("error", err)
       });
+   }
+
+   public pushToCovList(argCovData: ICovData | ICovData[]) {
+      if (!Array.isArray(argCovData)) argCovData = [argCovData];
+      this.covData.push(...argCovData);
+      return this.covData.length;
+   }
+
+   public clearCovList() {
+      this.covData = [];
    }
 
    public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef> {
@@ -187,7 +197,7 @@ export class SpinalDevice extends EventEmitter {
             maxApdu: device.maxApdu || await this._getDataValue(device.address, device.SADR, objectId, PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)
          }
       } catch (error) {
-         if(error.message.includes("ERR_TIMEOUT")){
+         if (error.message.includes("ERR_TIMEOUT")) {
             throw error;
          }
 
@@ -195,7 +205,7 @@ export class SpinalDevice extends EventEmitter {
          throw error;
       }
 
-      
+
 
    }
 

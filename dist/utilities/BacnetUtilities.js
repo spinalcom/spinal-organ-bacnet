@@ -39,9 +39,16 @@ const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-servi
 const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const GlobalVariables_2 = require("./GlobalVariables");
+const SpinalCov_1 = require("../modules/SpinalCov");
 class BacnetUtilitiesClass {
     constructor() {
         this._client = null;
+        this.clientState = {
+            // failed: { count: 0, time: null },
+            // success: { count: 0, time: null },
+            consecutiveFailures: 0
+        };
+        console.log("BacnetUtilitiesClass Singleton created");
     }
     static getInstance() {
         if (!this.instance)
@@ -49,24 +56,36 @@ class BacnetUtilitiesClass {
         return this.instance;
     }
     createNewBacnetClient() {
-        const client = new bacnet({ adpuTimeout: 6000 });
-        this._listenClientErrorEvent(client);
+        const client = new bacnet({ adpuTimeout: 10000 });
+        // this._listenClientErrorEvent(client);
         return client;
     }
     getClient() {
-        // return new Promise((resolve) => {
-        //    if (!this._client) {
-        //       this._client = this.createNewBacnetClient();
-        //       // const callback = () => resolve(this._client);
-        //       resolve(this._client);
-        //    }
-        //    return resolve(this._client);
-        // });
-        return this.createNewBacnetClient();
+        return new Promise((resolve) => {
+            if (!this._client)
+                this._client = this.createNewBacnetClient();
+            return resolve(this._client);
+        });
+        // return this.createNewBacnetClient();
+    }
+    incrementState(state) {
+        if (state === "failed") {
+            this.clientState.consecutiveFailures++;
+            // reset client if consecutive failures
+            if (this.clientState.consecutiveFailures >= 5) {
+                this._client = null; // reset client after 5 consecutive failures;
+                SpinalCov_1.SpinalCov.getInstance().restartAllCovSubscriptions();
+                this.clientState.consecutiveFailures = 0;
+            }
+        }
+        else {
+            this.clientState.consecutiveFailures = 0;
+        }
     }
     _listenClientErrorEvent(client) {
         client.on('error', () => {
-            client = null;
+            console.log("error client");
+            this._client = null;
         });
     }
     ////////////////////////////////////////////////////////////////
@@ -75,15 +94,18 @@ class BacnetUtilitiesClass {
     readPropertyMultiple(address, sadr, requestArray, argClient) {
         return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
             try {
-                const client = argClient || (yield this.getClient());
+                // const client = argClient || await this.getClient();
+                const client = yield this.getClient();
                 requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
                 if (sadr && typeof sadr == "object")
                     sadr = Object.keys(sadr).length === 0 ? null : sadr;
                 client.readPropertyMultiple(address, sadr, requestArray, (err, data) => {
                     if (err) {
+                        this.incrementState("failed");
                         reject(err);
                         return;
                     }
+                    this.incrementState("success");
                     resolve(data);
                 });
             }
@@ -92,20 +114,22 @@ class BacnetUtilitiesClass {
             }
         }));
     }
+    // public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
     readProperty(address, sadr, objectId, propertyId, argClient, clientOptions) {
         return __awaiter(this, void 0, void 0, function* () {
             // sadr = { dest: { net: '35383', adr: [''] } };
-            console.log(sadr, "sadr in readProperty");
-            const client = argClient || (yield this.getClient());
+            // const client = argClient || await this.getClient();
+            const client = yield this.getClient();
             const options = clientOptions || {};
             if (sadr && typeof sadr == "object")
                 sadr = Object.keys(sadr).length === 0 ? null : sadr;
             return new Promise((resolve, reject) => {
                 client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
                     if (err) {
-                        console.error("Error reading property:", err);
+                        this.incrementState("failed");
                         return reject(err);
                     }
+                    this.incrementState("success");
                     resolve(data);
                 });
             });
@@ -114,8 +138,8 @@ class BacnetUtilitiesClass {
     ////////////////////////////////////////////////////////////////
     ////                  GET ALL BACNET OBJECT LIST              //
     ////////////////////////////////////////////////////////////////
-    _getDeviceObjectList(device, SENSOR_TYPES, argClient, getListUsingFragment = false) {
-        return __awaiter(this, void 0, void 0, function* () {
+    _getDeviceObjectList(device_1, SENSOR_TYPES_1, argClient_1) {
+        return __awaiter(this, arguments, void 0, function* (device, SENSOR_TYPES, argClient, getListUsingFragment = false) {
             const objectId = { type: GlobalVariables_1.ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
             let values;
             try {
@@ -205,7 +229,8 @@ class BacnetUtilitiesClass {
                     if (res)
                         itemsFound.push(res);
                 }
-                catch (error) { }
+                catch (error) {
+                }
             }
             return itemsFound;
         });
@@ -352,8 +377,8 @@ class BacnetUtilitiesClass {
         });
     }
     getChildrenNewValueWithReadProperty(device, children, argClient) {
-        var _a;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             const client = argClient || (yield this.getClient());
             const res = [];
             try {
