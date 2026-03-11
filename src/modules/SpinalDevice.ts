@@ -152,6 +152,7 @@ export class SpinalDevice extends EventEmitter {
 
          console.log(`${new Date()} ===> update ${this.device.name}`);
          const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children, client)
+         if (!objectListDetails || objectListDetails.length === 0) throw new Error("Failed to retreive endpoints on device");
 
          const obj: any = {
             id: (<any>this.device).idNetwork,
@@ -160,7 +161,7 @@ export class SpinalDevice extends EventEmitter {
 
          this.updateEndpointInGraph(obj, networkService, networkNode);
       } catch (error) {
-
+         console.error(`Error updating endpoints for device ${this.device.name}`);
       }
 
    }

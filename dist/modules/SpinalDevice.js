@@ -129,6 +129,8 @@ class SpinalDevice extends events_1.EventEmitter {
                 const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
                 console.log(`${new Date()} ===> update ${this.device.name}`);
                 const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children, client);
+                if (!objectListDetails || objectListDetails.length === 0)
+                    throw new Error("Failed to retreive endpoints on device");
                 const obj = {
                     id: this.device.idNetwork,
                     children: this._groupByType(lodash.flattenDeep(objectListDetails))
@@ -136,6 +138,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 this.updateEndpointInGraph(obj, networkService, networkNode);
             }
             catch (error) {
+                console.error(`Error updating endpoints for device ${this.device.name}`);
             }
         });
     }

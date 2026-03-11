@@ -219,6 +219,9 @@ class SpinalMonitoring {
      * @param func
      */
     _addToMonitoringMap(id, interval, func) {
+        if (isNaN(interval))
+            return; // if the interval is not a number, do not add to monitoring
+        interval = Number(interval); // convert to number if it's a string due to attributes in spinal model
         let priority = Date.now() + interval;
         let value = this.intervalTimesMap.get(priority); // get existing data for this interval time
         if (!value)
@@ -240,6 +243,9 @@ class SpinalMonitoring {
     }
     execFunc(data, interval, date) {
         return __awaiter(this, void 0, void 0, function* () {
+            if (isNaN(interval))
+                return; // if the interval is not a number, do not execute
+            interval = Number(interval); // convert to number if it's a string due to attributes in spinal model
             const priority = Date.now() + interval;
             const deep_functions = [...data];
             while (deep_functions.length > 0) {
