@@ -22,7 +22,7 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import { SpinalQueuing } from "../utilities/SpinalQueuing";
+import { SpinalQueue } from "spinal-connector-service";
 import { SpinalPilotModel } from "spinal-model-bacnet";
 import { IRequest } from "spinal-model-bacnet";
 import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalVariables";
@@ -30,7 +30,7 @@ import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalV
 import BacnetUtilities from "../utilities/BacnetUtilities";
 
 class SpinalPilot {
-   private queue: SpinalQueuing<SpinalPilotModel> = new SpinalQueuing();
+   private queue: SpinalQueue<SpinalPilotModel> = new SpinalQueue();
    private isProcessing: boolean = false;
    private static instance: SpinalPilot;
 
@@ -53,41 +53,80 @@ class SpinalPilot {
    }
 
    public async addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void> {
-      // console.log("addToQueue");
-
       this.queue.addToQueue(spinalPilotModel);
    }
 
-   private async pilot() {
-      if (!this.isProcessing) {
-         this.isProcessing = true;
-         // console.log(this.queue);
+   // private async pilot() {
+   //    if (!this.isProcessing) {
+   //       this.isProcessing = true;
+   //       // console.log(this.queue);
+   //       while (!this.queue.isEmpty()) {
+   //          const pilot = this.queue.dequeue();
+
+   //          if (pilot?.isNormal()) {
+   //             pilot.setProcessMode();
+   //             try {
+   //                await this.writeProperties(pilot?.requests.get())
+   //                console.log("success");
+   //                pilot.setSuccessMode();
+   //                await pilot.removeFromGraph();
+   //             } catch (error: any) {
+   //                console.error(error.message);
+   //                pilot.setErrorMode();
+   //                await pilot.removeFromGraph();
+   //             }
+
+   //          } else {
+   //             console.log("remove");
+   //             await pilot.removeFromGraph();
+   //          }
+
+   //          // console.log("pilot",pilot)
+   //       }
+
+   //       this.isProcessing = false;
+   //    }
+   // }
+
+   private async pilot(): Promise<void> {
+      if (this.isProcessing) return;
+
+      this.isProcessing = true;
+
+      try {
          while (!this.queue.isEmpty()) {
             const pilot = this.queue.dequeue();
 
-            if (pilot?.isNormal()) {
-               pilot.setProcessMode();
-               try {
-                  await this.writeProperties(pilot?.requests.get())
-                  console.log("success");
-                  pilot.setSuccessMode();
-                  await pilot.removeFromNode();
-               } catch (error) {
-                  console.error(error.message);
-                  pilot.setErrorMode();
-                  await pilot.removeFromNode();
-               }
-
-            } else {
-               console.log("remove");
-               await pilot.removeFromNode();
+            if (!pilot) {
+               continue;
             }
 
-            // console.log("pilot",pilot)
+            await this._handlePilot(pilot);
          }
-
+      } finally {
          this.isProcessing = false;
       }
+   }
+
+   private async _handlePilot(pilot: SpinalPilotModel): Promise<void> {
+      if (!pilot.isNormal()) {
+         console.log("remove");
+         await pilot.removeFromGraph();
+         return;
+      }
+
+      pilot.setProcessMode();
+
+      try {
+         await this.writeProperties(pilot.requests.get());
+         console.log("success");
+         pilot.setSuccessMode();
+      } catch (error: any) {
+         console.error(error.message);
+         pilot.setErrorMode();
+      }
+
+      await pilot.removeFromGraph();
    }
 
    private async writeProperties(requests: IRequest[] = []) {
@@ -109,6 +148,8 @@ class SpinalPilot {
       while (types.length > 0 && !success) {
          const type = types.shift();
          try {
+            if (!type) throw new Error("error");
+
             await this.useDataType(req, type);
             success = true;
          } catch (error) {
@@ -122,18 +163,18 @@ class SpinalPilot {
 
    }
 
+
    private useDataType(req: IRequest, dataType: number) {
       return new Promise(async (resolve, reject) => {
          const client = await BacnetUtilities.getClient();
          const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
 
-         const priority = (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;
 
-         if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) {
-            req.SADR = null;
-         }
+         const priority = process.env.BACNET_PRIORITY && (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;
 
-         client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
+         if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
+
+         client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err: Error, value: any) => {
             if (err) {
                reject(err);
                return;
@@ -144,50 +185,40 @@ class SpinalPilot {
       });
    }
 
-   private getDataTypes(type: any): number[] {
-      switch (type) {
-         case ObjectTypes.OBJECT_ANALOG_INPUT:
-         case ObjectTypes.OBJECT_ANALOG_OUTPUT:
-         case ObjectTypes.OBJECT_ANALOG_VALUE:
-         case ObjectTypes.OBJECT_MULTI_STATE_INPUT:
-         case ObjectTypes.OBJECT_MULTI_STATE_OUTPUT:
-         case ObjectTypes.OBJECT_MULTI_STATE_VALUE:
-            return [
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL,
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
-            ]
+   private getDataTypes(type: number): number[] {
+      const analogTypes = new Set([
+         ObjectTypes.OBJECT_ANALOG_INPUT,
+         ObjectTypes.OBJECT_ANALOG_OUTPUT,
+         ObjectTypes.OBJECT_ANALOG_VALUE,
+         ObjectTypes.OBJECT_MULTI_STATE_INPUT,
+         ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
+         ObjectTypes.OBJECT_MULTI_STATE_VALUE
+      ]);
 
-         case ObjectTypes.OBJECT_BINARY_INPUT:
-         case ObjectTypes.OBJECT_BINARY_OUTPUT:
-         case ObjectTypes.OBJECT_BINARY_VALUE:
-         case ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT:
-            return [
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED,
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN
-            ]
+      const binaryTypes = new Set([
+         ObjectTypes.OBJECT_BINARY_INPUT,
+         ObjectTypes.OBJECT_BINARY_OUTPUT,
+         ObjectTypes.OBJECT_BINARY_VALUE,
+         ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
+      ]);
 
-         default:
-            return [
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
-               APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
-            ]
+      if (analogTypes.has(type)) {
+         return [
+            APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
+            APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
+         ];
       }
+
+      if (binaryTypes.has(type)) return [APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
+
+      return [
+         APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
+         APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
+         APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
+      ];
    }
-
-   // private transformBacnetErrorToObj(error) {
-   //    console.log(error);
-
-   //    const message = error.message.match(/Code\:\d+/);
-   //    console.log(message);
-
-   //    // return message.replace("Code:",'')
-
-
-   // }
 }
+
 
 const spinalPilot = SpinalPilot.getInstance();
 

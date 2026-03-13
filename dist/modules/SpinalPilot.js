@@ -33,12 +33,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalPilot = void 0;
-const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
+const spinal_connector_service_1 = require("spinal-connector-service");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalPilot {
     constructor() {
-        this.queue = new SpinalQueuing_1.SpinalQueuing();
+        this.queue = new spinal_connector_service_1.SpinalQueue();
         this.isProcessing = false;
     }
     static getInstance() {
@@ -56,39 +56,73 @@ class SpinalPilot {
     }
     addToPilotList(spinalPilotModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            // console.log("addToQueue");
             this.queue.addToQueue(spinalPilotModel);
         });
     }
+    // private async pilot() {
+    //    if (!this.isProcessing) {
+    //       this.isProcessing = true;
+    //       // console.log(this.queue);
+    //       while (!this.queue.isEmpty()) {
+    //          const pilot = this.queue.dequeue();
+    //          if (pilot?.isNormal()) {
+    //             pilot.setProcessMode();
+    //             try {
+    //                await this.writeProperties(pilot?.requests.get())
+    //                console.log("success");
+    //                pilot.setSuccessMode();
+    //                await pilot.removeFromGraph();
+    //             } catch (error: any) {
+    //                console.error(error.message);
+    //                pilot.setErrorMode();
+    //                await pilot.removeFromGraph();
+    //             }
+    //          } else {
+    //             console.log("remove");
+    //             await pilot.removeFromGraph();
+    //          }
+    //          // console.log("pilot",pilot)
+    //       }
+    //       this.isProcessing = false;
+    //    }
+    // }
     pilot() {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!this.isProcessing) {
-                this.isProcessing = true;
-                // console.log(this.queue);
+            if (this.isProcessing)
+                return;
+            this.isProcessing = true;
+            try {
                 while (!this.queue.isEmpty()) {
                     const pilot = this.queue.dequeue();
-                    if (pilot === null || pilot === void 0 ? void 0 : pilot.isNormal()) {
-                        pilot.setProcessMode();
-                        try {
-                            yield this.writeProperties(pilot === null || pilot === void 0 ? void 0 : pilot.requests.get());
-                            console.log("success");
-                            pilot.setSuccessMode();
-                            yield pilot.removeFromNode();
-                        }
-                        catch (error) {
-                            console.error(error.message);
-                            pilot.setErrorMode();
-                            yield pilot.removeFromNode();
-                        }
+                    if (!pilot) {
+                        continue;
                     }
-                    else {
-                        console.log("remove");
-                        yield pilot.removeFromNode();
-                    }
-                    // console.log("pilot",pilot)
+                    yield this._handlePilot(pilot);
                 }
+            }
+            finally {
                 this.isProcessing = false;
             }
+        });
+    }
+    _handlePilot(pilot) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!pilot.isNormal()) {
+                console.log("remove");
+                yield pilot.removeFromGraph();
+                return;
+            }
+            pilot.setProcessMode();
+            try {
+                yield this.writeProperties(pilot.requests.get());
+                console.log("success");
+                pilot.setSuccessMode();
+            }
+            catch (error) {
+                console.error(error.message);
+                pilot.setErrorMode();
+            }
+            yield pilot.removeFromGraph();
         });
     }
     writeProperties() {
@@ -111,6 +145,8 @@ class SpinalPilot {
             while (types.length > 0 && !success) {
                 const type = types.shift();
                 try {
+                    if (!type)
+                        throw new Error("error");
                     yield this.useDataType(req, type);
                     success = true;
                 }
@@ -127,10 +163,9 @@ class SpinalPilot {
         return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
             const client = yield BacnetUtilities_1.default.getClient();
             const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
-            const priority = (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
-            if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) {
+            const priority = process.env.BACNET_PRIORITY && (!isNaN(process.env.BACNET_PRIORITY) && parseInt(process.env.BACNET_PRIORITY)) || 16;
+            if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0)
                 req.SADR = null;
-            }
             client.writeProperty(req.address, req.SADR, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
                 if (err) {
                     reject(err);
@@ -141,34 +176,33 @@ class SpinalPilot {
         }));
     }
     getDataTypes(type) {
-        switch (type) {
-            case GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_INPUT:
-            case GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_OUTPUT:
-            case GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_VALUE:
-            case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_INPUT:
-            case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT:
-            case GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_VALUE:
-                return [
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT,
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL,
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
-                ];
-            case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT:
-            case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_OUTPUT:
-            case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE:
-            case GlobalVariables_1.ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT:
-                return [
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED,
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN
-                ];
-            default:
-                return [
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
-                    GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
-                ];
+        const analogTypes = new Set([
+            GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_INPUT,
+            GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_OUTPUT,
+            GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_VALUE,
+            GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_INPUT,
+            GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
+            GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_VALUE
+        ]);
+        const binaryTypes = new Set([
+            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT,
+            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_OUTPUT,
+            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE,
+            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
+        ]);
+        if (analogTypes.has(type)) {
+            return [
+                GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
+                GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
+            ];
         }
+        if (binaryTypes.has(type))
+            return [GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
+        return [
+            GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
+            GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
+            GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
+        ];
     }
 }
 const spinalPilot = SpinalPilot.getInstance();

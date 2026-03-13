@@ -1,6 +1,6 @@
 import NetworkService from "spinal-model-bmsnetwork";
 import { ICovData } from "../Interfaces";
-import SpinalQueuing from "../utilities/SpinalQueuing";
+import { SpinalQueue } from "spinal-connector-service";
 import { SpinalDevice } from "./SpinalDevice";
 import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
 import { SpinalNode } from "spinal-env-viewer-graph-service";
@@ -23,7 +23,7 @@ declare class SpinalCov {
     restartAllCovSubscriptions(): void;
     addToCovQueue(data: ICovData | ICovData[]): Promise<void>;
     addToStopCovQueue(data: ICovData | ICovData[]): void;
-    processToQueueTreatment(queue: SpinalQueuing<ICovData>, eventName: typeof COV_EVENTS_NAMES[keyof typeof COV_EVENTS_NAMES]): Promise<void>;
+    processToQueueTreatment(queue: SpinalQueue<ICovData>, eventName: typeof COV_EVENTS_NAMES[keyof typeof COV_EVENTS_NAMES]): Promise<void>;
     private _checkCovStatus;
     private formatChildren;
     private createForkedProcess;

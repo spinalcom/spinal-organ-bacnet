@@ -38,9 +38,7 @@ class BacnetUtilitiesClass {
    private static instance: BacnetUtilitiesClass;
    private _client: bacnet = null;
 
-   private constructor() {
-      console.log("BacnetUtilitiesClass Singleton created");
-   }
+   private constructor() { }
 
    private clientState = {
       // failed: { count: 0, time: null },
@@ -56,7 +54,6 @@ class BacnetUtilitiesClass {
    public createNewBacnetClient(): bacnet {
       const client = new bacnet({ adpuTimeout: 10000 });
 
-      // this._listenClientErrorEvent(client);
       return client;
    }
 
@@ -67,7 +64,6 @@ class BacnetUtilitiesClass {
          return resolve(this._client);
       });
 
-      // return this.createNewBacnetClient();
    }
 
    public incrementState(state: "failed" | "success") {
@@ -107,7 +103,7 @@ class BacnetUtilitiesClass {
             requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
             if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
-            client.readPropertyMultiple(address, sadr, requestArray, (err, data) => {
+            client.readPropertyMultiple(address, sadr, requestArray, (err: Error, data: any) => {
                if (err) {
                   this.incrementState("failed");
                   reject(err);
@@ -123,7 +119,6 @@ class BacnetUtilitiesClass {
       });
    }
 
-   // public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
    public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty> {
       // sadr = { dest: { net: '35383', adr: [''] } };
       // const client = argClient || await this.getClient();
@@ -132,7 +127,7 @@ class BacnetUtilitiesClass {
       if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
       return new Promise((resolve, reject) => {
-         client.readProperty(address, sadr, objectId, propertyId, options, (err, data) => {
+         client.readProperty(address, sadr, objectId, propertyId, options, (err: Error, data: any) => {
             if (err) {
                this.incrementState("failed");
                return reject(err);
@@ -151,53 +146,62 @@ class BacnetUtilitiesClass {
    public async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet, getListUsingFragment: boolean = false): Promise<IObjectId[]> {
       const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
       let values;
+      const deviceAddress = device.address;
+      if (!deviceAddress) throw new Error("Device address is required");
 
       try {
          if (getListUsingFragment) throw new Error("reason:4") // Force to use fragment method;
 
          const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
-         let params = deviceAcceptSegmentation ? [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }] : [objectId, PropertyIds.PROP_OBJECT_LIST];
-         let func = deviceAcceptSegmentation ? this.readPropertyMultiple : this.readProperty;
 
-         const data = await func.call(this, device.address, device.SADR, ...params, argClient);
-         values = deviceAcceptSegmentation ? lodash.flattenDeep(data.values.map(el => el.values.map(el2 => el2.value))) : data.values;
+         if (deviceAcceptSegmentation) {
+            const params = [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }]
+            let data = await this.readPropertyMultiple(deviceAddress, device.SADR, params, argClient);
+            const dataFormatted = data.values.map(el => el.values.map(el2 => el2.value));
+            values = lodash.flattenDeep(dataFormatted);
+         } else {
+            const params = [objectId, PropertyIds.PROP_OBJECT_LIST];
+            let data = await this.readProperty(deviceAddress, device.SADR, params[0], params[1], argClient);
+            values = data.values;
+         }
 
 
-      } catch (error) {
+      } catch (error: any) {
          if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId, argClient);
       }
 
       if (typeof values === "undefined" || !values?.length) throw "No values found";
 
-      return values.filter(item => SENSOR_TYPES.indexOf(item.value.type) !== -1);
-
+      return values.filter((item: any) => SENSOR_TYPES.indexOf(item.value.type) !== -1);
    }
 
    public async getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]> {
-      const list = [];
-      let error;
+      const bacnetItemsFound: IObjectId[] = [];
+      let error: Error;
       let index = 1;
       let finish = false;
+      const deviceAddress = device.address;
+      if (!deviceAddress) throw new Error("Device address is required");
 
-      return new Promise(async (resolve, reject) => {
+      return new Promise(async (resolve) => {
 
          while (!error && !finish) {
             try {
                const clientOptions = { arrayIndex: index }
-               const value = await this.readProperty(device.address, device.SADR, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
+               const value = await this.readProperty(deviceAddress, device.SADR, objectId, PropertyIds.PROP_OBJECT_LIST, argClient, clientOptions);
                if (value) {
                   index++;
-                  list.push(...value.values);
+                  bacnetItemsFound.push(...(value.values as any[]));
                } else {
                   finish = true;
                }
 
-            } catch (err) {
+            } catch (err: any) {
                error = err;
             }
          }
 
-         resolve(list);
+         resolve(bacnetItemsFound);
       });
    }
 
@@ -209,10 +213,10 @@ class BacnetUtilitiesClass {
 
       let objectLists = [...objects];
 
-      let objectListDetails = [];
+      let objectListDetails: Array<{ [key: string]: string | boolean | number }> = [];
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
 
-      const func = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
+      const callbackFunc = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
 
 
       if (deviceAcceptSegmentation) {
@@ -223,7 +227,7 @@ class BacnetUtilitiesClass {
          const object: any = objectLists.shift();
          if (object) {
             try {
-               const res = await func.call(this, device, object, argClient);
+               const res = await callbackFunc.call(this, device, object, argClient);
                objectListDetails.push(res);
             } catch (err) {
                if (deviceAcceptSegmentation) {
@@ -257,6 +261,9 @@ class BacnetUtilitiesClass {
    public async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]> {
 
       try {
+         const deviceAddress = device.address;
+         if (!deviceAddress) throw new Error("Device address is required");
+
          const requestArray: IRequestArray[] = objects.map(el => ({
             objectId: JSON.parse(JSON.stringify(el)),
             properties: [
@@ -266,14 +273,15 @@ class BacnetUtilitiesClass {
                { id: PropertyIds.PROP_OBJECT_TYPE },
                { id: PropertyIds.PROP_UNITS },
                { id: PropertyIds.PROP_MAX_PRES_VALUE },
-               { id: PropertyIds.PROP_MIN_PRES_VALUE }
+               { id: PropertyIds.PROP_MIN_PRES_VALUE },
             ]
          }))
-         const data = await this.readPropertyMultiple(device.address, device.SADR, requestArray, argClient);
+         const data = await this.readPropertyMultiple(deviceAddress, device.SADR, requestArray, argClient);
+
          return data.values.map(el => {
             const { objectId } = el;
 
-            const obj = {
+            const itemInfo: any = {
                objectId: objectId,
                id: objectId.instance,
                typeId: objectId.type,
@@ -285,10 +293,10 @@ class BacnetUtilitiesClass {
             const formated: any = this._formatProperty(el);
 
             for (let key in formated) {
-               obj[key] = formated[key];
+               itemInfo[key] = formated[key];
             }
 
-            return obj;
+            return itemInfo;
          });
 
       } catch (error) {
@@ -304,7 +312,7 @@ class BacnetUtilitiesClass {
          PropertyIds.PROP_MAX_PRES_VALUE, PropertyIds.PROP_MIN_PRES_VALUE
       ]
 
-      const obj = {
+      const itemInfo: any = {
          objectId: objectId,
          id: objectId.instance,
          typeId: objectId.type,
@@ -313,15 +321,18 @@ class BacnetUtilitiesClass {
          deviceId: device.deviceId
       };
 
+      const deviceAddress = device.address;
+      if (!deviceAddress) throw new Error("Device address is required");
+
       while (properties.length > 0) {
          try {
             const property = properties.shift();
             if (typeof property !== "undefined") {
                // console.log("property not undefined");
-               const formated = await this._getPropertyValue(device.address, device.SADR, objectId, property, argClient);
+               const formated = await this._getPropertyValue(deviceAddress, device.SADR, objectId, property, argClient);
 
                for (let key in formated) {
-                  obj[key] = formated[key];
+                  itemInfo[key] = formated[key];
                }
             } else {
                // console.log("property is undefined");
@@ -333,68 +344,32 @@ class BacnetUtilitiesClass {
       }
 
 
-      return obj;
-
-      // const requestArray = objects.map(el => ({
-      //    objectId: JSON.parse(JSON.stringify(el)),
-      //    properties: [
-      //       { id: PropertyIds.PROP_OBJECT_NAME },
-      //       { id: PropertyIds.PROP_PRESENT_VALUE },
-      //       { id: PropertyIds.PROP_OBJECT_TYPE },
-      //       { id: PropertyIds.PROP_UNITS },
-      //       { id: PropertyIds.PROP_MAX_PRES_VALUE }, 
-      //       { id: PropertyIds.PROP_MIN_PRES_VALUE }
-      //    ]
-      // }))
-
-      // return new Promise((resolve, reject) => {
-      //    client.readPropertyMultiple(device.address, requestArray, (err, data) => {
-      //       if (err) {
-      //          console.error(err)
-      //          client.close()
-      //          reject(err);
-      //          return;
-      //       }
-
-      //       const dataFormated = data.values.map(el => {
-      //          const formated: any = this._formatProperty(device.deviceId, el);
-
-      //          if (typeof formated.units === "object") formated.units = "";
-      //          else formated.units = this._getUnitsByCode(formated.units);
-      //          return formated;
-      //       })
-
-      //       resolve(dataFormated);
-      //    })
-      // });
+      return itemInfo;
    }
 
-   public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
+   public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
       const client = argClient || await this.getClient();
       const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
-      const func = deviceAcceptSegmentation ? this.getChildrenNewValueWithReadPropertyMultiple : this.getChildrenNewValueWithReadProperty;
 
-      return func.call(this, device, children, client);
-      // if (device.segmentation == SEGMENTATIONS.SEGMENTATION_BOTH || device.segmentation == SEGMENTATIONS.SEGMENTATION_TRANSMIT) {
-      //    return this.getChildrenNewValueWithReadPropertyMultiple(device, children, client);
-      // } else {
-      //    return this.getChildrenNewValueWithReadProperty(device, children, client);
-      // }
+      if (deviceAcceptSegmentation) return this.getChildrenNewValueWithReadPropertyMultiple(device, children, client);
 
+      return this.getChildrenNewValueWithReadProperty(device, children, client);
    }
 
-   private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
+   private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
 
       try {
          const client = argClient || await this.getClient();
          const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
 
          const list_chunked = lodash.chunk(requestArray, 50);
+         const deviceAddress = device.address;
+         if (!deviceAddress) throw new Error("Device address is required");
 
          const res = [];
          while (list_chunked.length > 0) {
             const arr = list_chunked.pop();
-            const data = await this.readPropertyMultiple(device.address, device.SADR, arr, client);
+            const data = await this.readPropertyMultiple(deviceAddress, device.SADR, arr, client);
 
             const dataFormated = data.values.map(el => {
                const value = this._getObjValue(el.values[0].value);
@@ -410,25 +385,27 @@ class BacnetUtilitiesClass {
 
          return lodash.flattenDeep(res);
 
-      } catch (error) {
-      }
+      } catch (error) { }
    }
 
-   private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }>> {
+   private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
       const client = argClient || await this.getClient();
       const res = [];
 
       try {
          const deep_children = [...children];
          while (deep_children.length > 0) {
-            const obj = deep_children.shift();
-            if (obj) {
+            const child: any = deep_children.shift();
+            const deviceAddress = device.address;
+            if (!deviceAddress) throw new Error("Device address is required");
+
+            if (child) {
                try {
-                  obj["id"] = obj.instance;
-                  const data = await this.readProperty(device.address, device.SADR, obj, PropertyIds.PROP_PRESENT_VALUE, client);
+                  child.id = child.instance;
+                  const data = await this.readProperty(deviceAddress, device.SADR, child, PropertyIds.PROP_PRESENT_VALUE, client);
                   const value = data.values[0]?.value;
-                  obj["currentValue"] = this._getObjValue(value);
-                  res.push(obj);
+                  child.currentValue = this._getObjValue(value);
+                  res.push(child);
                } catch (error) { }
             }
          }
@@ -452,8 +429,8 @@ class BacnetUtilitiesClass {
    public async _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef> {
       const networkId = ObjectTypes[`object_${groupName}`.toUpperCase()]
 
-      const exist = await this._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
-      if (exist) return exist;
+      const alreadyExist = await this._itemExistInChild(deviceId, SpinalBmsEndpointGroup.relationName, networkId);
+      if (alreadyExist) return alreadyExist;
 
       const obj: any = {
          name: groupName,
@@ -504,7 +481,7 @@ class BacnetUtilitiesClass {
 
    }
 
-   public async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef> {
+   public async _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef | undefined> {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
       const found = children.find(el => el.idNetwork.get() == childNetworkId);
 
@@ -535,9 +512,9 @@ class BacnetUtilitiesClass {
    }
 
 
-   public _formatProperty(object): { [key: string]: boolean | string | number } {
-      if (object) {
-         const { values, property } = object;
+   public _formatProperty(propertyValue: any): { [key: string]: boolean | string | number } {
+      if (propertyValue) {
+         const { values, property } = propertyValue;
 
          const obj: any = {};
 
@@ -574,22 +551,23 @@ class BacnetUtilitiesClass {
       if ([ObjectTypes.OBJECT_BINARY_INPUT, ObjectTypes.OBJECT_BINARY_VALUE].indexOf(type) !== -1) {
          return value ? true : false;
       }
+
       return value;
    }
 
-   public _getPropertyNameByCode(type: number): string {
+   public _getPropertyNameByCode(type: number): string | undefined {
       const property = PropertyNames[type];
       if (property) return property.toLocaleLowerCase().replace('prop_', '');
       return;
    }
 
-   public _getObjectTypeByCode(typeCode: number | string): string {
+   public _getObjectTypeByCode(typeCode: number | string): string | undefined {
       const property = ObjectTypesCode[typeCode];
       if (property) return property.toLocaleLowerCase().replace('object_', '');
       return;
    }
 
-   public _getUnitsByCode(typeCode: number): string {
+   public _getUnitsByCode(typeCode: number): string | undefined {
       const property = UNITS_TYPES[typeCode];
       if (property) return property.toLocaleLowerCase().replace('units_', '').replace("_", " ");
       return;
@@ -599,10 +577,13 @@ class BacnetUtilitiesClass {
 
    private async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
       const children = await SpinalGraphService.getChildren(parentId, [relationName]);
-      const obj = {};
-      children.forEach(el => obj[el.idNetwork.get()] = el);
+      const childObj: { [key: string]: SpinalNodeRef } = {};
 
-      return obj;
+      for (const child of children) {
+         const networkId = child.idNetwork.get();
+         childObj[networkId] = child;
+      }
+      return childObj;
    }
 
 }

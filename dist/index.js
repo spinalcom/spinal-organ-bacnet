@@ -34,23 +34,33 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 require("json5/lib/register");
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
+const spinal_model_bacnet_1 = require("spinal-model-bacnet");
+const spinal_connector_service_1 = require("spinal-connector-service");
 const Functions_1 = require("./utilities/Functions");
 const spinal_lib_organ_monitoring_1 = require("spinal-lib-organ-monitoring");
+const nodePath = require("path");
 const pm2 = require("pm2");
 const config = require("../config.js");
 const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
-// Cette fonction est executée en cas de deconnexion au hub
-spinal_core_connectorjs_type_1.FileSystem.onConnectionError = (error_code) => {
-    setTimeout(() => {
-        console.log('disconned from hub, exit with process');
-        process.exit(error_code); // kill le process;
-    }, 5000);
+const organInfo = {
+    name,
+    type: spinal_model_bacnet_1.BACNET_ORGAN_TYPE,
+    path: nodePath.normalize(`${path}/${name}`),
+    model: new spinal_model_bacnet_1.SpinalOrganConfigModel(name, spinal_model_bacnet_1.BACNET_ORGAN_TYPE)
 };
-(0, Functions_1.CreateOrganConfigFile)(connect, path, name)
-    .then((organModel) => __awaiter(void 0, void 0, void 0, function* () {
+const spinalConnectorService = spinal_connector_service_1.SpinalConnectorService.getInstance();
+spinalConnectorService.initialize(connect, organInfo).then((_a) => __awaiter(void 0, [_a], void 0, function* ({ alreadyExists, node }) {
     yield spinal_lib_organ_monitoring_1.default.init(connect, name, host, protocol, port); // API health
-    (0, Functions_1.bindAndRestartOrgan)(connect, name, organModel);
-})).catch((err) => process.exit(0));
+    const pm2_instance = yield (0, Functions_1.GetPm2Instance)(name);
+    const pm2_id = pm2_instance ? pm2_instance.pm_id : null;
+    if (pm2_id)
+        node.restart.bind(() => (0, Functions_1.restartProcessById)(pm2_id));
+    const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
+    console.log(message);
+    (0, Functions_1.bindAllModels)(node);
+})).catch((err) => {
+    console.error("Error", err);
+});
 //# sourceMappingURL=index.js.map

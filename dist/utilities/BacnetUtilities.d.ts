@@ -26,24 +26,24 @@ declare class BacnetUtilitiesClass {
         id: string | number;
         type: string | number;
         currentValue: any;
-    }>>;
+    }> | undefined>;
     private getChildrenNewValueWithReadPropertyMultiple;
     private getChildrenNewValueWithReadProperty;
     createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
     _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef>;
     _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
     _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef>;
-    _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef>;
+    _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef | undefined>;
     _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
     getDeviceId(address: string, sadr: any, client?: bacnet): Promise<number>;
-    _formatProperty(object: any): {
+    _formatProperty(propertyValue: any): {
         [key: string]: boolean | string | number;
     };
     _getObjValue(value: any): boolean | string | number;
     _formatCurrentValue(value: any, type: number | string): boolean | string | number;
-    _getPropertyNameByCode(type: number): string;
-    _getObjectTypeByCode(typeCode: number | string): string;
-    _getUnitsByCode(typeCode: number): string;
+    _getPropertyNameByCode(type: number): string | undefined;
+    _getObjectTypeByCode(typeCode: number | string): string | undefined;
+    _getUnitsByCode(typeCode: number): string | undefined;
     private getChildrenObj;
 }
 declare const BacnetUtilities: BacnetUtilitiesClass;

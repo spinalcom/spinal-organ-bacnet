@@ -43,10 +43,8 @@ class SpinalNetworkServiceUtilities {
             const data = yield this._getSpinalDiscoverModel(spinalModel);
             const networkService = new spinal_model_bmsnetwork_1.NetworkService(false);
             yield networkService.init(data.graph, data.organ);
-            return {
-                networkService: networkService,
-                network: yield this._getOrCreateNetworkNode(spinalModel.network.get(), networkService)
-            };
+            const network = yield this._getOrCreateNetworkNode(spinalModel.network.get(), networkService);
+            return { networkService, network };
         });
     }
     static initSpinalBacnetValueModel(spinalModel) {
@@ -69,12 +67,7 @@ class SpinalNetworkServiceUtilities {
             };
             yield networkService.init(graph, organNetwork);
             const device = node.info.get();
-            return {
-                networkService,
-                device,
-                organ,
-                node
-            };
+            return { networkService, device, organ, node };
         });
     }
     static initSpinalListenerModel(spinalModel) {
@@ -83,15 +76,8 @@ class SpinalNetworkServiceUtilities {
             try {
                 const saveTimeSeries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
                 const networkService = new spinal_model_bmsnetwork_1.NetworkService(saveTimeSeries);
-                const [graph, device, network, context, organ] = yield Promise.all([
-                    // const [graph, device, network, context, organ, profil] = await Promise.all([
-                    this.loadPtrValue(spinalModel.graph),
-                    this.loadPtrValue(spinalModel.device),
-                    this.loadPtrValue(spinalModel.network),
-                    this.loadPtrValue(spinalModel.context),
-                    this.loadPtrValue(spinalModel.organ),
-                    // this.loadPtrValue(spinalModel.monitor.profil)
-                ]);
+                const promises = [spinalModel.graph, spinalModel.device, spinalModel.network, spinalModel.context, spinalModel.organ].map(ptr => this.loadPtrValue(ptr));
+                const [graph, device, network, context, organ] = yield Promise.all(promises);
                 if (graph)
                     spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
                 if (device)
@@ -111,25 +97,7 @@ class SpinalNetworkServiceUtilities {
                     var _a;
                     networkService.useTimeseries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
                 });
-                // const monitors = spinalModel.monitor.getMonitoringData();
-                return {
-                    id: device.info.id.get(),
-                    spinalModel,
-                    spinalDevice,
-                    networkService,
-                    network
-                };
-                // return monitors.map(({ interval, children }) => {
-                //    return {
-                //       interval,
-                //       id: device.info.id.get(),
-                //       children,
-                //       spinalModel,
-                //       spinalDevice,
-                //       networkService,
-                //       network
-                //    }
-                // })
+                return { id: device.getId().get(), spinalModel, spinalDevice, networkService, network };
             }
             catch (error) {
                 return;
@@ -156,10 +124,7 @@ class SpinalNetworkServiceUtilities {
                 networkType: discoverModel.organ.type.get(),
                 networkName: discoverModel.organ.name.get()
             };
-            return {
-                graph,
-                organ
-            };
+            return { graph, organ };
         });
     }
     static _getOrCreateNetworkNode(networkInfo, networkService) {
@@ -176,10 +141,8 @@ class SpinalNetworkServiceUtilities {
         });
     }
     static loadPtrValue(ptrModel) {
-        return new Promise((resolve, reject) => {
-            ptrModel.load((data) => {
-                resolve(data);
-            });
+        return new Promise((resolve) => {
+            ptrModel.load((data) => resolve(data));
         });
     }
 }

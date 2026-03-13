@@ -1,10 +1,11 @@
 import { NetworkService } from "spinal-model-bmsnetwork";
-import { SpinalNode } from "spinal-env-viewer-graph-service";
+import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { IDevice } from "./IDevice";
 
 export interface IDataBacnetValue {
    networkService: NetworkService;
-   network?: any;
-   device: any;
-   organ: any;
-   node: SpinalNode<any>;
+   network?: SpinalNode;
+   device: IDevice;
+   organ: SpinalNode;
+   node: SpinalNodeRef;
 }

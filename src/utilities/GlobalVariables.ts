@@ -30,7 +30,9 @@ export const PropertyIds = BacnetEnum.PropertyIds;
 export const ENUM_DISABLE = BacnetEnum.EnableDisable;
 export const APPLICATION_TAGS = BacnetEnum.ApplicationTags;
 export const SEGMENTATIONS = BacnetEnum.Segmentations;
-
+export const PropertyNames: { [key: number]: string } = swapObject(BacnetEnum.PropertyIds);
+export const ObjectTypesCode: { [key: string]: string } = swapObject(BacnetEnum.ObjectTypes);
+export const UNITS_TYPES: { [key: number]: string } = swapObject(BacnetEnum.UnitsId);
 
 /*
 * TYPE of item retrieved to devices
@@ -52,43 +54,10 @@ export const SENSOR_TYPES: number[] = [
    ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
    ObjectTypes.OBJECT_MULTI_STATE_VALUE,
 
+   ObjectTypes.OBJECT_BITSTRING_VALUE
+
    //NETWORK
 ]
-
-/*
-* All property object ({name : code}) of device
-*/
-export const PropertyNames: { [key: number]: string } = (function swap(json) {
-   var ret = {};
-   for (var key in json) {
-      ret[json[key]] = key;
-   }
-   return ret;
-})(BacnetEnum.PropertyIds);
-
-/*
-* All property object ({code : name}) of device
-*/
-export const ObjectTypesCode: { [key: string]: string } = (function swap(json) {
-   var ret = {};
-   for (var key in json) {
-      ret[json[key]] = key;
-   }
-   return ret;
-})(BacnetEnum.ObjectTypes);
-
-/*
-* All property object ({name : code}) of device
-*/
-export const UNITS_TYPES: { [key: number]: string } = (function swap(json) {
-   var ret = {};
-   for (var key in json) {
-      ret[json[key]] = key;
-   }
-   return ret;
-})(BacnetEnum.UnitsId);
-
-
 
 export const COV_EVENTS_NAMES = {
    "subscribed": "subscribed",
@@ -98,6 +67,15 @@ export const COV_EVENTS_NAMES = {
    "unsubscribe": "unsubscribe",
    "unsubscribed": "unsubscribed",
    "error": "error",
-   "exit": "exit",
+   "exit": "exit"
 } as const;
 
+
+function swapObject(json: { [key: string]: number }): { [key: number]: string } {
+   const swapped: { [key: number]: string } = {};
+   for (const key in json) {
+      const value = json[key];
+      swapped[value] = key;
+   }
+   return swapped;
+}

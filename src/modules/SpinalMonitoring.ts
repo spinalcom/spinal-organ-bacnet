@@ -26,37 +26,40 @@ import { SpinalListenerModel } from "spinal-model-bacnet";
 import NetworkService from "spinal-model-bmsnetwork";
 import { MinPriorityQueue } from "@datastructures-js/priority-queue";
 import { BindProcess } from "spinal-core-connectorjs_type";
-import { SpinalNetworkServiceUtilities } from "../utilities/SpinalNetworkServiceUtilities";
-import { SpinalQueuing } from "../utilities/SpinalQueuing";
 import { SpinalDevice } from "./SpinalDevice";
 import * as lodash from "lodash";
 import { SpinalNode } from "spinal-model-graph";
 import { IDataMonitor, ICovData } from "../Interfaces";
 import { SpinalCov } from "./SpinalCov";
+import { SpinalQueue } from "spinal-connector-service";
+import { SpinalNetworkServiceUtilities } from "../utilities/SpinalNetworkServiceUtilities";
 
 
 type priorityQueueElementType = { id: string; interval: number; priority: number; }
+type resolveCallback = (value: { id: string; intervals: { interval: number; func: Function; }[] } | undefined) => void;
+
 class SpinalMonitoring {
 
-   private queue: SpinalQueuing<SpinalListenerModel> = new SpinalQueuing();
+   private queue: SpinalQueue<SpinalListenerModel> = new SpinalQueue();
    private priorityQueue: MinPriorityQueue<priorityQueueElementType> = new MinPriorityQueue();
-   private initilizationIsProcessing: boolean = false;
+   private initIsProcessing: boolean = false;
    private intervalTimesMap: Map<number, any> = new Map();
    private binded: Map<string, BindProcess> = new Map();
    private devices: { [key: string]: SpinalListenerModel } = {};
-   private _itemToAddToMap: SpinalQueuing<{ id: string; interval: number; func: Function }> = new SpinalQueuing();
-   private _endpointsCreationQueue: SpinalQueuing<{ spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService }> = new SpinalQueuing();
+   private _itemToAddToMap: SpinalQueue<{ id: string; interval: number; func: Function }> = new SpinalQueue();
+   private _endpointsCreationQueue: SpinalQueue<{ spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService }> = new SpinalQueue();
    private _covList: ICovData[] = [];
 
    private static instance: SpinalMonitoring;
 
    private constructor() { }
 
-   public static getInstance(): SpinalListenerModel {
+   public static getInstance(): SpinalMonitoring {
       if (!this.instance) {
          this.instance = new SpinalMonitoring();
          this.instance.init();
       }
+
       return this.instance;
    }
 
@@ -75,60 +78,59 @@ class SpinalMonitoring {
       })
 
       // process the item to add to map queue
-      this._itemToAddToMap.on("start", async () => {
+      this._itemToAddToMap.on("start", async () => this._processToAddItemToMap());
 
-         // add all items to the monitoring map
-         while (!this._itemToAddToMap.isEmpty()) {
-            //@ts-ignore
-            const item = this._itemToAddToMap.dequeue();
-            if (item) {
-               this._addToMonitoringMap(item.id, item.interval, item.func);
-            }
-         }
-      })
-
-      this._endpointsCreationQueue.on("start", async () => {
-         while (!this._endpointsCreationQueue.isEmpty()) {
-            try {
-               // console.log("begin");
-               const { spinalDevice, children, networkService } = this._endpointsCreationQueue.dequeue();
-               await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-               // console.log("end")
-
-            } catch (error) {
-               console.error(error)
-            }
-         }
-      })
+      // process the endpoints creation queue
+      this._endpointsCreationQueue.on("start", async () => this.processToEndpointsCreation());
    }
+
+   private async processToEndpointsCreation() {
+      while (!this._endpointsCreationQueue.isEmpty()) {
+         try {
+            // console.log("begin");
+            const item = this._endpointsCreationQueue.dequeue();
+            if (!item) continue;
+
+            const { spinalDevice, children, networkService } = item;
+            await spinalDevice.checkAndCreateIfNotExist(networkService, children);
+            // console.log("end")
+         } catch (error) {
+            console.error(error);
+         }
+      }
+   }
+
+   private _processToAddItemToMap() {
+      while (!this._itemToAddToMap.isEmpty()) {
+         const item = this._itemToAddToMap.dequeue();
+         if (item) this._addToMonitoringMap(item.id, item.interval, item.func);
+      }
+   }
+
 
    public async startDeviceInitialisation() {
       const monitoringData = await this._initNetworkUtilities();
 
       const promises = this._createMaps(monitoringData);
-      const data = await Promise.all(promises);
+      const monitoringDataFormatted = await Promise.all(promises);
+
+      if (this.initIsProcessing) return;
 
       // if monitoring is not already initialized
-      if (!this.initilizationIsProcessing) {
-         this.initilizationIsProcessing = true;
+      this.initIsProcessing = true;
 
-         for (const iterator of data.flat()) {
-            if (iterator && iterator.id && iterator.intervals) {
-               for (const { interval, func } of iterator.intervals) {
-                  this._addToMonitoringMap(iterator.id, interval, func);
-               }
-            }
+      for (const iterator of monitoringDataFormatted.flat()) {
+         if (iterator && iterator.id && iterator.intervals) {
+            iterator.intervals.forEach(({ interval, func }) => this._addToMonitoringMap(iterator.id, interval, func)); // add to monitoring map}
          }
-
-         console.log("waiting endpoints creation");
-         await this._waitEndpointCreation();
-         console.log("end of endpoints creation");
-
-
-         this.startMonitoring()
-         SpinalCov.getInstance().startCovProcessing(); // start cov processing
       }
 
+      console.log("waiting endpoints creation");
+      await this._waitEndpointCreation();
+      console.log("end of endpoints creation");
+
+      this.startMonitoring()
+      SpinalCov.getInstance().startCovProcessing(); // start cov processing
    }
 
    public async startMonitoring() {
@@ -136,6 +138,7 @@ class SpinalMonitoring {
 
       let p = true;
       while (p) {
+         // if the priority queue is empty, wait for 500ms, it prevents the loop from being too CPU intensive
          if (this.priorityQueue.isEmpty()) {
             await this.waitFct(500);
             continue;
@@ -144,101 +147,125 @@ class SpinalMonitoring {
          //@ts-ignore
          const { priority, element } = this.priorityQueue.dequeue();
 
-         // Si c'est pas le moment de la mise à jour le remettre dans la queue uniquement s'il est toujours monitoré
-         if (priority && Date.now() < priority) {
-            const listen = this.devices[element.id]?.listen?.get();
-            if (listen) {
-               this.priorityQueue.enqueue(element, priority);
-               await this.waitFct(100);
+         if (priority && priority <= Date.now()) {
+            let data = this.intervalTimesMap.get(priority);
+
+            if (data) {
+               data = !Array.isArray(data) ? [data] : data;
+               await this.launchUpdating(data, element.interval, priority);
             }
-            continue;
+
+            this.intervalTimesMap.delete(element.priority);
+
+         } else {
+            const deviceIsAlreadyMonitored = this.devices[element.id]?.listen?.get();
+            if (deviceIsAlreadyMonitored) {
+               this.priorityQueue.enqueue(element, priority);
+               await this.waitFct(100); // wait for 100ms before checking again, it prevents the loop from being too CPU intensive
+            }
          }
 
-         // this.execFunc(element, priority);
-
-
-         let data = this.intervalTimesMap.get(element.priority);
-         if (!data) continue; // l'element a été supprimer de la liste des devices à monitorer
-
-         if (!Array.isArray(data)) data = [data];
-
-         if (data && data.length > 0) {
-            await this.execFunc(data, element.interval, priority);
-         }
-
-         this.intervalTimesMap.delete(element.priority);
       }
    }
 
    private async _initNetworkUtilities(): Promise<IDataMonitor[]> {
       const queueList = this.queue.getQueue();
-      this.queue.refresh();
+      this.queue.clear();
+      const promises = [];
 
-      const promises = await queueList.reduce(async (prom, el) => {
-         const liste = await prom;
-         const res = await SpinalNetworkServiceUtilities.initSpinalListenerModel(el)
-         liste.push(res);
-         return liste;
-      }, Promise.resolve([]));
+      for (const element of queueList) {
+         promises.push(SpinalNetworkServiceUtilities.initSpinalListenerModel(element));
+      }
 
-      return lodash.flattenDeep(await Promise.all(promises)).filter(el => typeof el !== "undefined");
+      const result = await Promise.all(promises);
+
+      return lodash.flattenDeep(result).filter(((el: any) => !!el));
    }
 
-   private _createMaps(devices: Array<IDataMonitor>): Promise<{ id: string; intervals: { interval: number; func: Function }[] }>[] {
-      return devices.map(({ id, spinalModel, spinalDevice, networkService, network }): any => {
-         return new Promise((resolve, reject) => {
-            let process = this.binded.get(id);
-            if (process) return resolve(undefined); // if the device is already binded
-
-            //////////////////
-            // if the device is not binded, bind it //
-            //////////////////
-            process = spinalModel.listen.bind(async () => {
-               const isMonitored = spinalModel.listen.get();
-               const alreadyInit = this.devices[id];
-               const deviceName = spinalDevice.device.name;
-
-               // if the device is monitored
-               if (isMonitored) {
-                  console.log(`${deviceName} is running`);
-
-                  // get items monitored and their intervals
-                  const monitors = spinalModel.monitor.getMonitoringData();
-
-                  // get valid intervals (filter cov and 0)
-                  const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
-
-                  // if the device is not already initialized
-                  if (!alreadyInit) {
-                     this.devices[id] = spinalModel;
-                     console.log(`${deviceName} initialized`);
-                     return resolve({ id, intervals });
-                  }
-
-                  // else if already initialized, just add the intervals to the monitoring map
-                  for (const { interval, func } of intervals) {
-                     this._itemToAddToMap.addToQueue({ id, interval, func });
-                     resolve(undefined);
-                  }
-
-               } else {
-                  console.log(`${deviceName} is stopped`);
-                  await this.removeFromMonitoringMaps(id); // remove from monitoring maps
-                  SpinalCov.getInstance().addToStopCovQueue(spinalDevice.covData); // remove cov data from cov monitoring
-                  // call clear cov after stopping cov monitoring;
-                  await spinalDevice.clearCovList(); // clear cov list in device, because cov monitoring is stopped
-
-                  if (!alreadyInit) this.devices[id] = spinalModel; // keep the device in the list even if not initialized
-                  return resolve(undefined);
-               }
-
-            }, true)
-
-            this.binded.set(id, process);
-         });
-
-      })
+   private _createMaps(devices: Array<IDataMonitor>): Promise<{ id: string; intervals: { interval: number; func: Function }[] } | undefined>[] {
+      return devices.map((device) => this._createDeviceMap(device));
    }
+
+   private _createDeviceMap(device: IDataMonitor): Promise<{ id: string; intervals: { interval: number; func: Function }[] } | undefined> {
+      const { id } = device;
+
+      return new Promise((resolve) => {
+         const existingProcess = this.binded.get(id);
+
+         // Device already binded
+         if (existingProcess) {
+            resolve(undefined);
+            return;
+         }
+
+         const process = this._bindDeviceListener(device, resolve);
+         this.binded.set(id, process);
+      });
+   }
+
+   private _bindDeviceListener(device: IDataMonitor, resolve: resolveCallback): any {
+      const { spinalModel } = device;
+
+      return spinalModel.listen.bind(async () => {
+         const isMonitored = spinalModel.listen.get();
+
+         if (isMonitored) {
+            await this._handleMonitoredDevice(device, resolve);
+            return;
+         }
+
+         await this._handleStoppedDevice(device, resolve);
+      }, true);
+   }
+
+   private async _handleMonitoredDevice(device: IDataMonitor, resolve: resolveCallback): Promise<void> {
+      const { id, spinalModel, spinalDevice, networkService, network } = device;
+      const alreadyInit = this.devices[id];
+      const deviceName = spinalDevice?.device?.name;
+
+      if (!spinalDevice || !networkService || !network) return;
+
+      console.log(`${deviceName} is running`);
+      const monitors = spinalModel.monitor.getMonitoringData();
+      const intervals = await this.getValidIntervals(spinalDevice, networkService, spinalModel, network, monitors);
+
+      if (!alreadyInit) {
+         this.devices[id] = spinalModel;
+         console.log(`${deviceName} initialized`);
+         resolve({ id, intervals });
+         return;
+      }
+
+      this._queueIntervals(id, intervals);
+      resolve(undefined);
+   }
+
+   private async _handleStoppedDevice(device: IDataMonitor, resolve: resolveCallback): Promise<void> {
+      const { id, spinalModel, spinalDevice } = device;
+      const alreadyInit = this.devices[id];
+      const deviceName = spinalDevice?.device?.name;
+
+      console.log(`${deviceName} is stopped`);
+
+      await this.removeFromMonitoringMaps(id);
+      if (spinalDevice?.covData) SpinalCov.getInstance().addToStopCovQueue(spinalDevice.covData);
+
+      await spinalDevice?.clearCovList();
+
+      // Keep the device in the list even if not initialized
+      if (!alreadyInit) {
+         this.devices[id] = spinalModel;
+      }
+
+      resolve(undefined);
+   }
+
+   private _queueIntervals(id: string, intervals: { interval: number; func: Function }[]): void {
+      for (const { interval, func } of intervals) {
+         this._itemToAddToMap.addToQueue({ id, interval, func });
+      }
+   }
+
 
    /**
     *  Add an item to the monitoring map and priority queue
@@ -247,6 +274,9 @@ class SpinalMonitoring {
     * @param func 
     */
    private _addToMonitoringMap(id: string, interval: number, func: Function) {
+      if (isNaN(interval)) return; // if the interval is not a number, do not add to monitoring
+      interval = Number(interval);
+
       let priority = Date.now() + interval;
       let value = this.intervalTimesMap.get(priority); // get existing data for this interval time
       if (!value) value = []; // create new array if not exist
@@ -270,20 +300,22 @@ class SpinalMonitoring {
    }
 
 
-   private async execFunc(data: { id: string; func: Function }[], interval: number, date?: number) {
-
+   private async launchUpdating(data: { id: string; func: Function }[], interval: number, date?: number) {
       const priority = Date.now() + interval;
       const deep_functions = [...data]
 
       while (deep_functions.length > 0) {
-         const { id, func } = deep_functions.shift();
+         const item = deep_functions.shift();
+         if (!item) continue;
+
+         const { id, func } = item;
+
          try {
+            if (typeof func === "function") await func();
 
-            if (typeof func === "function") {
-               await func();
-            }
-
-         } catch (error) { console.error(error); }
+         } catch (error) {
+            console.error(error);
+         }
 
          this.priorityQueue.enqueue({ id, interval, priority }, priority);
       }
@@ -293,17 +325,6 @@ class SpinalMonitoring {
 
    private async createDataIfNotExist(spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService, interval: number) {
       try {
-         // // const id = `${spinalDevice.device.deviceId}_${interval}`;
-         // // let init = this.initializedMap.get(id);
-
-         // // if (!init) {
-         // //    // console.log("initialisation");
-         // //    this.initializedMap.set(id, true);
-         //    await spinalDevice.checkAndCreateIfNotExist(networkService, children);
-         // // }
-
-
-
          // Traiter la creation des endpoinrs dans une Queue, 
          // pour eviter l'envoie de plusieurs requête bacnet
          this._endpointsCreationQueue.addToQueue({ spinalDevice, children, networkService });
@@ -324,15 +345,18 @@ class SpinalMonitoring {
       const monitors_copy = Object.assign([], monitors);
       const res = []
       while (monitors_copy.length > 0) {
-         const { interval, children } = monitors_copy.shift();
+         const item = monitors_copy.shift();
+         if (!item) continue;
+
+         const { interval, children }: any = item;
          if (children.length <= 0 || interval == 0) continue;
 
          // if cov or 0
          if (interval.toString().toLowerCase() === "cov") {
             const covData: ICovData = { spinalModel, spinalDevice, children, networkService, network };
-            // this._covList.push(covData);
             SpinalCov.getInstance().addToCovQueue(covData); // add directly to cov monitoring
             spinalDevice.pushToCovList(covData);
+
          } else {
             // add interval to pooling list
             const func = async () => this.funcToExecute(spinalModel, spinalDevice, children, networkService, network);
@@ -347,16 +371,12 @@ class SpinalMonitoring {
 
    private waitFct(nb: number): Promise<void> {
       return new Promise((resolve) => {
-         setTimeout(
-            () => {
-               resolve();
-            },
-            nb >= 0 ? nb : 0);
+         setTimeout(() => resolve(), nb >= 0 ? nb : 0);
       });
    }
 
    private _waitEndpointCreation() {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
          const wait = () => {
             setTimeout(() => {
                if (this._endpointsCreationQueue.isEmpty()) resolve(undefined);
@@ -391,6 +411,4 @@ const spinalMonitoring = SpinalMonitoring.getInstance();
 // spinalMonitoring.init();
 
 export default spinalMonitoring;
-export {
-   spinalMonitoring
-}
+export { spinalMonitoring }

@@ -10,15 +10,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalCov = void 0;
-const SpinalQueuing_1 = require("../utilities/SpinalQueuing");
+const spinal_connector_service_1 = require("spinal-connector-service");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 const child_process_1 = require("child_process");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const cov_1 = require("./cov");
 class SpinalCov {
     constructor() {
-        this.itemToWatchQueue = new SpinalQueuing_1.default(false);
-        this.itemsToStopQueue = new SpinalQueuing_1.default();
+        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(60 * 1000);
+        this.itemsToStopQueue = new spinal_connector_service_1.SpinalQueue();
         // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
         this._lastCovNotification = null;
         this.itemMonitored = new Map();
@@ -85,52 +85,53 @@ class SpinalCov {
             // if (!this.forkedProcess) {
             //     this.forkedProcess = this.createForkedProcess();
             // }
+            var _a;
             const list = queue.getQueue();
             queue.refresh();
-            const formatted = list.reduce((l, { networkService, network, spinalDevice, children }) => {
-                const ip = spinalDevice.device.address;
-                if (eventName === GlobalVariables_1.COV_EVENTS_NAMES.subscribe) {
+            const formatted = [];
+            for (const { networkService, network, spinalDevice, children } of list) {
+                const ip = (_a = spinalDevice === null || spinalDevice === void 0 ? void 0 : spinalDevice.device) === null || _a === void 0 ? void 0 : _a.address;
+                if (!ip)
+                    continue; // skip if no ip
+                if (eventName === GlobalVariables_1.COV_EVENTS_NAMES.subscribe)
                     this.itemMonitored.set(ip, { networkService, network, spinalDevice, children }); // Store the device
-                }
                 else if (eventName === GlobalVariables_1.COV_EVENTS_NAMES.unsubscribe && this.itemMonitored.has(ip)) {
                     console.log(`[COV] - Unsubscribing from device ${ip}`);
                     this.itemMonitored.delete(ip); // Remove the device
                 }
-                return l.concat(this.formatChildren(ip, children));
-            }, []);
+                formatted.push(...this.formatChildren(ip, children));
+            }
             (0, cov_1.sendEvent)({ eventName, data: formatted });
-            // this.forkedProcess.send({ eventName, data: formatted });
         });
     }
     _checkCovStatus() {
         setInterval(() => {
-            if (this.itemMonitored.size > 0) {
-                const sinceNow = this._lastCovNotification ? (Date.now() - this._lastCovNotification) : -1;
-                const alertTime = 60 * 1000; // 1 minute without COV notification;
-                const tooLong = sinceNow > alertTime; // more than 1 minute
-                if (tooLong) {
-                    console.log(`[COV] - No COV notification received for more than ${alertTime / 1000}s , restarting all subscriptions`);
-                    this.restartAllCovSubscriptions();
-                }
+            if (this.itemMonitored.size === 0)
+                return; // no subscription, skip check
+            const sinceNow = this._lastCovNotification ? (Date.now() - this._lastCovNotification) : -1;
+            const alertTime = 60 * 1000; // 1 minute without COV notification;
+            const tooLong = sinceNow > alertTime; // more than 1 minute
+            if (tooLong) {
+                console.log(`[COV] - No COV notification received for more than ${alertTime / 1000}s , restarting all subscriptions`);
+                this.restartAllCovSubscriptions();
             }
         }, 60 * 1000);
     }
     formatChildren(ip, children) {
-        return children.map((child) => {
-            return { ip, object: child };
-        });
+        return children.map((child) => ({ ip, object: child }));
     }
     createForkedProcess() {
         const path = require.resolve("./cov");
         const forked = (0, child_process_1.fork)(path);
         forked.on("message", (result) => __awaiter(this, void 0, void 0, function* () {
+            var _a;
             switch (result.eventName) {
                 case GlobalVariables_1.COV_EVENTS_NAMES.subscribed:
                     console.log("[COV] - Subscribed to", result.key);
                     break;
                 case GlobalVariables_1.COV_EVENTS_NAMES.error:
                     BacnetUtilities_1.default.incrementState("failed");
-                    console.error(`[COV] - Failed  due to", `, result.error.message);
+                    console.error(`[COV] - Failed  due to", `, (_a = result.error) === null || _a === void 0 ? void 0 : _a.message);
                     // forked.kill();
                     break;
                 case GlobalVariables_1.COV_EVENTS_NAMES.changed:
@@ -140,9 +141,7 @@ class SpinalCov {
             }
         }));
         forked.on("error", (err) => { });
-        forked.on("exit", (code) => {
-            // console.log("child process exited with code", code);
-        });
+        forked.on("exit", (code) => { });
         return forked;
     }
     _updateDeviceValue(address, request) {
@@ -153,7 +152,10 @@ class SpinalCov {
                 return;
             const value = BacnetUtilities_1.default._getObjValue(currentValue.value); // extract value
             const object = request.monitoredObjectId;
-            const { networkService, network, spinalDevice } = this.itemMonitored.get(address);
+            const monitoredData = this.itemMonitored.get(address);
+            if (!monitoredData)
+                return;
+            const { networkService, network, spinalDevice } = monitoredData;
             const obj = {
                 id: (_a = spinalDevice.device) === null || _a === void 0 ? void 0 : _a.deviceId,
                 children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],

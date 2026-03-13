@@ -17,9 +17,9 @@ const stream_1 = require("stream");
 const SpinalCov_1 = require("./SpinalCov");
 // import { SpinalCov } from "./SpinalCov";
 const eventEmitter = new stream_1.EventEmitter();
-// const eventEmitter = process
 function listenEventMessage() {
     eventEmitter.on("message", (result) => __awaiter(this, void 0, void 0, function* () {
+        var _a;
         switch (result.eventName) {
             case GlobalVariables_1.COV_EVENTS_NAMES.subscribe:
                 for (const d of result.data) {
@@ -36,8 +36,7 @@ function listenEventMessage() {
                 break;
             case GlobalVariables_1.COV_EVENTS_NAMES.error:
                 BacnetUtilities_1.default.incrementState("failed");
-                console.error(`[COV] - Failed  due to", `, result.error.message);
-                // forked.kill();
+                console.error(`[COV] - Failed  due to", `, (_a = result.error) === null || _a === void 0 ? void 0 : _a.message);
                 break;
             case GlobalVariables_1.COV_EVENTS_NAMES.changed:
                 SpinalCov_1.SpinalCov.getInstance().updateLastCovNotificationTime();

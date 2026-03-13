@@ -23,13 +23,16 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.COV_EVENTS_NAMES = exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SENSOR_TYPES = exports.SEGMENTATIONS = exports.APPLICATION_TAGS = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
+exports.COV_EVENTS_NAMES = exports.SENSOR_TYPES = exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SEGMENTATIONS = exports.APPLICATION_TAGS = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
 const bacnetEnum_1 = require("./bacnetEnum");
 exports.ObjectTypes = bacnetEnum_1.default.ObjectTypes;
 exports.PropertyIds = bacnetEnum_1.default.PropertyIds;
 exports.ENUM_DISABLE = bacnetEnum_1.default.EnableDisable;
 exports.APPLICATION_TAGS = bacnetEnum_1.default.ApplicationTags;
 exports.SEGMENTATIONS = bacnetEnum_1.default.Segmentations;
+exports.PropertyNames = swapObject(bacnetEnum_1.default.PropertyIds);
+exports.ObjectTypesCode = swapObject(bacnetEnum_1.default.ObjectTypes);
+exports.UNITS_TYPES = swapObject(bacnetEnum_1.default.UnitsId);
 /*
 * TYPE of item retrieved to devices
 */
@@ -47,38 +50,9 @@ exports.SENSOR_TYPES = [
     exports.ObjectTypes.OBJECT_MULTI_STATE_INPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_VALUE,
+    exports.ObjectTypes.OBJECT_BITSTRING_VALUE
     //NETWORK
 ];
-/*
-* All property object ({name : code}) of device
-*/
-exports.PropertyNames = (function swap(json) {
-    var ret = {};
-    for (var key in json) {
-        ret[json[key]] = key;
-    }
-    return ret;
-})(bacnetEnum_1.default.PropertyIds);
-/*
-* All property object ({code : name}) of device
-*/
-exports.ObjectTypesCode = (function swap(json) {
-    var ret = {};
-    for (var key in json) {
-        ret[json[key]] = key;
-    }
-    return ret;
-})(bacnetEnum_1.default.ObjectTypes);
-/*
-* All property object ({name : code}) of device
-*/
-exports.UNITS_TYPES = (function swap(json) {
-    var ret = {};
-    for (var key in json) {
-        ret[json[key]] = key;
-    }
-    return ret;
-})(bacnetEnum_1.default.UnitsId);
 exports.COV_EVENTS_NAMES = {
     "subscribed": "subscribed",
     "subscribe": "subscribe",
@@ -87,6 +61,14 @@ exports.COV_EVENTS_NAMES = {
     "unsubscribe": "unsubscribe",
     "unsubscribed": "unsubscribed",
     "error": "error",
-    "exit": "exit",
+    "exit": "exit"
 };
+function swapObject(json) {
+    const swapped = {};
+    for (const key in json) {
+        const value = json[key];
+        swapped[value] = key;
+    }
+    return swapped;
+}
 //# sourceMappingURL=GlobalVariables.js.map

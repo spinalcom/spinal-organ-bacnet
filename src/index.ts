@@ -25,10 +25,13 @@
 require("json5/lib/register");
 
 import { FileSystem, spinalCore } from "spinal-core-connectorjs_type";
-import { SpinalOrganConfigModel } from "spinal-model-bacnet";
-import { CreateOrganConfigFile, bindAndRestartOrgan } from './utilities/Functions';
+import { BACNET_ORGAN_TYPE, SpinalOrganConfigModel } from "spinal-model-bacnet";
+import { SpinalConnectorService } from "spinal-connector-service";
+import { GetPm2Instance, bindAllModels, restartProcessById } from './utilities/Functions';
 
 import ConfigFile from "spinal-lib-organ-monitoring";
+import * as nodePath from "path";
+
 const pm2 = require("pm2");
 const config = require("../config.js");
 
@@ -37,21 +40,30 @@ const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinalCore.connect(url);
 
 
-// Cette fonction est executée en cas de deconnexion au hub
-FileSystem.onConnectionError = (error_code: number) => {
-   setTimeout(() => {
-      console.log('disconned from hub, exit with process');
-      process.exit(error_code); // kill le process;
-   }, 5000);
+const organInfo = {
+   name,
+   type: BACNET_ORGAN_TYPE,
+   path: nodePath.normalize(`${path}/${name}`),
+   model: new SpinalOrganConfigModel(name, BACNET_ORGAN_TYPE)
 }
 
 
-CreateOrganConfigFile(connect, path, name)
-   .then(async (organModel: SpinalOrganConfigModel) => {
-      await ConfigFile.init(connect, name, host, protocol, port); // API health
-      bindAndRestartOrgan(connect, name, organModel);
-   }).catch((err) => process.exit(0))
+const spinalConnectorService = SpinalConnectorService.getInstance();
 
+spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExists, node }) => {
 
+   await ConfigFile.init(connect, name, host, protocol, port); // API health
 
+   const pm2_instance = await GetPm2Instance(name);
+   const pm2_id = pm2_instance ? (pm2_instance as any).pm_id : null;
 
+   if (pm2_id) node.restart.bind(() => restartProcessById(pm2_id));
+
+   const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
+   console.log(message);
+
+   bindAllModels(node);
+
+}).catch((err) => {
+   console.error("Error", err);
+});

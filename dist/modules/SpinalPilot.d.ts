@@ -8,6 +8,7 @@ declare class SpinalPilot {
     private init;
     addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void>;
     private pilot;
+    private _handlePilot;
     private writeProperties;
     private writeProperty;
     private useDataType;
