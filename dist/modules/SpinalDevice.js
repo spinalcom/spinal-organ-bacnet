@@ -39,6 +39,7 @@ const events_1 = require("events");
 // import { store } from "../store";
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
+const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const spinal_connector_service_1 = require("spinal-connector-service");
 class SpinalDevice extends events_1.EventEmitter {
     // private client: bacnet;
@@ -94,16 +95,16 @@ class SpinalDevice extends events_1.EventEmitter {
                 // group and format items
                 const listes = this._groupAndFormatItems(objectListDetails);
                 const maxLength = listes.length;
-                spinalBacnetValueModel.setProgressState();
+                spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.progress);
                 // create items in graph
                 console.log(`[${deviceName}] - creating items in graph`);
                 yield this._createEndpointGroupWithChildren(listes, networkService, deviceId, deviceName, maxLength, spinalBacnetValueModel);
                 console.log(`[${deviceName}] - items created in graph`);
-                yield spinalBacnetValueModel.setSuccessState();
+                yield spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.success);
             }
             catch (error) {
                 console.log(`[${deviceName}] - items creation failed`);
-                yield spinalBacnetValueModel.setErrorState();
+                yield spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.error);
                 return;
             }
         });
@@ -217,7 +218,7 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getSensors(spinalBacnetValueModel) {
         if (spinalBacnetValueModel) {
-            spinalBacnetValueModel.setRecoverState();
+            spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.recover);
             return spinalBacnetValueModel.sensor.get();
         }
         return GlobalVariables_1.SENSOR_TYPES;
@@ -261,7 +262,10 @@ exports.SpinalDevice = SpinalDevice;
 const allBacnetValueQueue = new spinal_connector_service_1.SpinalQueue();
 allBacnetValueQueue.on("start", () => __awaiter(void 0, void 0, void 0, function* () {
     while (!allBacnetValueQueue.isEmpty()) {
-        const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue();
+        const queueItem = allBacnetValueQueue.dequeue();
+        if (!queueItem)
+            continue;
+        const { device, node, networkService, spinalBacnetValueModel } = queueItem;
         const spinalDevice = new SpinalDevice(device);
         yield spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
     }

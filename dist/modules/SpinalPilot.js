@@ -59,33 +59,6 @@ class SpinalPilot {
             this.queue.addToQueue(spinalPilotModel);
         });
     }
-    // private async pilot() {
-    //    if (!this.isProcessing) {
-    //       this.isProcessing = true;
-    //       // console.log(this.queue);
-    //       while (!this.queue.isEmpty()) {
-    //          const pilot = this.queue.dequeue();
-    //          if (pilot?.isNormal()) {
-    //             pilot.setProcessMode();
-    //             try {
-    //                await this.writeProperties(pilot?.requests.get())
-    //                console.log("success");
-    //                pilot.setSuccessMode();
-    //                await pilot.removeFromGraph();
-    //             } catch (error: any) {
-    //                console.error(error.message);
-    //                pilot.setErrorMode();
-    //                await pilot.removeFromGraph();
-    //             }
-    //          } else {
-    //             console.log("remove");
-    //             await pilot.removeFromGraph();
-    //          }
-    //          // console.log("pilot",pilot)
-    //       }
-    //       this.isProcessing = false;
-    //    }
-    // }
     pilot() {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.isProcessing)
@@ -112,15 +85,15 @@ class SpinalPilot {
                 yield pilot.removeFromGraph();
                 return;
             }
-            pilot.setProcessMode();
+            pilot.changeState(spinal_connector_service_1.PILOT_STATES.processing);
             try {
                 yield this.writeProperties(pilot.requests.get());
                 console.log("success");
-                pilot.setSuccessMode();
+                pilot.changeState(spinal_connector_service_1.PILOT_STATES.success);
             }
             catch (error) {
                 console.error(error.message);
-                pilot.setErrorMode();
+                pilot.changeState(spinal_connector_service_1.PILOT_STATES.error);
             }
             yield pilot.removeFromGraph();
         });

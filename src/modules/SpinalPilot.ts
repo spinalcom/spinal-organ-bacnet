@@ -22,7 +22,7 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import { SpinalQueue } from "spinal-connector-service";
+import { SpinalQueue, PILOT_STATES } from "spinal-connector-service";
 import { SpinalPilotModel } from "spinal-model-bacnet";
 import { IRequest } from "spinal-model-bacnet";
 import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalVariables";
@@ -56,37 +56,6 @@ class SpinalPilot {
       this.queue.addToQueue(spinalPilotModel);
    }
 
-   // private async pilot() {
-   //    if (!this.isProcessing) {
-   //       this.isProcessing = true;
-   //       // console.log(this.queue);
-   //       while (!this.queue.isEmpty()) {
-   //          const pilot = this.queue.dequeue();
-
-   //          if (pilot?.isNormal()) {
-   //             pilot.setProcessMode();
-   //             try {
-   //                await this.writeProperties(pilot?.requests.get())
-   //                console.log("success");
-   //                pilot.setSuccessMode();
-   //                await pilot.removeFromGraph();
-   //             } catch (error: any) {
-   //                console.error(error.message);
-   //                pilot.setErrorMode();
-   //                await pilot.removeFromGraph();
-   //             }
-
-   //          } else {
-   //             console.log("remove");
-   //             await pilot.removeFromGraph();
-   //          }
-
-   //          // console.log("pilot",pilot)
-   //       }
-
-   //       this.isProcessing = false;
-   //    }
-   // }
 
    private async pilot(): Promise<void> {
       if (this.isProcessing) return;
@@ -115,15 +84,15 @@ class SpinalPilot {
          return;
       }
 
-      pilot.setProcessMode();
+      pilot.changeState(PILOT_STATES.processing);
 
       try {
          await this.writeProperties(pilot.requests.get());
          console.log("success");
-         pilot.setSuccessMode();
+         pilot.changeState(PILOT_STATES.success);
       } catch (error: any) {
          console.error(error.message);
-         pilot.setErrorMode();
+         pilot.changeState(PILOT_STATES.error);
       }
 
       await pilot.removeFromGraph();

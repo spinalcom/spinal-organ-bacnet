@@ -29,7 +29,8 @@ import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-servi
 import { SpinalBmsDevice } from "spinal-model-bmsnetwork";
 import { SpinalDevice } from './SpinalDevice';
 import { IDevice } from "../Interfaces/IDevice";
-import { SpinalDiscoverModel, STATES } from 'spinal-model-bacnet';
+import { SpinalDiscoverModel } from 'spinal-model-bacnet';
+import { STATES } from 'spinal-connector-service';
 import { SpinalNetworkServiceUtilities } from '../utilities/SpinalNetworkServiceUtilities';
 import { PropertyIds } from '../utilities/GlobalVariables';
 import BacnetUtilities from '../utilities/BacnetUtilities';
@@ -93,16 +94,16 @@ class SpinalDiscover {
          // if no device found, set timeout mode
          if (this.discoverModel.devices.length === 0) {
             console.log("Timeout !");
-            this.discoverModel.setTimeoutMode();
+            this.discoverModel.changeState(STATES.timeout);
             return;
          }
 
-         this.discoverModel.setDiscoveredMode();
+         this.discoverModel.changeState(STATES.discovered);
          console.log("discovered");
 
       } catch (error) {
          console.log("Timeout !");
-         this.discoverModel.setTimeoutMode();
+         this.discoverModel.changeState(STATES.timeout);
       }
    }
 
@@ -250,10 +251,10 @@ class SpinalDiscover {
             }
          }
 
-         this.discoverModel.setCreatedMode();
+         this.discoverModel.changeState(STATES.created);
          console.log("nodes created!");
       } catch (error) {
-         this.discoverModel.setErrorMode();
+         this.discoverModel.changeState(STATES.error);
 
       } finally {
          this.discoverModel.state.unbind(this.bindSateProcess);

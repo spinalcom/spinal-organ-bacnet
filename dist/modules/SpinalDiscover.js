@@ -38,7 +38,7 @@ const spinal_connector_service_1 = require("spinal-connector-service");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
-const spinal_model_bacnet_1 = require("spinal-model-bacnet");
+const spinal_connector_service_2 = require("spinal-connector-service");
 const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
@@ -59,11 +59,11 @@ class SpinalDiscover {
     _bindState() {
         this.bindSateProcess = this.discoverModel.state.bind(() => {
             switch (this.discoverModel.state.get()) {
-                case spinal_model_bacnet_1.STATES.discovering:
+                case spinal_connector_service_2.STATES.discovering:
                     console.log("discovering...");
                     this._discover();
                     break;
-                case spinal_model_bacnet_1.STATES.creating:
+                case spinal_connector_service_2.STATES.creating:
                     console.log("creating...");
                     this._createNodes();
                 default:
@@ -91,15 +91,15 @@ class SpinalDiscover {
                 // if no device found, set timeout mode
                 if (this.discoverModel.devices.length === 0) {
                     console.log("Timeout !");
-                    this.discoverModel.setTimeoutMode();
+                    this.discoverModel.changeState(spinal_connector_service_2.STATES.timeout);
                     return;
                 }
-                this.discoverModel.setDiscoveredMode();
+                this.discoverModel.changeState(spinal_connector_service_2.STATES.discovered);
                 console.log("discovered");
             }
             catch (error) {
                 console.log("Timeout !");
-                this.discoverModel.setTimeoutMode();
+                this.discoverModel.changeState(spinal_connector_service_2.STATES.timeout);
             }
         });
     }
@@ -225,11 +225,11 @@ class SpinalDiscover {
                         isFinished = true;
                     }
                 }
-                this.discoverModel.setCreatedMode();
+                this.discoverModel.changeState(spinal_connector_service_2.STATES.created);
                 console.log("nodes created!");
             }
             catch (error) {
-                this.discoverModel.setErrorMode();
+                this.discoverModel.changeState(spinal_connector_service_2.STATES.error);
             }
             finally {
                 this.discoverModel.state.unbind(this.bindSateProcess);
@@ -297,12 +297,12 @@ class Discover extends events_1.EventEmitter {
         let bindSateProcess = model.state.bind(() => {
             const state = model.state.get();
             switch (state) {
-                case spinal_model_bacnet_1.STATES.discovered:
+                case spinal_connector_service_2.STATES.discovered:
                     model.state.unbind(bindSateProcess);
                     if (!timeout)
                         this.emit("next");
                     break;
-                case spinal_model_bacnet_1.STATES.timeout:
+                case spinal_connector_service_2.STATES.timeout:
                     if (!timeout)
                         this.emit("next");
                     timeout = true;

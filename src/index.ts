@@ -51,6 +51,7 @@ const organInfo = {
 const spinalConnectorService = SpinalConnectorService.getInstance();
 
 spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExists, node }) => {
+   await node.initializeModelsList(); // initialize the list of models in the organ
 
    await ConfigFile.init(connect, name, host, protocol, port); // API health
 

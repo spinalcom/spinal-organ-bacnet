@@ -52,6 +52,7 @@ const organInfo = {
 };
 const spinalConnectorService = spinal_connector_service_1.SpinalConnectorService.getInstance();
 spinalConnectorService.initialize(connect, organInfo).then((_a) => __awaiter(void 0, [_a], void 0, function* ({ alreadyExists, node }) {
+    yield node.initializeModelsList(); // initialize the list of models in the organ
     yield spinal_lib_organ_monitoring_1.default.init(connect, name, host, protocol, port); // API health
     const pm2_instance = yield (0, Functions_1.GetPm2Instance)(name);
     const pm2_id = pm2_instance ? pm2_instance.pm_id : null;

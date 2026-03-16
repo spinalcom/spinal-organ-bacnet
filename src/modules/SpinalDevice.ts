@@ -30,7 +30,7 @@ import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 // import { store } from "../store";
 import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVariables";
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
-import { SpinalBacnetValueModel } from "spinal-model-bacnet";
+import { SpinalBacnetValueModel, BACNET_VALUES_STATE } from "spinal-model-bacnet";
 
 import { ICovData, IDevice } from "../Interfaces";
 import { SpinalQueue } from "spinal-connector-service";
@@ -102,18 +102,17 @@ export class SpinalDevice extends EventEmitter {
          const listes = this._groupAndFormatItems(objectListDetails);
          const maxLength = listes.length;
 
-         spinalBacnetValueModel.setProgressState();
-
+         spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.progress);
 
          // create items in graph
          console.log(`[${deviceName}] - creating items in graph`);
          await this._createEndpointGroupWithChildren(listes, networkService, deviceId, deviceName, maxLength, spinalBacnetValueModel);
          console.log(`[${deviceName}] - items created in graph`);
 
-         await spinalBacnetValueModel.setSuccessState();
+         await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.success);
       } catch (error) {
          console.log(`[${deviceName}] - items creation failed`);
-         await spinalBacnetValueModel.setErrorState();
+         await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.error);
          return;
       }
 
@@ -241,7 +240,7 @@ export class SpinalDevice extends EventEmitter {
 
    private _getSensors(spinalBacnetValueModel: SpinalBacnetValueModel): number[] {
       if (spinalBacnetValueModel) {
-         spinalBacnetValueModel.setRecoverState();
+         spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.recover);
          return spinalBacnetValueModel.sensor.get();
       }
 
@@ -287,7 +286,10 @@ const allBacnetValueQueue: SpinalQueue<{ device: IDevice, node: SpinalNodeRef, n
 
 allBacnetValueQueue.on("start", async () => {
    while (!allBacnetValueQueue.isEmpty()) {
-      const { device, node, networkService, spinalBacnetValueModel } = allBacnetValueQueue.dequeue();
+      const queueItem = allBacnetValueQueue.dequeue();
+      if (!queueItem) continue;
+
+      const { device, node, networkService, spinalBacnetValueModel } = queueItem;
       const spinalDevice = new SpinalDevice(device);
       await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
    }

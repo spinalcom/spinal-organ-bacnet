@@ -22,15 +22,16 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
+import { SpinalNode } from "spinal-env-viewer-graph-service";
 import { addToGetAllBacnetValuesQueue } from "../modules/SpinalDevice";
-import { SpinalDiscoverModel, SpinalListenerModel, SpinalOrganConfigModel, SpinalBacnetValueModel, SpinalPilotModel, STATES, BACNET_VALUES_STATE } from "spinal-model-bacnet";
+import { SpinalDiscoverModel, SpinalListenerModel, SpinalOrganConfigModel, SpinalBacnetValueModel, SpinalPilotModel, BACNET_VALUES_STATE } from "spinal-model-bacnet";
+import { STATES } from "spinal-connector-service";
 
+import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
 import { spinalDiscover } from "../modules/SpinalDiscover";
 import { spinalMonitoring } from "../modules/SpinalMonitoring";
 import { spinalPilot } from "../modules/SpinalPilot";
 
-import { SpinalNode } from "spinal-env-viewer-graph-service";
-import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
 
 import * as pm2 from "pm2";
 
@@ -78,8 +79,8 @@ export function bindAllModels(organModel: SpinalOrganConfigModel) {
    }, true);
 
    ///////////////// listen allbacnetvalues model to get bacnet values of devices
-   organModel.allBacnetValues.modification_date.bind(() => {
-      const allBacnetValuesList = organModel.getAllBacnetValuesModelFromGraph();
+   organModel.allBacnetValues.modification_date.bind(async () => {
+      const allBacnetValuesList = await organModel.getBacnetValuesModelFromGraph();
 
       for (const spinalBacnetValueModel of allBacnetValuesList) {
          SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
@@ -117,21 +118,26 @@ export function restartProcessById(instanceId: string | number): Promise<boolean
 
 async function SpinalDiscoverCallback(spinalDiscoverModel: SpinalDiscoverModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> {
 
-   // await WaitModelReady();
-   //// this check is not necessary when not using load_type
-   // const itsForThisOrgan = await checkOrgan(spinalDiscoverModel, organModel.id?.get() || '');
-   // if (!itsForThisOrgan) return;
+   try {
+      // await WaitModelReady();
+      //// this check is not necessary when not using load_type
+      // const itsForThisOrgan = await checkOrgan(spinalDiscoverModel, organModel.id?.get() || '');
+      // if (!itsForThisOrgan) return;
 
-   const actualState = spinalDiscoverModel.state.get();
+      const actualState = spinalDiscoverModel.state.get();
 
-   // if the state is different than initial that means that the discover model was already treated
-   if (actualState !== STATES.initial) {
-      spinalDiscoverModel.setTimeoutMode();
-      return spinalDiscoverModel.remove();
+      // if the state is different than initial that means that the discover model was already treated
+      if (actualState !== STATES.discovering && actualState !== STATES.initial) {
+         spinalDiscoverModel.changeState(STATES.error);
+         return spinalDiscoverModel.removeFromGraph();
+      }
+
+      spinalDiscover.addToQueue(spinalDiscoverModel);
+      // new SpinalDiscover(spinalDiscoverModel);
+   } catch (error) {
+      spinalDiscoverModel.removeFromGraph();
    }
 
-   spinalDiscover.addToQueue(spinalDiscoverModel);
-   // new SpinalDiscover(spinalDiscoverModel);
 }
 
 async function SpinalBacnetValueModelCallback(spinalBacnetValueModel: SpinalBacnetValueModel, organModel: SpinalOrganConfigModel): Promise<void | boolean> {
@@ -149,7 +155,7 @@ async function SpinalBacnetValueModelCallback(spinalBacnetValueModel: SpinalBacn
       else throw new Error('lost connection with bacnet network');
 
    } catch (error) {
-      await spinalBacnetValueModel.setErrorState();
+      await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.error);
       return spinalBacnetValueModel.removeFromGraph();
    }
 

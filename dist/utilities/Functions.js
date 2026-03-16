@@ -35,13 +35,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GetPm2Instance = void 0;
 exports.bindAllModels = bindAllModels;
 exports.restartProcessById = restartProcessById;
+const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
+const spinal_connector_service_1 = require("spinal-connector-service");
+const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
 const SpinalDiscover_1 = require("../modules/SpinalDiscover");
 const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
 const SpinalPilot_1 = require("../modules/SpinalPilot");
-const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
-const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
 const pm2 = require("pm2");
 const Q = require('q');
 function bindAllModels(organModel) {
@@ -76,12 +77,12 @@ function bindAllModels(organModel) {
         }
     }), true);
     ///////////////// listen allbacnetvalues model to get bacnet values of devices
-    organModel.allBacnetValues.modification_date.bind(() => {
-        const allBacnetValuesList = organModel.getAllBacnetValuesModelFromGraph();
+    organModel.allBacnetValues.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
+        const allBacnetValuesList = yield organModel.getBacnetValuesModelFromGraph();
         for (const spinalBacnetValueModel of allBacnetValuesList) {
             SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
         }
-    }, true);
+    }), true);
 }
 const GetPm2Instance = (organName) => {
     return new Promise((resolve, reject) => {
@@ -109,18 +110,23 @@ function restartProcessById(instanceId) {
 ////////////////////////////////////////////////
 function SpinalDiscoverCallback(spinalDiscoverModel, organModel) {
     return __awaiter(this, void 0, void 0, function* () {
-        // await WaitModelReady();
-        //// this check is not necessary when not using load_type
-        // const itsForThisOrgan = await checkOrgan(spinalDiscoverModel, organModel.id?.get() || '');
-        // if (!itsForThisOrgan) return;
-        const actualState = spinalDiscoverModel.state.get();
-        // if the state is different than initial that means that the discover model was already treated
-        if (actualState !== spinal_model_bacnet_1.STATES.initial) {
-            spinalDiscoverModel.setTimeoutMode();
-            return spinalDiscoverModel.remove();
+        try {
+            // await WaitModelReady();
+            //// this check is not necessary when not using load_type
+            // const itsForThisOrgan = await checkOrgan(spinalDiscoverModel, organModel.id?.get() || '');
+            // if (!itsForThisOrgan) return;
+            const actualState = spinalDiscoverModel.state.get();
+            // if the state is different than initial that means that the discover model was already treated
+            if (actualState !== spinal_connector_service_1.STATES.discovering && actualState !== spinal_connector_service_1.STATES.initial) {
+                spinalDiscoverModel.changeState(spinal_connector_service_1.STATES.error);
+                return spinalDiscoverModel.removeFromGraph();
+            }
+            SpinalDiscover_1.spinalDiscover.addToQueue(spinalDiscoverModel);
+            // new SpinalDiscover(spinalDiscoverModel);
         }
-        SpinalDiscover_1.spinalDiscover.addToQueue(spinalDiscoverModel);
-        // new SpinalDiscover(spinalDiscoverModel);
+        catch (error) {
+            spinalDiscoverModel.removeFromGraph();
+        }
     });
 }
 function SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel) {
@@ -137,7 +143,7 @@ function SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel) {
                 throw new Error('lost connection with bacnet network');
         }
         catch (error) {
-            yield spinalBacnetValueModel.setErrorState();
+            yield spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.error);
             return spinalBacnetValueModel.removeFromGraph();
         }
     });
