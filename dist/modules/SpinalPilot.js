@@ -80,22 +80,25 @@ class SpinalPilot {
     }
     _handlePilot(pilot) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!pilot.isNormal()) {
-                console.log("remove");
+            const actualState = pilot.state.get();
+            if (actualState === spinal_connector_service_1.PILOT_STATES.error || actualState === spinal_connector_service_1.PILOT_STATES.success) {
+                console.log("pilot already treated with state:", actualState);
                 yield pilot.removeFromGraph();
                 return;
             }
             pilot.changeState(spinal_connector_service_1.PILOT_STATES.processing);
             try {
                 yield this.writeProperties(pilot.requests.get());
-                console.log("success");
+                console.log("pilot success");
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.success);
             }
             catch (error) {
-                console.error(error.message);
+                console.error("pilot failed due to:", error.message);
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.error);
             }
-            yield pilot.removeFromGraph();
+            finally {
+                yield pilot.removeFromGraph();
+            }
         });
     }
     writeProperties() {

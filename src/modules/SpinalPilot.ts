@@ -78,8 +78,9 @@ class SpinalPilot {
    }
 
    private async _handlePilot(pilot: SpinalPilotModel): Promise<void> {
-      if (!pilot.isNormal()) {
-         console.log("remove");
+      const actualState = pilot.state.get();
+      if (actualState === PILOT_STATES.error || actualState === PILOT_STATES.success) {
+         console.log("pilot already treated with state:", actualState);
          await pilot.removeFromGraph();
          return;
       }
@@ -88,14 +89,15 @@ class SpinalPilot {
 
       try {
          await this.writeProperties(pilot.requests.get());
-         console.log("success");
+         console.log("pilot success");
          pilot.changeState(PILOT_STATES.success);
       } catch (error: any) {
-         console.error(error.message);
+         console.error("pilot failed due to:", error.message);
          pilot.changeState(PILOT_STATES.error);
+      } finally {
+         await pilot.removeFromGraph();
       }
 
-      await pilot.removeFromGraph();
    }
 
    private async writeProperties(requests: IRequest[] = []) {
