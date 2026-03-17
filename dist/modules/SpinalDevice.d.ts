@@ -14,8 +14,7 @@ export declare class SpinalDevice extends EventEmitter {
     pushToCovList(argCovData: ICovData | ICovData[]): number;
     /** clear covList */
     clearCovList(): void;
-    /** create device node in graph if not exist */
-    createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef | undefined>;
+    createDeviceNodeInGraph(networkService: NetworkService, parentId: string): Promise<SpinalNodeRef | undefined>;
     /** create device item list in graph */
     createDeviceItemList(networkService: NetworkService, node: SpinalNodeRef, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void>;
     /** Check and create endpoints if they do not exist */
@@ -28,7 +27,6 @@ export declare class SpinalDevice extends EventEmitter {
         type: number;
     }>): Promise<void>;
     updateEndpointInGraph(obj: InputDataDevice, networkService: NetworkService, networkNode: SpinalNode): Promise<void>;
-    private _createDevice;
     private _getDeviceInfo;
     private _groupAndFormatItems;
     private _groupByType;

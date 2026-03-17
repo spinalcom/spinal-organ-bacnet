@@ -73,11 +73,10 @@ class SpinalDevice extends events_1.EventEmitter {
     clearCovList() {
         this.covData = [];
     }
-    /** create device node in graph if not exist */
-    createStructureNodes(networkService, node, parentId) {
-        if (node)
-            return Promise.resolve(node);
-        return this._createDevice(networkService, parentId);
+    createDeviceNodeInGraph(networkService, parentId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return networkService.createNewBmsDevice(parentId, this.device);
+        });
     }
     /** create device item list in graph */
     createDeviceItemList(networkService, node, spinalBacnetValueModel) {
@@ -157,15 +156,6 @@ class SpinalDevice extends events_1.EventEmitter {
     //////////////////////////////////////////////////////////////////////////////
     ////                      PRIVATES                                        ////
     //////////////////////////////////////////////////////////////////////////////
-    _createDevice(networkService, parentId) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!this.info) {
-                return;
-            }
-            ;
-            return networkService.createNewBmsDevice(parentId, this.info);
-        });
-    }
     _getDeviceInfo(device) {
         return __awaiter(this, void 0, void 0, function* () {
             const deviceAddress = device.address;

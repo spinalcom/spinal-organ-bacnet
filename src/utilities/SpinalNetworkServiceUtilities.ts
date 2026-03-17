@@ -122,13 +122,15 @@ export class SpinalNetworkServiceUtilities {
    /////////////////////////////////////////////////////////////
 
    private static async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalGraph<any>; organ: { contextName: string; contextType: string; networkType: string; networkName: string; } }> {
-      const graph = await this.loadPtrValue(discoverModel.graph);
+      const graph = await discoverModel.getGraph();
+      const context = await discoverModel.getContext();
+      const organNode = await discoverModel.getOrgan();
 
       const organ = {
-         contextName: discoverModel.context.name.get(),
-         contextType: discoverModel.context.type.get(),
-         networkType: discoverModel.organ.type.get(),
-         networkName: discoverModel.organ.name.get()
+         contextName: context.getName().get(),
+         contextType: context.getType().get(),
+         networkType: organNode.getType().get(),
+         networkName: organNode.getName().get()
       };
 
       return { graph, organ }

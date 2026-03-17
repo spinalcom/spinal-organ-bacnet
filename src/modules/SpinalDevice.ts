@@ -75,11 +75,8 @@ export class SpinalDevice extends EventEmitter {
       this.covData = [];
    }
 
-   /** create device node in graph if not exist */
-   public createStructureNodes(networkService: NetworkService, node: SpinalNodeRef, parentId: string): Promise<SpinalNodeRef | undefined> {
-      if (node) return Promise.resolve(node);
-
-      return this._createDevice(networkService, parentId);
+   public async createDeviceNodeInGraph(networkService: NetworkService, parentId: string): Promise<SpinalNodeRef | undefined> {
+      return networkService.createNewBmsDevice(parentId, this.device as any);
    }
 
    /** create device item list in graph */
@@ -176,13 +173,7 @@ export class SpinalDevice extends EventEmitter {
    ////                      PRIVATES                                        ////
    //////////////////////////////////////////////////////////////////////////////
 
-   private async _createDevice(networkService: NetworkService, parentId: string): Promise<SpinalNodeRef | undefined> {
-      if (!this.info) {
-         return;
-      };
 
-      return networkService.createNewBmsDevice(parentId, this.info);
-   }
 
    private async _getDeviceInfo(device: IDevice): Promise<IDevice> {
       const deviceAddress = device.address;

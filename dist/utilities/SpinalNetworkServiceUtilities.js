@@ -117,12 +117,14 @@ class SpinalNetworkServiceUtilities {
     /////////////////////////////////////////////////////////////
     static _getSpinalDiscoverModel(discoverModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            const graph = yield this.loadPtrValue(discoverModel.graph);
+            const graph = yield discoverModel.getGraph();
+            const context = yield discoverModel.getContext();
+            const organNode = yield discoverModel.getOrgan();
             const organ = {
-                contextName: discoverModel.context.name.get(),
-                contextType: discoverModel.context.type.get(),
-                networkType: discoverModel.organ.type.get(),
-                networkName: discoverModel.organ.name.get()
+                contextName: context.getName().get(),
+                contextType: context.getType().get(),
+                networkType: organNode.getType().get(),
+                networkName: organNode.getName().get()
             };
             return { graph, organ };
         });
