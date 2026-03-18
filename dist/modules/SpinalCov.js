@@ -86,8 +86,8 @@ class SpinalCov {
             //     this.forkedProcess = this.createForkedProcess();
             // }
             var _a;
-            const list = queue.getQueue();
-            queue.refresh();
+            const list = queue.toArray();
+            queue.clear();
             const formatted = [];
             for (const { networkService, network, spinalDevice, children } of list) {
                 const ip = (_a = spinalDevice === null || spinalDevice === void 0 ? void 0 : spinalDevice.device) === null || _a === void 0 ? void 0 : _a.address;

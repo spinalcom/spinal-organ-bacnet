@@ -143,7 +143,7 @@ class SpinalMonitoring {
                     this.intervalTimesMap.delete(element.priority);
                 }
                 else {
-                    const deviceIsAlreadyMonitored = (_b = (_a = this.devices[element.id]) === null || _a === void 0 ? void 0 : _a.listen) === null || _b === void 0 ? void 0 : _b.get();
+                    const deviceIsAlreadyMonitored = (_b = (_a = this.devices[element.id]) === null || _a === void 0 ? void 0 : _a.monitored) === null || _b === void 0 ? void 0 : _b.get();
                     if (deviceIsAlreadyMonitored) {
                         this.priorityQueue.enqueue(element, priority);
                         yield this.waitFct(100); // wait for 100ms before checking again, it prevents the loop from being too CPU intensive
@@ -154,7 +154,7 @@ class SpinalMonitoring {
     }
     _initNetworkUtilities() {
         return __awaiter(this, void 0, void 0, function* () {
-            const queueList = this.queue.getQueue();
+            const queueList = this.queue.toArray();
             this.queue.clear();
             const promises = [];
             for (const element of queueList) {
@@ -182,8 +182,8 @@ class SpinalMonitoring {
     }
     _bindDeviceListener(device, resolve) {
         const { spinalModel } = device;
-        return spinalModel.listen.bind(() => __awaiter(this, void 0, void 0, function* () {
-            const isMonitored = spinalModel.listen.get();
+        return spinalModel.monitored.bind(() => __awaiter(this, void 0, void 0, function* () {
+            const isMonitored = spinalModel.monitored.get();
             if (isMonitored) {
                 yield this._handleMonitoredDevice(device, resolve);
                 return;
@@ -299,7 +299,7 @@ class SpinalMonitoring {
     }
     funcToExecute(spinalModel, spinalDevice, children, networkService, network) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (spinalModel.listen.get() && (children === null || children === void 0 ? void 0 : children.length) > 0) {
+            if (spinalModel.monitored.get() && (children === null || children === void 0 ? void 0 : children.length) > 0) {
                 yield spinalDevice.updateEndpoints(networkService, network, children);
             }
         });

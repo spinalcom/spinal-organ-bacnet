@@ -158,7 +158,7 @@ class SpinalMonitoring {
             this.intervalTimesMap.delete(element.priority);
 
          } else {
-            const deviceIsAlreadyMonitored = this.devices[element.id]?.listen?.get();
+            const deviceIsAlreadyMonitored = this.devices[element.id]?.monitored?.get();
             if (deviceIsAlreadyMonitored) {
                this.priorityQueue.enqueue(element, priority);
                await this.waitFct(100); // wait for 100ms before checking again, it prevents the loop from being too CPU intensive
@@ -169,7 +169,7 @@ class SpinalMonitoring {
    }
 
    private async _initNetworkUtilities(): Promise<IDataMonitor[]> {
-      const queueList = this.queue.getQueue();
+      const queueList = this.queue.toArray();
       this.queue.clear();
       const promises = [];
 
@@ -206,8 +206,8 @@ class SpinalMonitoring {
    private _bindDeviceListener(device: IDataMonitor, resolve: resolveCallback): any {
       const { spinalModel } = device;
 
-      return spinalModel.listen.bind(async () => {
-         const isMonitored = spinalModel.listen.get();
+      return spinalModel.monitored.bind(async () => {
+         const isMonitored = spinalModel.monitored.get();
 
          if (isMonitored) {
             await this._handleMonitoredDevice(device, resolve);
@@ -336,7 +336,7 @@ class SpinalMonitoring {
    }
 
    private async funcToExecute(spinalModel: SpinalListenerModel, spinalDevice: SpinalDevice, children: Array<any>, networkService: NetworkService, network: SpinalNode<any>) {
-      if (spinalModel.listen.get() && children?.length > 0) {
+      if (spinalModel.monitored.get() && children?.length > 0) {
          await spinalDevice.updateEndpoints(networkService, network, children);
       }
    }

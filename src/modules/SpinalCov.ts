@@ -93,8 +93,9 @@ class SpinalCov {
         //     this.forkedProcess = this.createForkedProcess();
         // }
 
-        const list = queue.getQueue();
-        queue.refresh();
+        const list = queue.toArray();
+        queue.clear();
+
         const formatted: ICovSubscribeReq[] = [];
 
         for (const { networkService, network, spinalDevice, children } of list) {
