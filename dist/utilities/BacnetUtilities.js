@@ -423,18 +423,36 @@ class BacnetUtilitiesClass {
             const nodeCreated = [];
             let counter = 0;
             while (counter < endpointArray.length) {
-                const item = endpointArray[counter];
-                if (childNetwork[item.id]) {
+                const endpointInfo = endpointArray[counter];
+                const existingEndpoint = childNetwork[endpointInfo.id];
+                if (existingEndpoint) {
                     // console.log(item.id, "already exists", deviceName ? `in "${deviceName}"` : "");
+                    yield this._updateEndpointInfo(endpointInfo, existingEndpoint);
                     counter++;
                     continue;
                 }
-                const ref = yield this._createEndpoint(networkService, groupId, item);
+                const ref = yield this._createEndpoint(networkService, groupId, endpointInfo);
                 if (ref)
                     nodeCreated.push(ref);
                 counter++;
             }
             return nodeCreated;
+        });
+    }
+    _updateEndpointInfo(endpointNewInfo, endpoint) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const realNode = spinal_env_viewer_graph_service_1.SpinalGraphService.getRealNode(endpoint.id.get());
+            if (!realNode)
+                return;
+            const endpointElement = yield realNode.getElement(true);
+            endpointNewInfo.currentValue = this._formatCurrentValue(endpointNewInfo.present_value, endpointNewInfo.objectId.type);
+            for (let key in endpointNewInfo) {
+                const value = endpointNewInfo[key];
+                if (endpointElement[key])
+                    endpointElement[key].set(value);
+                if (realNode.info[key])
+                    realNode.info[key].set(value);
+            }
         });
     }
     _createEndpoint(networkService, groupId, endpointObj) {

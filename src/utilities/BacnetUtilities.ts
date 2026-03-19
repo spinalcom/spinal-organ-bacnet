@@ -447,19 +447,39 @@ class BacnetUtilitiesClass {
       const nodeCreated = []
       let counter = 0;
       while (counter < endpointArray.length) {
-         const item = endpointArray[counter];
-         if (childNetwork[item.id]) {
+         const endpointInfo = endpointArray[counter];
+         const existingEndpoint = childNetwork[endpointInfo.id];
+
+         if (existingEndpoint) {
             // console.log(item.id, "already exists", deviceName ? `in "${deviceName}"` : "");
+            await this._updateEndpointInfo(endpointInfo, existingEndpoint);
             counter++;
             continue;
          }
 
-         const ref = await this._createEndpoint(networkService, groupId, item);
+         const ref = await this._createEndpoint(networkService, groupId, endpointInfo);
          if (ref) nodeCreated.push(ref);
          counter++;
       }
 
       return nodeCreated;
+   }
+
+   private async _updateEndpointInfo(endpointNewInfo: any, endpoint: SpinalNodeRef): Promise<void> {
+      const realNode = SpinalGraphService.getRealNode(endpoint.id.get());
+      if (!realNode) return;
+
+      const endpointElement: SpinalBmsEndpoint = await realNode.getElement(true);
+
+      endpointNewInfo.currentValue = this._formatCurrentValue(endpointNewInfo.present_value, endpointNewInfo.objectId.type);
+
+      for (let key in endpointNewInfo) {
+         const value = endpointNewInfo[key];
+
+         if (endpointElement[key]) endpointElement[key].set(value);
+         if (realNode.info[key]) realNode.info[key].set(value);
+      }
+
    }
 
    public async _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef> {
