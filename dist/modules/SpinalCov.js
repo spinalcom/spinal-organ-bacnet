@@ -17,7 +17,7 @@ const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const cov_1 = require("./cov");
 class SpinalCov {
     constructor() {
-        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(60 * 1000);
+        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(30000, false); // 30s delay before start item treatment, no auto start
         this.itemsToStopQueue = new spinal_connector_service_1.SpinalQueue();
         // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
         this._lastCovNotification = null;
@@ -36,7 +36,7 @@ class SpinalCov {
         this._lastCovNotification = Date.now();
     }
     startCovProcessing() {
-        console.log("Hello from startCovProcessing", this.itemMonitored.size);
+        console.log("start cov proccessing with", this.itemMonitored.size, "items to monitor");
         this.itemToWatchQueue.start();
     }
     stopAllCovSubscriptions() {
@@ -131,7 +131,7 @@ class SpinalCov {
                     break;
                 case GlobalVariables_1.COV_EVENTS_NAMES.error:
                     BacnetUtilities_1.default.incrementState("failed");
-                    console.error(`[COV] - Failed  due to", `, (_a = result.error) === null || _a === void 0 ? void 0 : _a.message);
+                    console.error(`[COV] - Failed  due to", "${(_a = result.error) === null || _a === void 0 ? void 0 : _a.message}"`);
                     // forked.kill();
                     break;
                 case GlobalVariables_1.COV_EVENTS_NAMES.changed:

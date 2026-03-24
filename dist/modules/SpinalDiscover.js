@@ -39,7 +39,7 @@ const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-servi
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_connector_service_2 = require("spinal-connector-service");
-const SpinalNetworkServiceUtilities_1 = require("../utilities/SpinalNetworkServiceUtilities");
+const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 const config = require("../../config.js");
@@ -201,10 +201,14 @@ class SpinalDiscover {
                     return resolve();
                 this.devices.set(info.deviceId, res);
                 resolve(info);
+                // Remove the initialized listener to prevent memory leaks in case of multiple devices
+                spinalDevice.removeAllListeners("initialized");
             });
             spinalDevice.on("error", () => {
                 console.log(device.address, "not found");
                 resolve();
+                // Remove the error listener to prevent memory leaks in case of multiple errors
+                spinalDevice.removeAllListeners("error");
             });
             spinalDevice.init();
         });
@@ -217,7 +221,7 @@ class SpinalDiscover {
             console.log("creating nodes in graph...");
             try {
                 const queue = yield this._getDevicesSelected(this.discoverModel);
-                const { networkService, network } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
+                const { networkService, network } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
                 const devices = yield this._getDevicesNodes(network.id.get());
                 let isFinished = false;
                 while (!isFinished) {

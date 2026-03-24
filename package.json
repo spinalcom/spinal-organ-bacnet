@@ -22,6 +22,7 @@
     "lodash.debounce": "^4.0.8",
     "pm2": "^4.5.6",
     "socket.io": "^3.1.1",
+    "three": "^0.183.2",
     "ts-priority-queue": "^0.1.1"
   },
   "devDependencies": {
@@ -36,6 +37,9 @@
   "spinalDependencies": {
     "spinal-lib-organ-monitoring": "spinal-lib-organ-monitoring",
     "spinal-model-bacnet": "spinal-model-bacnet",
-    "spinal-model-bmsnetwork": "spinal-model-bmsnetwork@bacnet"
+    "spinal-model-bmsnetwork": "spinal-model-bmsnetwork@bacnet",
+    "spinal-env-viewer-plugin-network-tree-service": "spinal-env-viewer-plugin-network-tree-service",
+    "spinal-env-viewer-graph-service": "Spinal-Graph-Service",
+    "spinal-env-viewer-plugin-documentation-service": "spinal-env-viewer-plugin-documentation-service"
   }
 }

@@ -36,7 +36,7 @@ function listenEventMessage() {
                 break;
             case GlobalVariables_1.COV_EVENTS_NAMES.error:
                 BacnetUtilities_1.default.incrementState("failed");
-                console.error(`[COV] - Failed  due to", `, (_a = result.error) === null || _a === void 0 ? void 0 : _a.message);
+                console.error(`[COV] - Failed  due to", "${(_a = result.error) === null || _a === void 0 ? void 0 : _a.message}"`);
                 break;
             case GlobalVariables_1.COV_EVENTS_NAMES.changed:
                 SpinalCov_1.SpinalCov.getInstance().updateLastCovNotificationTime();

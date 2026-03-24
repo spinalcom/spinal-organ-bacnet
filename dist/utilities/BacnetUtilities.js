@@ -318,7 +318,7 @@ class BacnetUtilitiesClass {
                     }
                 }
                 catch (error) {
-                    // console.error(error);
+                    console.error(error);
                 }
             }
             return itemInfo;
@@ -425,6 +425,7 @@ class BacnetUtilitiesClass {
             while (counter < endpointArray.length) {
                 const endpointInfo = endpointArray[counter];
                 const existingEndpoint = childNetwork[endpointInfo.id];
+                endpointInfo.type = spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName;
                 if (existingEndpoint) {
                     // console.log(item.id, "already exists", deviceName ? `in "${deviceName}"` : "");
                     yield this._updateEndpointInfo(endpointInfo, existingEndpoint);
@@ -447,6 +448,8 @@ class BacnetUtilitiesClass {
             const endpointElement = yield realNode.getElement(true);
             endpointNewInfo.currentValue = this._formatCurrentValue(endpointNewInfo.present_value, endpointNewInfo.objectId.type);
             for (let key in endpointNewInfo) {
+                if (['id', 'idNetwork'].includes(key))
+                    continue; // list of non updatable keys if exist in the future
                 const value = endpointNewInfo[key];
                 if (endpointElement[key])
                     endpointElement[key].set(value);

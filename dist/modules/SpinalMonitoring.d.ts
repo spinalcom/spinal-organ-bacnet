@@ -8,7 +8,6 @@ declare class SpinalMonitoring {
     private devices;
     private _itemToAddToMap;
     private _endpointsCreationQueue;
-    private _covList;
     private static instance;
     private constructor();
     static getInstance(): SpinalMonitoring;
@@ -18,28 +17,29 @@ declare class SpinalMonitoring {
     private _processToAddItemToMap;
     startDeviceInitialisation(): Promise<void>;
     startMonitoring(): Promise<void>;
-    private _initNetworkUtilities;
-    private _createMaps;
-    private _createDeviceMap;
+    private requeueIfNotReady;
+    private triggerIntervalUpdate;
+    private _initListenerModels;
+    private _initAllDevices;
+    private _initDevice;
     private _bindDeviceListener;
     private _handleMonitoredDevice;
     private _handleStoppedDevice;
-    private _queueIntervals;
+    private _addToCovQueue;
+    private _addToIntervalQueue;
     /**
      *  Add an item to the monitoring map and priority queue
      * @param id
      * @param interval
      * @param func
      */
-    private _addToMonitoringMap;
+    private _addDeviceIntervalsToMonitoringMap;
+    private _addToPriorityQueue;
     private removeFromMonitoringMaps;
     private launchUpdating;
-    private createDataIfNotExist;
-    private funcToExecute;
-    private getValidIntervals;
+    private _addToEndpointCreationQueue;
     private waitFct;
     private _waitEndpointCreation;
-    private removeFromPriorityQueue;
 }
 declare const spinalMonitoring: SpinalMonitoring;
 export default spinalMonitoring;

@@ -92,7 +92,7 @@ class SpinalPilot {
          console.log("pilot success");
          pilot.changeState(PILOT_STATES.success);
       } catch (error: any) {
-         console.error("pilot failed due to:", error.message);
+         console.error(`pilot failed due to: "${error.message}"`);
          pilot.changeState(PILOT_STATES.error);
       } finally {
          await pilot.removeFromGraph();

@@ -31,7 +31,7 @@ import { SpinalDevice } from './SpinalDevice';
 import { IDevice } from "../Interfaces/IDevice";
 import { SpinalDiscoverModel } from 'spinal-model-bacnet';
 import { STATES } from 'spinal-connector-service';
-import { SpinalNetworkServiceUtilities } from '../utilities/SpinalNetworkServiceUtilities';
+import { SpinalNetworkUtilities } from '../utilities/SpinalNetworkUtilities';
 import { PropertyIds } from '../utilities/GlobalVariables';
 import BacnetUtilities from '../utilities/BacnetUtilities';
 const config = require("../../config.js");
@@ -217,11 +217,17 @@ class SpinalDiscover {
 
             this.devices.set(info.deviceId, res);
             resolve(info);
+
+            // Remove the initialized listener to prevent memory leaks in case of multiple devices
+            spinalDevice.removeAllListeners("initialized");
          })
 
          spinalDevice.on("error", () => {
             console.log(device.address, "not found");
             resolve();
+
+            // Remove the error listener to prevent memory leaks in case of multiple errors
+            spinalDevice.removeAllListeners("error");
          })
 
          spinalDevice.init();
@@ -239,7 +245,7 @@ class SpinalDiscover {
       try {
 
          const queue = await this._getDevicesSelected(this.discoverModel);
-         const { networkService, network } = await SpinalNetworkServiceUtilities.initSpinalDiscoverNetwork(this.discoverModel);
+         const { networkService, network } = await SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
          const devices = await this._getDevicesNodes(network.id.get());
 
          let isFinished = false;

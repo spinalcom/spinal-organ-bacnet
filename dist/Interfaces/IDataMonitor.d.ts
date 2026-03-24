@@ -7,5 +7,6 @@ export interface IDataMonitor {
     spinalModel?: SpinalListenerModel;
     spinalDevice?: SpinalDevice;
     networkService?: NetworkService;
-    network?: SpinalNode<any>;
+    network?: SpinalNode;
+    profile?: SpinalNode;
 }

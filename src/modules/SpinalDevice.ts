@@ -25,28 +25,45 @@
 import * as lodash from "lodash";
 import { InputDataDevice, NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
-import { SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { SpinalContext, SpinalGraph, SpinalGraphService, SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 
 // import { store } from "../store";
 import { ObjectTypes, PropertyIds, SENSOR_TYPES } from "../utilities/GlobalVariables";
 import { BacnetUtilities } from "../utilities/BacnetUtilities";
-import { SpinalBacnetValueModel, BACNET_VALUES_STATE } from "spinal-model-bacnet";
+import { SpinalBacnetValueModel, SpinalListenerModel, BACNET_VALUES_STATE } from "spinal-model-bacnet";
 
-import { ICovData, IDevice } from "../Interfaces";
+import { ICovData, IDevice, IObjectId } from "../Interfaces";
 import { SpinalQueue } from "spinal-connector-service";
+import { loadPtrValue } from "../utilities/Functions";
+import { IProfileData } from "../utilities/profileManager";
+import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
+import { get } from "http";
+import { SpinalCov } from "./SpinalCov";
 
 export class SpinalDevice extends EventEmitter {
    public device: IDevice | undefined;
    private info: any;
    public covData: ICovData[] = [];
-   // private client: bacnet;
 
-   constructor(device: IDevice) {
+   // for existing device in graph
+   private _listenerModel: SpinalListenerModel;
+   private _graph: SpinalGraph;
+   private _context: SpinalContext
+   private _network: SpinalNode;
+   private _organ: SpinalNode;
+   private _bmsDevice: SpinalNode;
+   private _profile: SpinalNode;
+   private _networkService: NetworkService;
+   private _profileData: { [key: number]: IProfileData[] } = {};
+
+
+   // private client: bacnet;
+   constructor(device?: IDevice) {
       super();
       this.device = device;
    }
 
-   /** Initialize the device */
+   /** use this function only if device is not created yet */
    public init(): Promise<boolean> {
       if (!this.device) throw new Error("Device info is not defined");
 
@@ -62,12 +79,71 @@ export class SpinalDevice extends EventEmitter {
       });
    }
 
-   /**  add item to covList */
-   public pushToCovList(argCovData: ICovData | ICovData[]) {
-      if (!Array.isArray(argCovData)) argCovData = [argCovData];
 
-      this.covData.push(...argCovData);
-      return this.covData.length;
+   public async initExistingDevice(listenerModel: SpinalListenerModel) {
+      try {
+         this._listenerModel = listenerModel;
+         const { graph, context, network, organ, bmsDevice, profile } = await this._getDeviceStructureFromGraph(listenerModel);
+         // set the device structure in the class to be used later for update
+         [this._graph, this._context, this._network, this._organ, this._bmsDevice, this._profile] = [graph, context, network, organ, bmsDevice, profile];
+         this.device = this._bmsDevice.info.get(); // set the device info from the graph
+
+         const saveTimeSeries = listenerModel.saveTimeSeries?.get() || false;
+         this._networkService = new NetworkService(saveTimeSeries);
+         await this._initNetworkService(graph, context, organ);
+         return true;
+      } catch (error) {
+         console.error("Error initializing existing device", error);
+         return false;
+      }
+
+   }
+
+   get Id() {
+      return this.device?.id;
+   }
+
+   get Name() {
+      return this.device?.name;
+   }
+
+   public getNetworkService() {
+      const saveTimeSeries = this._listenerModel.saveTimeSeries?.get() || false;
+      this._networkService.useTimeseries = saveTimeSeries;
+      return this._networkService;
+   }
+
+   public getListenerModel() {
+      return this._listenerModel;
+   }
+
+   public async getProfileData() {
+      const intervals = await SpinalNetworkUtilities.getProfileData(this._profile);
+      this._profileData = this._classifyChildrenByInterval(intervals);
+      return intervals;
+   }
+
+   public getAllIntervals() {
+      return Object.keys(this._profileData);
+   }
+
+   public getProfileDataByInterval(interval: number | string): IObjectId[] {
+      const data = this._profileData[interval] || [];
+      return data.map(el => el.children).flat();
+   }
+
+
+
+
+   /**  add item to covList */
+   public pushToCovList(children: IObjectId[] | IObjectId): ICovData {
+      if (!Array.isArray(children)) children = [children];
+      const networkService = this.getNetworkService();
+
+      const covData: ICovData = { spinalModel: this._listenerModel, spinalDevice: this, children, networkService, network: this._network };
+      this.covData.push(covData);
+
+      return covData;
    }
 
    /** clear covList */
@@ -117,49 +193,59 @@ export class SpinalDevice extends EventEmitter {
 
 
    /** Check and create endpoints if they do not exist */
-   public async checkAndCreateIfNotExist(networkService: NetworkService, objectIds: Array<{ instance: number; type: string }>): Promise<SpinalNodeRef[][]> {
+   public async checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNodeRef[]> {
+      const networkService = this.getNetworkService();
+      const deviceName = this.device?.name;
 
-      console.log("check and create endpoints, if not exist");
+      console.log(`[${deviceName}] - check and create endpoints, if not exist`);
       const client = await BacnetUtilities.getClient();
       if (!this.device) {
-         console.log("device is not defined");
+         console.log(`[${deviceName}] - device is not defined`);
          return [];
       }
 
-      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, objectIds, client)
+      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointsToCreate, client)
 
       const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type });
 
-      const promises = Array.from(Object.keys(childrenGroups)).map((el: string) => {
-         return BacnetUtilities.createEndpointsInGroup(networkService, (<any>this.device).id, el, childrenGroups[el], this.device?.name);
+      const promises = Array.from(Object.keys(childrenGroups)).map((childKey: string) => {
+         return BacnetUtilities.createEndpointsInGroup(networkService, this.Id as string, childKey, childrenGroups[childKey], this.device?.name);
       })
 
-      return Promise.all(promises);
+      return Promise.all(promises).then((result) => {
+         console.log(`[${deviceName}] - endpoints creation completed`);
+         return result.flat();
+      }).catch((err) => {
+         console.error(`[${deviceName}] - check and create endpoints failed due to "${err.message}"`);
+         return [];
+      });
    }
 
 
-   public async updateEndpoints(networkService: NetworkService, networkNode: SpinalNode<any>, children: Array<{ instance: number; type: number }>): Promise<void> {
+   public async updateEndpoints(interval: number | string): Promise<void> {
       if (!this.device) {
          console.log("device is not defined");
          return;
       }
+
+      const children = this.getProfileDataByInterval(interval);
+      const networkService = this.getNetworkService();
+      const networkNode = this._network;
       const deviceName = this.device.name;
+
       try {
          const client = await BacnetUtilities.getClient();
 
-         console.log(`${new Date()} ===> update ${deviceName}`);
+         console.log(`[${deviceName}] ===> updating endpoints for interval ${interval}`);
          const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children, client)
          if (!objectListDetails || objectListDetails.length === 0) throw new Error("Failed to retreive endpoints on device");
 
-         const obj: any = {
-            id: (this.device as any).idNetwork,
-            children: this._groupByType(lodash.flattenDeep(objectListDetails))
-         }
+         const obj: any = { id: (this.device as any).idNetwork, children: this._groupByType(lodash.flattenDeep(objectListDetails)) }
 
          await this.updateEndpointInGraph(obj, networkService, networkNode);
 
       } catch (error) {
-         console.error(`Error updating endpoints for device ${deviceName}`);
+         console.error(`[${deviceName}] - Error updating endpoints for device due to "${error.message}"`);
       }
 
    }
@@ -201,7 +287,7 @@ export class SpinalDevice extends EventEmitter {
             throw error;
          }
 
-         console.error(`Error getting device info for device at address ${deviceAddress} with ID ${device.deviceId} due to`, error.message);
+         console.error(`Error getting device info for device at address ${deviceAddress} with ID ${device.deviceId} due to "${error.message}"`);
          throw error;
       }
 
@@ -265,6 +351,42 @@ export class SpinalDevice extends EventEmitter {
          spinalBacnetValueModel.progress.set(percent);
       }
    }
+
+   private async _getDeviceStructureFromGraph(listenerModel: SpinalListenerModel) {
+      const treeList = [listenerModel.graph, listenerModel.context, listenerModel.network, listenerModel.organ, listenerModel.bmsDevice, listenerModel.profile];
+      const promises = treeList.map(ptr => loadPtrValue(ptr));
+      return Promise.all(promises).then(([graph, context, network, organ, bmsDevice, profile]) => {
+         if (graph) SpinalGraphService._addNode(graph);
+         if (bmsDevice) SpinalGraphService._addNode(bmsDevice);
+         if (network) SpinalGraphService._addNode(network);
+         if (context) SpinalGraphService._addNode(context);
+
+         return { graph, context, network, organ, bmsDevice, profile };
+      })
+   }
+
+   private async _initNetworkService(graph: SpinalGraph, context: SpinalContext, organ: SpinalNode) {
+      const networkInfo = {
+         contextName: context.getName().get(),
+         contextType: context.getType().get(),
+         networkType: organ.getType().get(),
+         networkName: organ.getName().get()
+      };
+
+      await this._networkService.init(graph, networkInfo);
+   }
+
+   private _classifyChildrenByInterval(intervals: IProfileData[]): { [key: number]: IProfileData[] } {
+      const res: { [key: number]: IProfileData[] } = {};
+      for (const intervalData of intervals) {
+         const interval = intervalData.interval;
+         if (!res[interval]) res[interval] = [];
+         res[interval].push(intervalData);
+      }
+      return res;
+   }
+
+
 }
 
 
@@ -281,7 +403,7 @@ allBacnetValueQueue.on("start", async () => {
       if (!queueItem) continue;
 
       const { device, node, networkService, spinalBacnetValueModel } = queueItem;
-      const spinalDevice = new SpinalDevice(device);
+      let spinalDevice = new SpinalDevice(device);
       await spinalDevice.createDeviceItemList(networkService, node, spinalBacnetValueModel);
    }
 })

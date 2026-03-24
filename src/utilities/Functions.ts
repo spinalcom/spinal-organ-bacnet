@@ -27,7 +27,7 @@ import { addToGetAllBacnetValuesQueue } from "../modules/SpinalDevice";
 import { SpinalDiscoverModel, SpinalListenerModel, SpinalOrganConfigModel, SpinalBacnetValueModel, SpinalPilotModel, BACNET_VALUES_STATE } from "spinal-model-bacnet";
 import { STATES } from "spinal-connector-service";
 
-import { SpinalNetworkServiceUtilities } from "./SpinalNetworkServiceUtilities";
+import { SpinalNetworkUtilities } from "./SpinalNetworkUtilities";
 import { spinalDiscover } from "../modules/SpinalDiscover";
 import { spinalMonitoring } from "../modules/SpinalMonitoring";
 import { spinalPilot } from "../modules/SpinalPilot";
@@ -148,7 +148,7 @@ async function SpinalBacnetValueModelCallback(spinalBacnetValueModel: SpinalBacn
       // const itsForThisOrgan = await checkOrgan(spinalBacnetValueModel, organModel.id?.get() || '');
       // if (!itsForThisOrgan) return;
 
-      const { networkService, device, node } = await SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+      const { networkService, device, node } = await SpinalNetworkUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
 
       if (spinalBacnetValueModel.state.get() === BACNET_VALUES_STATE.wait) addToGetAllBacnetValuesQueue(device, node, networkService, spinalBacnetValueModel);
 
@@ -198,4 +198,10 @@ async function checkOrgan(spinalOrgan: SpinalDiscoverModel | SpinalListenerModel
       return false;
    }
 
+}
+
+export function loadPtrValue(ptrModel: spinal.Ptr): Promise<any> {
+   return new Promise((resolve) => {
+      ptrModel.load((data) => resolve(data));
+   });
 }

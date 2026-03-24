@@ -35,11 +35,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.GetPm2Instance = void 0;
 exports.bindAllModels = bindAllModels;
 exports.restartProcessById = restartProcessById;
+exports.loadPtrValue = loadPtrValue;
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const spinal_connector_service_1 = require("spinal-connector-service");
-const SpinalNetworkServiceUtilities_1 = require("./SpinalNetworkServiceUtilities");
+const SpinalNetworkUtilities_1 = require("./SpinalNetworkUtilities");
 const SpinalDiscover_1 = require("../modules/SpinalDiscover");
 const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
 const SpinalPilot_1 = require("../modules/SpinalPilot");
@@ -136,7 +137,7 @@ function SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel) {
             //// this check is not necessary when not using load_type 
             // const itsForThisOrgan = await checkOrgan(spinalBacnetValueModel, organModel.id?.get() || '');
             // if (!itsForThisOrgan) return;
-            const { networkService, device, node } = yield SpinalNetworkServiceUtilities_1.SpinalNetworkServiceUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+            const { networkService, device, node } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
             if (spinalBacnetValueModel.state.get() === spinal_model_bacnet_1.BACNET_VALUES_STATE.wait)
                 (0, SpinalDevice_1.addToGetAllBacnetValuesQueue)(device, node, networkService, spinalBacnetValueModel);
             else
@@ -178,6 +179,11 @@ function checkOrgan(spinalOrgan, organId) {
         catch (error) {
             return false;
         }
+    });
+}
+function loadPtrValue(ptrModel) {
+    return new Promise((resolve) => {
+        ptrModel.load((data) => resolve(data));
     });
 }
 //# sourceMappingURL=Functions.js.map

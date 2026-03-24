@@ -73,51 +73,47 @@ class SpinalNetworkUtilities {
     }
     static initSpinalListenerModel(spinalModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            try {
-                const saveTimeSeries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
-                const networkService = new spinal_model_bmsnetwork_1.NetworkService(saveTimeSeries);
-                const promises = [
-                    spinalModel.graph,
-                    spinalModel.bmsDevice,
-                    spinalModel.network,
-                    spinalModel.context,
-                    spinalModel.organ,
-                    spinalModel.profile
-                ].map(ptr => this.loadPtrValue(ptr));
-                const [graph, device, network, context, organ, profile] = yield Promise.all(promises);
-                if (graph)
-                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(graph);
-                if (device)
-                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(device);
-                if (network)
-                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(network);
-                if (context)
-                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(context);
-                const spinalDevice = new SpinalDevice_1.SpinalDevice(device.info.get());
-                yield networkService.init(graph, {
-                    contextName: context.getName().get(),
-                    contextType: context.getType().get(),
-                    networkType: organ.getType().get(),
-                    networkName: organ.getName().get()
-                });
-                (_b = spinalModel.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.bind(() => {
-                    var _a;
-                    networkService.useTimeseries = ((_a = spinalModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
-                });
-                return { id: device.getId().get(), spinalModel, spinalDevice, networkService, network, profile };
-            }
-            catch (error) {
-                return;
-            }
-            // return {
-            //    networkService,
-            //    spinalDevice,
-            //    spinalModel,
-            //    network,
-            //    profil,
-            //    monitor: 
+            const spinalDevice = new SpinalDevice_1.SpinalDevice();
+            yield spinalDevice.initExistingDevice(spinalModel);
+            return spinalDevice;
+            // try {
+            //    const saveTimeSeries = spinalModel.saveTimeSeries?.get() || false;
+            //    const networkService: NetworkService = new NetworkService(saveTimeSeries);
+            //    const promises = [
+            //       spinalModel.graph,
+            //       spinalModel.bmsDevice,
+            //       spinalModel.network,
+            //       spinalModel.context,
+            //       spinalModel.organ,
+            //       spinalModel.profile
+            //    ].map(ptr => this.loadPtrValue(ptr));
+            //    const [graph, device, network, context, organ, profile] = await Promise.all(promises);
+            //    if (graph) SpinalGraphService._addNode(graph);
+            //    if (device) SpinalGraphService._addNode(device);
+            //    if (network) SpinalGraphService._addNode(network);
+            //    if (context) SpinalGraphService._addNode(context);
+            //    const spinalDevice: SpinalDevice = new SpinalDevice(device.info.get());
+            //    await networkService.init(graph, {
+            //       contextName: context.getName().get(),
+            //       contextType: context.getType().get(),
+            //       networkType: organ.getType().get(),
+            //       networkName: organ.getName().get()
+            //    })
+            //    spinalModel.saveTimeSeries?.bind(() => {
+            //       networkService.useTimeseries = spinalModel.saveTimeSeries?.get() || false;
+            //    })
+            //    return { id: device.getId().get(), spinalModel, spinalDevice, networkService, network, profile };
+            // } catch (error) {
+            //    return;
             // }
+            // // return {
+            // //    networkService,
+            // //    spinalDevice,
+            // //    spinalModel,
+            // //    network,
+            // //    profil,
+            // //    monitor: 
+            // // }
         });
     }
     static getProfileData(profileSpinalNode) {
@@ -162,4 +158,4 @@ class SpinalNetworkUtilities {
     }
 }
 exports.SpinalNetworkUtilities = SpinalNetworkUtilities;
-//# sourceMappingURL=SpinalNetworkServiceUtilities.js.map
+//# sourceMappingURL=SpinalNetworkUtilities.js.map

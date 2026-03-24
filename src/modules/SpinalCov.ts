@@ -12,7 +12,7 @@ import { listenEventMessage, sendEvent } from "./cov";
 class SpinalCov {
     private static _instance: SpinalCov;
 
-    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(60 * 1000);
+    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(30000, false); // 30s delay before start item treatment, no auto start
     private itemsToStopQueue: SpinalQueue<ICovData> = new SpinalQueue();
 
     // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
@@ -40,7 +40,7 @@ class SpinalCov {
     }
 
     startCovProcessing() {
-        console.log("Hello from startCovProcessing", this.itemMonitored.size);
+        console.log("start cov proccessing with", this.itemMonitored.size, "items to monitor");
         this.itemToWatchQueue.start();
     }
 
@@ -152,7 +152,7 @@ class SpinalCov {
                     break;
                 case COV_EVENTS_NAMES.error:
                     BacnetUtilities.incrementState("failed");
-                    console.error(`[COV] - Failed  due to", `, result.error?.message);
+                    console.error(`[COV] - Failed  due to", "${result.error?.message}"`);
                     // forked.kill();
                     break;
                 case COV_EVENTS_NAMES.changed:

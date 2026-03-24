@@ -39,7 +39,7 @@ export function listenEventMessage() {
 
             case COV_EVENTS_NAMES.error:
                 BacnetUtilities.incrementState("failed");
-                console.error(`[COV] - Failed  due to", `, result.error?.message);
+                console.error(`[COV] - Failed  due to", "${result.error?.message}"`);
                 break;
 
             case COV_EVENTS_NAMES.changed:

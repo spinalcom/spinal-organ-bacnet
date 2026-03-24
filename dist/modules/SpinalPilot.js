@@ -93,7 +93,7 @@ class SpinalPilot {
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.success);
             }
             catch (error) {
-                console.error("pilot failed due to:", error.message);
+                console.error(`pilot failed due to: "${error.message}"`);
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.error);
             }
             finally {
