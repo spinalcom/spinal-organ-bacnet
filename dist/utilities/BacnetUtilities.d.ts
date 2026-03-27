@@ -1,6 +1,4 @@
 import * as bacnet from "bacstack";
-import { SpinalNodeRef } from "spinal-env-viewer-graph-service";
-import { NetworkService } from "spinal-model-bmsnetwork";
 import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
 declare class BacnetUtilitiesClass {
     private static instance;
@@ -12,31 +10,25 @@ declare class BacnetUtilitiesClass {
     getClient(): Promise<bacnet>;
     incrementState(state: "failed" | "success"): void;
     private _listenClientErrorEvent;
-    readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[], argClient?: bacnet): Promise<IReadPropertyMultiple>;
-    readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet, clientOptions?: any): Promise<IReadProperty>;
-    _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, argClient?: bacnet, getListUsingFragment?: boolean): Promise<IObjectId[]>;
-    getItemListByFragment(device: IDevice, objectId: IObjectId, argClient?: bacnet): Promise<IObjectId[]>;
-    _getObjectDetail(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<{
+    readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[]): Promise<IReadPropertyMultiple>;
+    readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, clientOptions?: any): Promise<IReadProperty>;
+    _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, getListUsingFragment?: boolean): Promise<IObjectId[]>;
+    getItemListByFragment(device: IDevice, objectId: IObjectId): Promise<IObjectId[]>;
+    _getObjectDetail(device: IDevice, objects: Array<IObjectId>): Promise<{
         [key: string]: string | boolean | number;
     }[]>;
     private _retryGetObjectDetailWithReadProperty;
-    _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: Array<IObjectId>, argClient?: any): Promise<any[]>;
-    _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId, argClient?: any): Promise<any>;
-    _getChildrenNewValue(device: IDevice, children: Array<IObjectId>, argClient?: bacnet): Promise<Array<{
+    _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: IObjectId[]): Promise<any[]>;
+    _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId): Promise<any>;
+    _getChildrenNewValue(device: IDevice, children: Array<IObjectId>): Promise<Array<{
         id: string | number;
         type: string | number;
         currentValue: any;
     }> | undefined>;
     private getChildrenNewValueWithReadPropertyMultiple;
     private getChildrenNewValueWithReadProperty;
-    createEndpointsInGroup(networkService: NetworkService, deviceId: string, groupName: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
-    _createEndpointsGroup(networkService: NetworkService, deviceId: string, groupName: string): Promise<SpinalNodeRef>;
-    _createEndpointByArray(networkService: NetworkService, groupId: string, endpointArray: any, deviceName?: string): Promise<SpinalNodeRef[]>;
-    private _updateEndpointInfo;
-    _createEndpoint(networkService: NetworkService, groupId: string, endpointObj: any): Promise<void | SpinalNodeRef>;
-    _itemExistInChild(parentId: string, relationName: string, childNetworkId: string | number): Promise<SpinalNodeRef | undefined>;
-    _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, argClient?: bacnet): Promise<any>;
-    getDeviceId(address: string, sadr: any, client?: bacnet): Promise<number>;
+    _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string): Promise<any>;
+    getDeviceId(address: string, sadr: any): Promise<number>;
     _formatProperty(propertyValue: any): {
         [key: string]: boolean | string | number;
     };

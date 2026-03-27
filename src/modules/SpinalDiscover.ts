@@ -25,7 +25,7 @@
 import * as bacnet from 'bacstack';
 import { EventEmitter } from "events";
 import { SpinalQueue } from 'spinal-connector-service';
-import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
+import { SpinalGraphService, SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { SpinalBmsDevice } from "spinal-model-bmsnetwork";
 import { SpinalDevice } from './SpinalDevice';
 import { IDevice } from "../Interfaces/IDevice";
@@ -245,32 +245,34 @@ class SpinalDiscover {
       try {
 
          const queue = await this._getDevicesSelected(this.discoverModel);
-         const { networkService, network } = await SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
-         const devices = await this._getDevicesNodes(network.id.get());
+         const { context, graph, organ, network } = await SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
+         const devicesObj = await this._getDevicesNodes(network);
 
          let isFinished = false;
 
-         while (!isFinished) {
+         while (!queue.isEmpty()) {
             const device = queue.dequeue();
+            if (typeof device === "undefined") continue;
 
-            if (typeof device !== "undefined") {
-               const deviceId = device.deviceId
-               const nodeAlreadyExist = devices[deviceId];
-               if (nodeAlreadyExist) continue;
+            const deviceId = device.deviceId
 
-               const spinalDevice = this.devices.get(deviceId);
-               if (spinalDevice) await spinalDevice.createDeviceNodeInGraph(networkService, network.id.get());
+            const deviceAlreadyExist = devicesObj[deviceId];
 
-            } else {
-               isFinished = true;
-            }
+            const spinalDevice = this.devices.get(deviceId);
+            if (spinalDevice) await spinalDevice.createDeviceNodeInGraph(context, network, deviceAlreadyExist);
+
+
+            // if (deviceAlreadyExist) continue;
+
+
+
          }
 
          this.discoverModel.changeState(STATES.created);
          console.log("nodes created with success!");
       } catch (error) {
          this.discoverModel.changeState(STATES.error);
-         console.error("Error creating nodes:", error.message || error);
+         console.error("Error creating nodes:", (error as Error).message || error);
       } finally {
          const state = this.discoverModel.state.get();
          if (state === STATES.created) {
@@ -282,20 +284,19 @@ class SpinalDiscover {
 
    }
 
-   private _getDevicesNodes(id: string): Promise<{ [key: number]: SpinalNodeRef }> {
-      const obj: { [key: number]: SpinalNodeRef } = {};
+   private async _getDevicesNodes(network: SpinalNode): Promise<{ [key: number]: SpinalNode }> {
+      const obj: { [key: number]: SpinalNode } = {};
 
-      return SpinalGraphService.getChildren(id, [SpinalBmsDevice.relationName]).then((devices) => {
-         for (const device of devices) {
-            const networkId = device.idNetwork?.get();
-            obj[networkId] = device;
-         }
+      const devices = await network.getChildren(SpinalBmsDevice.relationName);
 
-         return obj;
-      }).catch((err) => {
-         return obj;
-      });
+      for (const device of devices) {
+         const id = device.info.idNetwork?.get();
+         if (typeof id !== "undefined") obj[id] = device;
+      }
+
+      return obj;
    }
+
 
    private async _getDevicesSelected(discoverModel: SpinalDiscoverModel): Promise<SpinalQueue<spinal.Model>> {
       const queue: SpinalQueue<spinal.Model> = new SpinalQueue();

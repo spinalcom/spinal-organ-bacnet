@@ -35,7 +35,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalDiscover = void 0;
 const events_1 = require("events");
 const spinal_connector_service_1 = require("spinal-connector-service");
-const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_connector_service_2 = require("spinal-connector-service");
@@ -221,23 +220,19 @@ class SpinalDiscover {
             console.log("creating nodes in graph...");
             try {
                 const queue = yield this._getDevicesSelected(this.discoverModel);
-                const { networkService, network } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
-                const devices = yield this._getDevicesNodes(network.id.get());
+                const { context, graph, organ, network } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
+                const devicesObj = yield this._getDevicesNodes(network);
                 let isFinished = false;
-                while (!isFinished) {
+                while (!queue.isEmpty()) {
                     const device = queue.dequeue();
-                    if (typeof device !== "undefined") {
-                        const deviceId = device.deviceId;
-                        const nodeAlreadyExist = devices[deviceId];
-                        if (nodeAlreadyExist)
-                            continue;
-                        const spinalDevice = this.devices.get(deviceId);
-                        if (spinalDevice)
-                            yield spinalDevice.createDeviceNodeInGraph(networkService, network.id.get());
-                    }
-                    else {
-                        isFinished = true;
-                    }
+                    if (typeof device === "undefined")
+                        continue;
+                    const deviceId = device.deviceId;
+                    const deviceAlreadyExist = devicesObj[deviceId];
+                    const spinalDevice = this.devices.get(deviceId);
+                    if (spinalDevice)
+                        yield spinalDevice.createDeviceNodeInGraph(context, network, deviceAlreadyExist);
+                    // if (deviceAlreadyExist) continue;
                 }
                 this.discoverModel.changeState(spinal_connector_service_2.STATES.created);
                 console.log("nodes created with success!");
@@ -255,16 +250,16 @@ class SpinalDiscover {
             }
         });
     }
-    _getDevicesNodes(id) {
-        const obj = {};
-        return spinal_env_viewer_graph_service_1.SpinalGraphService.getChildren(id, [spinal_model_bmsnetwork_1.SpinalBmsDevice.relationName]).then((devices) => {
+    _getDevicesNodes(network) {
+        return __awaiter(this, void 0, void 0, function* () {
             var _a;
+            const obj = {};
+            const devices = yield network.getChildren(spinal_model_bmsnetwork_1.SpinalBmsDevice.relationName);
             for (const device of devices) {
-                const networkId = (_a = device.idNetwork) === null || _a === void 0 ? void 0 : _a.get();
-                obj[networkId] = device;
+                const id = (_a = device.info.idNetwork) === null || _a === void 0 ? void 0 : _a.get();
+                if (typeof id !== "undefined")
+                    obj[id] = device;
             }
-            return obj;
-        }).catch((err) => {
             return obj;
         });
     }

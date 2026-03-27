@@ -1,9 +1,6 @@
-import NetworkService from "spinal-model-bmsnetwork";
 import { ICovData } from "../Interfaces";
 import { SpinalQueue } from "spinal-connector-service";
-import { SpinalDevice } from "./SpinalDevice";
 import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
-import { SpinalNode } from "spinal-env-viewer-graph-service";
 declare class SpinalCov {
     private static _instance;
     private itemToWatchQueue;
@@ -14,12 +11,7 @@ declare class SpinalCov {
     static getInstance(): SpinalCov;
     updateLastCovNotificationTime(): void;
     startCovProcessing(): void;
-    stopAllCovSubscriptions(): {
-        networkService: NetworkService;
-        network: SpinalNode;
-        spinalDevice: SpinalDevice;
-        children: any[];
-    }[];
+    stopAllCovSubscriptions(): ICovData[];
     restartAllCovSubscriptions(): void;
     addToCovQueue(data: ICovData | ICovData[]): Promise<void>;
     addToStopCovQueue(data: ICovData | ICovData[]): void;
@@ -27,6 +19,6 @@ declare class SpinalCov {
     private _checkCovStatus;
     private formatChildren;
     private createForkedProcess;
-    _updateDeviceValue(address: string, request: any): Promise<void>;
+    _updateDeviceValue(address: string, request: any): Promise<boolean[]>;
 }
 export { SpinalCov };

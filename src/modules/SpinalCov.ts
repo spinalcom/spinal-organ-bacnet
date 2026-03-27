@@ -1,12 +1,10 @@
-import NetworkService from "spinal-model-bmsnetwork";
 import { ICovData, ICovSubscribeReq } from "../Interfaces";
 import { SpinalQueue } from "spinal-connector-service";
-import { SpinalDevice } from "./SpinalDevice";
 import BacnetUtilities from "../utilities/BacnetUtilities";
 import { ChildProcess, fork } from "child_process";
 import { COV_EVENTS_NAMES, PropertyIds } from "../utilities/GlobalVariables";
-import { SpinalNode } from "spinal-env-viewer-graph-service";
 import { listenEventMessage, sendEvent } from "./cov";
+import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 
 
 class SpinalCov {
@@ -17,7 +15,7 @@ class SpinalCov {
 
     // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
     private _lastCovNotification: number | null = null;
-    private itemMonitored: Map<string, { networkService: NetworkService, network: SpinalNode, spinalDevice: SpinalDevice, children: any[] }> = new Map();
+    private itemMonitored: Map<string, ICovData> = new Map();
 
     private constructor() {
 
@@ -98,12 +96,12 @@ class SpinalCov {
 
         const formatted: ICovSubscribeReq[] = [];
 
-        for (const { networkService, network, spinalDevice, children } of list) {
+        for (const { spinalDevice, children } of list) {
             const ip = spinalDevice?.device?.address;
             if (!ip) continue; // skip if no ip
 
             if (eventName === COV_EVENTS_NAMES.subscribe)
-                this.itemMonitored.set(ip, { networkService, network, spinalDevice, children }); // Store the device
+                this.itemMonitored.set(ip, { spinalDevice, children }); // Store the device
 
             else if (eventName === COV_EVENTS_NAMES.unsubscribe && this.itemMonitored.has(ip)) {
                 console.log(`[COV] - Unsubscribing from device ${ip}`);
@@ -182,15 +180,19 @@ class SpinalCov {
 
         if (!monitoredData) return;
 
-        const { networkService, network, spinalDevice } = monitoredData;
-
-        const obj: any = {
-            id: spinalDevice.device?.deviceId,
-            children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],
-        }
+        const { spinalDevice } = monitoredData;
+        const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
+        // const obj: any = {
+        //     id: spinalDevice.device?.deviceId,
+        //     children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],
+        // }
 
         console.log(`[COV] - Updating ${address}_${object.type}_${object.instance}`, value);
-        return spinalDevice.updateEndpointInGraph(obj, networkService, network);
+
+        const saveTimeSeries = spinalDevice.shoulSaveTimeSeries();
+        const node = spinalDevice.getBmsDeviceNode();
+
+        if (node) return SpinalNetworkUtilities.updateEndpointInGraph(node, children, saveTimeSeries);
     }
 
 

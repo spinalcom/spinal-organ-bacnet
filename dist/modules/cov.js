@@ -22,13 +22,13 @@ function listenEventMessage() {
         var _a;
         switch (result.eventName) {
             case GlobalVariables_1.COV_EVENTS_NAMES.subscribe:
-                for (const d of result.data) {
-                    yield subscribe(d);
+                for (const data of result.data) {
+                    yield subscribe(data);
                 }
                 break;
             case GlobalVariables_1.COV_EVENTS_NAMES.unsubscribe:
-                for (const d of result.data) {
-                    yield unsubscribe(d);
+                for (const data of result.data) {
+                    yield unsubscribe(data);
                 }
                 break;
             case GlobalVariables_1.COV_EVENTS_NAMES.subscribed:

@@ -102,17 +102,16 @@ export default class ProfileManager {
 
     private async _getSharedAttributes(intervalNode: SpinalNodeRef): Promise<{ Monitoring: string, IntervalTime: number }> {
         const attributeCategory = "Supervision";
-        const attributeToGet = ["Monitoring", "IntervalTime"];
 
         const realNode = SpinalGraphService.getRealNode(intervalNode.id.get());
         const attributes = await serviceDocumentation.getAttributesByCategory(realNode, attributeCategory);
 
-        return attributes.reduce((obj, attribute) => {
-            const label = attribute.label.get();
+        return attributes.reduce((obj: { Monitoring: string, IntervalTime: number }, attribute) => {
+            const label: string = attribute.label.get();
+            const value: string = attribute.value.get();
 
-            if (attributeToGet.includes(label)) {
-                obj[label] = attribute.value.get();
-            }
+            if (label === "Monitoring") obj.Monitoring = value;
+            else if (label === "IntervalTime") obj.IntervalTime = Number(value);
 
             return obj;
         }, { Monitoring: "", IntervalTime: 0 });
@@ -123,10 +122,13 @@ export default class ProfileManager {
         const profileItems = await intervalRealNode.getChildren(["hasIntervalTime"]);
 
         const promises = profileItems.map(async (item) => ({ instance: await this._getIDX(item), type: this._getBacnetObjectType(item) }));
-        return Promise.all(promises)
+
+        return Promise.all(promises).then((result) => {
+            return result.filter(item => item.instance !== undefined) as IObjectId[];
+        })
     }
 
-    private async _getIDX(item: SpinalNode): Promise<number> {
+    private async _getIDX(item: SpinalNode): Promise<| number | undefined> {
         const attributes = await serviceDocumentation.getAttributesByCategory(item, "default");
         const foundAttribute = attributes.find(attr => attr.label.get() === "IDX");
 

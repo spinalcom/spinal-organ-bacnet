@@ -84,14 +84,15 @@ class ProfileManager {
     _getSharedAttributes(intervalNode) {
         return __awaiter(this, void 0, void 0, function* () {
             const attributeCategory = "Supervision";
-            const attributeToGet = ["Monitoring", "IntervalTime"];
             const realNode = spinal_env_viewer_graph_service_1.SpinalGraphService.getRealNode(intervalNode.id.get());
             const attributes = yield spinal_env_viewer_plugin_documentation_service_1.serviceDocumentation.getAttributesByCategory(realNode, attributeCategory);
             return attributes.reduce((obj, attribute) => {
                 const label = attribute.label.get();
-                if (attributeToGet.includes(label)) {
-                    obj[label] = attribute.value.get();
-                }
+                const value = attribute.value.get();
+                if (label === "Monitoring")
+                    obj.Monitoring = value;
+                else if (label === "IntervalTime")
+                    obj.IntervalTime = Number(value);
                 return obj;
             }, { Monitoring: "", IntervalTime: 0 });
         });
@@ -101,7 +102,9 @@ class ProfileManager {
             const intervalRealNode = spinal_env_viewer_graph_service_1.SpinalGraphService.getRealNode(intervalNode.id.get());
             const profileItems = yield intervalRealNode.getChildren(["hasIntervalTime"]);
             const promises = profileItems.map((item) => __awaiter(this, void 0, void 0, function* () { return ({ instance: yield this._getIDX(item), type: this._getBacnetObjectType(item) }); }));
-            return Promise.all(promises);
+            return Promise.all(promises).then((result) => {
+                return result.filter(item => item.instance !== undefined);
+            });
         });
     }
     _getIDX(item) {

@@ -6,14 +6,14 @@ import { IObjectId } from "./IObjectId";
 
 export interface ICovData {
     spinalDevice: SpinalDevice;
-    networkService: NetworkService;
-    spinalModel: SpinalListenerModel;
-    network: SpinalNode;
+    // networkService: NetworkService;
+    // spinalModel: SpinalListenerModel;
+    // network: SpinalNode;
     children: IObjectId[];
 }
 
 
 export interface ICovSubscribeReq {
     ip: string;
-    object: ICovData["children"][0];
+    object: IObjectId;
 }

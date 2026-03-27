@@ -1,6 +1,6 @@
 import * as bacnet from "bacstack";
 import BacnetUtilities from "../utilities/BacnetUtilities";
-import { ICovData, ICovSubscribeReq } from "../Interfaces";
+import { ICovData, ICovSubscribeReq, IObjectId } from "../Interfaces";
 import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
 import { EventEmitter } from "stream";
 import { SpinalCov } from "./SpinalCov";
@@ -22,14 +22,14 @@ export function listenEventMessage() {
 
         switch (result.eventName) {
             case COV_EVENTS_NAMES.subscribe:
-                for (const d of result.data) {
-                    await subscribe(d);
+                for (const data of result.data) {
+                    await subscribe(data);
                 }
                 break;
 
             case COV_EVENTS_NAMES.unsubscribe:
-                for (const d of result.data) {
-                    await unsubscribe(d);
+                for (const data of result.data) {
+                    await unsubscribe(data);
                 }
                 break;
 
@@ -79,7 +79,7 @@ async function unsubscribe(data: ICovSubscribeReq) {
 }
 
 
-function subscribeProperty(client: bacnet, ip: string, object: ICovData["children"][0], cancel = false) {
+function subscribeProperty(client: bacnet, ip: string, object: IObjectId, cancel = false) {
 
     return new Promise((resolve, reject) => {
         try {

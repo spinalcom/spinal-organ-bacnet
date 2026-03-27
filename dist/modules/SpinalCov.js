@@ -15,6 +15,7 @@ const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 const child_process_1 = require("child_process");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const cov_1 = require("./cov");
+const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 class SpinalCov {
     constructor() {
         this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(30000, false); // 30s delay before start item treatment, no auto start
@@ -89,12 +90,12 @@ class SpinalCov {
             const list = queue.toArray();
             queue.clear();
             const formatted = [];
-            for (const { networkService, network, spinalDevice, children } of list) {
+            for (const { spinalDevice, children } of list) {
                 const ip = (_a = spinalDevice === null || spinalDevice === void 0 ? void 0 : spinalDevice.device) === null || _a === void 0 ? void 0 : _a.address;
                 if (!ip)
                     continue; // skip if no ip
                 if (eventName === GlobalVariables_1.COV_EVENTS_NAMES.subscribe)
-                    this.itemMonitored.set(ip, { networkService, network, spinalDevice, children }); // Store the device
+                    this.itemMonitored.set(ip, { spinalDevice, children }); // Store the device
                 else if (eventName === GlobalVariables_1.COV_EVENTS_NAMES.unsubscribe && this.itemMonitored.has(ip)) {
                     console.log(`[COV] - Unsubscribing from device ${ip}`);
                     this.itemMonitored.delete(ip); // Remove the device
@@ -146,7 +147,6 @@ class SpinalCov {
     }
     _updateDeviceValue(address, request) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
             const currentValue = request.values.find((v) => { var _a; return ((_a = v.property) === null || _a === void 0 ? void 0 : _a.id) === GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE; });
             if (!currentValue)
                 return;
@@ -155,13 +155,17 @@ class SpinalCov {
             const monitoredData = this.itemMonitored.get(address);
             if (!monitoredData)
                 return;
-            const { networkService, network, spinalDevice } = monitoredData;
-            const obj = {
-                id: (_a = spinalDevice.device) === null || _a === void 0 ? void 0 : _a.deviceId,
-                children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],
-            };
+            const { spinalDevice } = monitoredData;
+            const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
+            // const obj: any = {
+            //     id: spinalDevice.device?.deviceId,
+            //     children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],
+            // }
             console.log(`[COV] - Updating ${address}_${object.type}_${object.instance}`, value);
-            return spinalDevice.updateEndpointInGraph(obj, networkService, network);
+            const saveTimeSeries = spinalDevice.shoulSaveTimeSeries();
+            const node = spinalDevice.getBmsDeviceNode();
+            if (node)
+                return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(node, children, saveTimeSeries);
         });
     }
 }

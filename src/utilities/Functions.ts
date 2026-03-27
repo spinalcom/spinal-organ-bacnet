@@ -148,9 +148,9 @@ async function SpinalBacnetValueModelCallback(spinalBacnetValueModel: SpinalBacn
       // const itsForThisOrgan = await checkOrgan(spinalBacnetValueModel, organModel.id?.get() || '');
       // if (!itsForThisOrgan) return;
 
-      const { networkService, device, node } = await SpinalNetworkUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+      const { context, device } = await SpinalNetworkUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
 
-      if (spinalBacnetValueModel.state.get() === BACNET_VALUES_STATE.wait) addToGetAllBacnetValuesQueue(device, node, networkService, spinalBacnetValueModel);
+      if (spinalBacnetValueModel.state.get() === BACNET_VALUES_STATE.wait) addToGetAllBacnetValuesQueue(device.info.get(), device, context, spinalBacnetValueModel);
 
       else throw new Error('lost connection with bacnet network');
 

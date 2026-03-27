@@ -91,9 +91,11 @@ class SpinalMonitoring {
     _processToAddItemToMap() {
         while (!this._itemToAddToMap.isEmpty()) {
             const item = this._itemToAddToMap.dequeue();
-            const device = this.devices[item === null || item === void 0 ? void 0 : item.id];
-            if (device)
-                this._addDeviceIntervalsToMonitoringMap(device);
+            if (item && typeof item.id !== "undefined") {
+                const device = this.devices[item.id];
+                if (device)
+                    this._addDeviceIntervalsToMonitoringMap(device);
+            }
         }
     }
     startDeviceInitialisation() {
@@ -175,6 +177,8 @@ class SpinalMonitoring {
     _initDevice(device) {
         const id = device.Id;
         return new Promise((resolve) => {
+            if (typeof id === "undefined")
+                return resolve(device);
             const deviceAlreadyBinded = this.binded.get(id);
             // Device already binded
             if (deviceAlreadyBinded)
@@ -197,25 +201,27 @@ class SpinalMonitoring {
     _handleMonitoredDevice(device, resolve) {
         return __awaiter(this, void 0, void 0, function* () {
             const id = device.Id;
-            const alreadyInit = this.devices[id];
+            const alreadyInit = this.devices[String(id)];
             const deviceName = device.Name;
             console.log(`${deviceName} is monitored, it will be initialized`);
             // get All data monitor inside the profile
             const intervals = yield device.getProfileData();
-            const children = intervals.map((interval) => interval.children).flat();
+            const children = intervals.map((interval) => interval.children)
+                .flat()
+                .filter((child) => typeof child !== "undefined" && child !== null);
             yield this._addToEndpointCreationQueue(device, children); // add to endpoint creation queue
-            if (!alreadyInit) {
+            if (!alreadyInit && typeof id !== "undefined") {
                 this.devices[id] = device; // store to device object if not already initialized
                 resolve(device);
-                return;
+                return device;
             }
             // separate cov items from poll items
             const [covItems, pollItems] = intervals.reduce((acc, interval) => {
-                var _a;
-                if (((_a = interval.interval) === null || _a === void 0 ? void 0 : _a.toString().toLowerCase()) === 'cov') {
-                    acc[0].push(interval);
+                var _a, _b, _c;
+                if (((_a = interval.interval) === null || _a === void 0 ? void 0 : _a.toString().toLowerCase()) === 'cov' && ((_b = interval.children) === null || _b === void 0 ? void 0 : _b.length)) {
+                    acc[0].push(...interval.children);
                 }
-                else {
+                else if ((_c = interval.children) === null || _c === void 0 ? void 0 : _c.length) {
                     acc[1].push(interval);
                 }
                 return acc;
@@ -223,6 +229,7 @@ class SpinalMonitoring {
             yield this._addToCovQueue(device, covItems); // add to cov queue
             yield this._addToIntervalQueue(id, pollItems); // add to interval queue
             resolve(device);
+            return device;
         });
     }
     _handleStoppedDevice(device, resolve) {
@@ -231,9 +238,9 @@ class SpinalMonitoring {
             const alreadyInit = this.devices[id];
             const deviceName = device.Name;
             console.log(`${deviceName} is stopped`);
-            yield this.removeFromMonitoringMaps(id);
+            yield this.removeFromMonitoringMaps(id); // remove from monitoring maps
             if (device === null || device === void 0 ? void 0 : device.covData)
-                SpinalCov_1.SpinalCov.getInstance().addToStopCovQueue(device.covData);
+                SpinalCov_1.SpinalCov.getInstance().addToStopCovQueue({ spinalDevice: device, children: device.covData });
             yield (device === null || device === void 0 ? void 0 : device.clearCovList());
             // Keep the device in the list even if not initialized
             if (!alreadyInit) {
@@ -245,7 +252,7 @@ class SpinalMonitoring {
     _addToCovQueue(spinalDevice, children) {
         return __awaiter(this, void 0, void 0, function* () {
             const covData = spinalDevice.pushToCovList(children);
-            SpinalCov_1.SpinalCov.getInstance().addToCovQueue(covData);
+            SpinalCov_1.SpinalCov.getInstance().addToCovQueue({ spinalDevice, children: covData });
         });
     }
     _addToIntervalQueue(id, intervals) {

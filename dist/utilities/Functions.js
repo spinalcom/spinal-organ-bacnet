@@ -137,9 +137,9 @@ function SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel) {
             //// this check is not necessary when not using load_type 
             // const itsForThisOrgan = await checkOrgan(spinalBacnetValueModel, organModel.id?.get() || '');
             // if (!itsForThisOrgan) return;
-            const { networkService, device, node } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
+            const { context, device } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalBacnetValueModel(spinalBacnetValueModel);
             if (spinalBacnetValueModel.state.get() === spinal_model_bacnet_1.BACNET_VALUES_STATE.wait)
-                (0, SpinalDevice_1.addToGetAllBacnetValuesQueue)(device, node, networkService, spinalBacnetValueModel);
+                (0, SpinalDevice_1.addToGetAllBacnetValuesQueue)(device.info.get(), device, context, spinalBacnetValueModel);
             else
                 throw new Error('lost connection with bacnet network');
         }

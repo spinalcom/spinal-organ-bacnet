@@ -96,8 +96,10 @@ class SpinalMonitoring {
    private _processToAddItemToMap() {
       while (!this._itemToAddToMap.isEmpty()) {
          const item = this._itemToAddToMap.dequeue();
-         const device = this.devices[item?.id];
-         if (device) this._addDeviceIntervalsToMonitoringMap(device);
+         if (item && typeof item.id !== "undefined") {
+            const device = this.devices[item.id];
+            if (device) this._addDeviceIntervalsToMonitoringMap(device);
+         }
       }
    }
 
@@ -197,6 +199,8 @@ class SpinalMonitoring {
       const id = device.Id;
 
       return new Promise((resolve) => {
+         if (typeof id === "undefined") return resolve(device);
+
          const deviceAlreadyBinded = this.binded.get(id);
          // Device already binded
          if (deviceAlreadyBinded) return resolve(device);
@@ -224,55 +228,59 @@ class SpinalMonitoring {
 
    private async _handleMonitoredDevice(device: SpinalDevice, resolve: resolveCallback): Promise<SpinalDevice> {
       const id = device.Id;
-      const alreadyInit = this.devices[id];
+      const alreadyInit = this.devices[String(id)];
       const deviceName = device.Name;
+
 
       console.log(`${deviceName} is monitored, it will be initialized`);
 
       // get All data monitor inside the profile
       const intervals = await device.getProfileData();
-      const children = intervals.map((interval) => interval.children).flat();
+      const children = intervals.map((interval) => interval.children)
+         .flat()
+         .filter((child): child is IObjectId => typeof child !== "undefined" && child !== null);
 
       await this._addToEndpointCreationQueue(device, children); // add to endpoint creation queue
 
 
-      if (!alreadyInit) {
+      if (!alreadyInit && typeof id !== "undefined") {
          this.devices[id] = device; // store to device object if not already initialized
          resolve(device);
-         return;
+         return device;
       }
 
       // separate cov items from poll items
-      const [covItems, pollItems] = intervals.reduce((acc, interval) => {
-         if (interval.interval?.toString().toLowerCase() === 'cov') {
-            acc[0].push(interval);
-         } else {
+      const [covItems, pollItems] = intervals.reduce((acc, interval: IProfileData) => {
+         if (interval.interval?.toString().toLowerCase() === 'cov' && interval.children?.length) {
+            acc[0].push(...interval.children);
+         } else if (interval.children?.length) {
             acc[1].push(interval);
          }
          return acc;
-      }, [[], []]) // separate cov items from poll items
+      }, [[], []] as [IObjectId[], IProfileData[]]) // separate cov items from poll items
 
       await this._addToCovQueue(device, covItems); // add to cov queue
-      await this._addToIntervalQueue(id, pollItems); // add to interval queue
+      await this._addToIntervalQueue(id as string | number, pollItems); // add to interval queue
 
       resolve(device);
+      return device;
    }
 
    private async _handleStoppedDevice(device: SpinalDevice, resolve: resolveCallback): Promise<void> {
       const id = device.Id;
-      const alreadyInit = this.devices[id];
+      const alreadyInit = this.devices[id as string | number];
       const deviceName = device.Name;
 
       console.log(`${deviceName} is stopped`);
 
-      await this.removeFromMonitoringMaps(id);
+      await this.removeFromMonitoringMaps(id as string | number); // remove from monitoring maps
 
-      if (device?.covData) SpinalCov.getInstance().addToStopCovQueue(device.covData);
+      if (device?.covData) SpinalCov.getInstance().addToStopCovQueue({ spinalDevice: device, children: device.covData });
       await device?.clearCovList();
 
       // Keep the device in the list even if not initialized
       if (!alreadyInit) {
-         this.devices[id] = device;
+         this.devices[id as string | number] = device;
       }
 
       resolve(device);
@@ -280,7 +288,7 @@ class SpinalMonitoring {
 
    private async _addToCovQueue(spinalDevice: SpinalDevice, children: IObjectId[]) {
       const covData = spinalDevice.pushToCovList(children);
-      SpinalCov.getInstance().addToCovQueue(covData);
+      SpinalCov.getInstance().addToCovQueue({ spinalDevice, children: covData });
    }
 
    private _addToIntervalQueue(id: string | number, intervals: IProfileData[]): void {
