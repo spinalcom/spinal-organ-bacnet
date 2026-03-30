@@ -61,6 +61,16 @@ export class SpinalDevice extends EventEmitter {
    constructor(device?: IDevice) {
       super();
       this.device = device;
+
+   }
+
+   private _listenProfileEvent() {
+      const instance = ProfileManager.getInstance();
+      instance.on("changed", ({ profileId, data }) => {
+         if (this._profile?.getId().get() !== profileId) return;
+
+         this._profileData = this._classifyChildrenByInterval(data);
+      })
    }
 
    /** use this function only if device is not created yet */
@@ -139,10 +149,21 @@ export class SpinalDevice extends EventEmitter {
       return Object.keys(this._profileData);
    }
 
-   public getProfileDataByInterval(interval: number): IObjectId[] {
+   public getProfileDataByInterval(interval: number | string): IObjectId[] {
       const data = this._profileData[interval] || [];
-
       return data.map(el => el.children).flat().filter((el: any): el is IObjectId => typeof el !== "undefined");
+   }
+
+   getAllItemsMonitored(): IObjectId[] {
+      const intervals = this.getAllIntervals();
+      const res = [];
+
+      for (const interval of intervals) {
+         const items = this.getProfileDataByInterval(parseInt(interval));
+         res.push(...items)
+      }
+
+      return res;
    }
 
 
@@ -225,8 +246,6 @@ export class SpinalDevice extends EventEmitter {
          return [];
       }
 
-      const client = await BacnetUtilities.getClient();
-
       const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
       const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type });
 
@@ -256,9 +275,8 @@ export class SpinalDevice extends EventEmitter {
          return;
       }
 
-
       const children = this.getProfileDataByInterval(interval);
-      // const networkService = this.getNetworkService();
+
       const deviceName = this.device.name;
 
       try {
@@ -267,11 +285,10 @@ export class SpinalDevice extends EventEmitter {
          const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children);
          if (!objectListDetails || objectListDetails.length === 0) throw new Error("Failed to retreive endpoints on device");
 
-         // const obj: any = { id: (this.device as any).idNetwork, children: this._groupByType(lodash.flattenDeep(objectListDetails)) }
          if (!this._bmsDevice || !this._network) throw new Error("BMS Device or network is not defined, cannot update endpoints");
 
-         const saveTimeSeries = this.shoulSaveTimeSeries();
-         return SpinalNetworkUtilities.updateEndpointInGraph(this._bmsDevice, objectListDetails, saveTimeSeries);
+         const spinalDevice = this;
+         return SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, objectListDetails);
 
       } catch (error) {
          console.error(`[${deviceName}] - Error updating endpoints for device due to "${(error as Error).message}"`);
@@ -279,13 +296,30 @@ export class SpinalDevice extends EventEmitter {
 
    }
 
-   public shoulSaveTimeSeries(): boolean {
-      return this._listenerModel.saveTimeSeries?.get() || false;
+   public shoulSaveTimeSeries(objectId?: IObjectId): boolean {
+
+      if (!objectId) return this._listenerModel?.saveTimeSeries?.get() || false;
+
+      const itemsMonitored = this.getAllItemsMonitored();
+      const found = itemsMonitored.find(el => el.instance == objectId.instance && el.type == objectId.type);
+
+      return this._getChildrenTimeSeries(found);
    }
 
    //////////////////////////////////////////////////////////////////////////////
    ////                      PRIVATES                                        ////
    //////////////////////////////////////////////////////////////////////////////
+
+
+   private _getChildrenTimeSeries(objectId: IObjectId): boolean | undefined {
+      if (!objectId.savetimeseries) return this.shoulSaveTimeSeries(); // getGlobalVariable;
+
+      const timeSeries = objectId.savetimeseries.get();
+
+      if (typeof timeSeries == "boolean") return timeSeries;
+
+      return timeSeries.toString().toLowerCase() == "true";
+   }
 
    private async _getDeviceInfo(device: IDevice): Promise<IDevice> {
       const deviceAddress = device.address;

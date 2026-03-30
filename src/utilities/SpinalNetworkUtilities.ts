@@ -33,6 +33,7 @@ import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
 import { ObjectTypes } from "./GlobalVariables";
 import { SpinalGraphService } from "spinal-env-viewer-graph-service";
 
+
 const bmsTypeNames = [SpinalBmsNetwork.nodeTypeName, SpinalBmsDevice.nodeTypeName, SpinalBmsEndpointGroup.nodeTypeName, SpinalBmsEndpoint.nodeTypeName] as const;
 type BmsNodeType = typeof bmsTypeNames[number];
 
@@ -102,14 +103,22 @@ class SpinalNetworkUtilitiesClass {
    //                BMS NETWORK FUNCTIONS                    //
    /////////////////////////////////////////////////////////////
 
-   public async updateEndpointInGraph(deviceNode: SpinalNode, children: { id: string | number; type: string | number; currentValue: any }[], saveTimeSeries = false): Promise<boolean[]> {
+   public async updateEndpointInGraph(spinalDevice: SpinalDevice, children: { id: string | number; type: string | number; currentValue: any }[]): Promise<boolean[]> {
+
+      const deviceNode = spinalDevice.getBmsDeviceNode();
       const endpointsObj = await this._getAllEndpointsInGraph(deviceNode);
+
       const promises = [];
 
       for (const child of children) {
          const endpointKey = `${child.type}_${child.id}`;
          const endpointNode = endpointsObj[endpointKey];
-         if (endpointNode) promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
+
+         if (endpointNode) {
+            const saveTimeSeries = spinalDevice.shoulSaveTimeSeries({ instance: child.id, type: child.type });
+
+            promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries))
+         };
       }
 
       return Promise.all(promises);
@@ -164,7 +173,6 @@ class SpinalNetworkUtilitiesClass {
          id: groupNetworkId,
          type: SpinalBmsEndpointGroup.nodeTypeName,
          path: "",
-         children: [],
       };
 
       if (alreadyExist) return this.updateNetworkElementNode(alreadyExist, groupInfo);
@@ -177,8 +185,10 @@ class SpinalNetworkUtilitiesClass {
       const endpointAlreadyCreated = await this._getChildrenAsObj(groupNode, SpinalBmsEndpoint.relationName);
 
       const promises = endpointArray.map(async (endpointInfo) => {
+         endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
+
          const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
-         endpointInfo.type = SpinalBmsEndpoint.nodeTypeName;
+
          if (existingEndpoint) return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
 
          const node = await this.createNetworkElementNode(endpointInfo, SpinalBmsEndpoint.nodeTypeName);
@@ -186,6 +196,20 @@ class SpinalNetworkUtilitiesClass {
       });
 
       return Promise.all(promises);
+   }
+
+   private _formatEndpointCreationInfo(endpointInfo: InputDataEndpoint): any {
+      return {
+         id: endpointInfo.id || endpointInfo.instance,
+         typeId: endpointInfo.typeId,
+         path: endpointInfo.path || "",
+         currentValue: endpointInfo.currentValue || endpointInfo.present_value,
+         name: endpointInfo.name || endpointInfo.object_name,
+         type: SpinalBmsEndpoint.nodeTypeName,
+         description: endpointInfo.description,
+         max_pres_value: endpointInfo.max_pres_value,
+         min_pres_value: endpointInfo.min_pres_value,
+      }
    }
 
    public async updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode> {
@@ -215,6 +239,8 @@ class SpinalNetworkUtilitiesClass {
 
 
    private _createBmsElementFromType(nodeInfo: InputDataTypes, type: BmsNodeType): SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint | undefined {
+      nodeInfo.type = type;
+
       switch (type) {
          case SpinalBmsNetwork.nodeTypeName:
             return new SpinalBmsNetwork(nodeInfo.name, type);
@@ -231,8 +257,8 @@ class SpinalNetworkUtilitiesClass {
    }
 
    private async _createBmsNodeFromElement(element: SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint): Promise<SpinalNode> {
-      const name = element.getName();
-      const type = element.getType();
+      const name = element.name.get();
+      const type = element.type.get();
 
       const node = new SpinalNode(name, type, element);
 
@@ -268,14 +294,14 @@ class SpinalNetworkUtilitiesClass {
             element.push(spinalAttr);
          }
 
-         spinalAttr.mod('value', nodeElement[attr].get());
+         spinalAttr.mod_attr('value', nodeElement[attr].get());
       }
 
       function _convertSpinalAttributeListToObj(element: spinal.Lst<SpinalAttribute>): { [key: string]: SpinalAttribute } {
          const obj: { [key: string]: SpinalAttribute } = {};
 
          for (let i = 0; i < element.length; i++) {
-            const attrName = element[i].name.get();
+            const attrName = element[i].label.get();
             obj[attrName] = element[i];
          }
          return obj;
@@ -308,7 +334,7 @@ class SpinalNetworkUtilitiesClass {
       }
 
       const name = networkInfo.name;
-      const type = networkInfo.type || SpinalBmsNetwork.nodeTypeName;
+      const type = SpinalBmsNetwork.nodeTypeName;
 
       const element = new SpinalBmsNetwork(name, type);
       const networkNode = new SpinalNode(name, type, element);
@@ -329,7 +355,7 @@ class SpinalNetworkUtilitiesClass {
       const childObj: { [key: string]: SpinalNode } = {};
 
       for (const child of children) {
-         const networkId = child.idNetwork.get();
+         const networkId = child.info.idNetwork.get();
          childObj[networkId] = child;
       }
       return childObj;

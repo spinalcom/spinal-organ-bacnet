@@ -181,18 +181,17 @@ class SpinalCov {
         if (!monitoredData) return;
 
         const { spinalDevice } = monitoredData;
+        const key = `${object.type}_${object.instance}`;
+
+
         const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
-        // const obj: any = {
-        //     id: spinalDevice.device?.deviceId,
-        //     children: [{ id: object.type, children: [{ id: object.instance, currentValue: value }] }],
-        // }
 
-        console.log(`[COV] - Updating ${address}_${object.type}_${object.instance}`, value);
 
-        const saveTimeSeries = spinalDevice.shoulSaveTimeSeries();
+        console.log(`[COV] - Updating ${address}_${key}`, value);
+
         const node = spinalDevice.getBmsDeviceNode();
 
-        if (node) return SpinalNetworkUtilities.updateEndpointInGraph(node, children, saveTimeSeries);
+        if (node) return SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);
     }
 
 

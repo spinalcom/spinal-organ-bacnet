@@ -55,6 +55,15 @@ class SpinalDevice extends events_1.EventEmitter {
         this._profileData = {};
         this.device = device;
     }
+    _listenProfileEvent() {
+        const instance = profileManager_1.default.getInstance();
+        instance.on("changed", ({ profileId, data }) => {
+            var _a;
+            if (((_a = this._profile) === null || _a === void 0 ? void 0 : _a.getId().get()) !== profileId)
+                return;
+            this._profileData = this._classifyChildrenByInterval(data);
+        });
+    }
     /** use this function only if device is not created yet */
     init() {
         if (!this.device)
@@ -128,6 +137,15 @@ class SpinalDevice extends events_1.EventEmitter {
         const data = this._profileData[interval] || [];
         return data.map(el => el.children).flat().filter((el) => typeof el !== "undefined");
     }
+    getAllItemsMonitored() {
+        const intervals = this.getAllIntervals();
+        const res = [];
+        for (const interval of intervals) {
+            const items = this.getProfileDataByInterval(parseInt(interval));
+            res.push(...items);
+        }
+        return res;
+    }
     /**  add item to covList */
     pushToCovList(children) {
         if (!Array.isArray(children))
@@ -195,7 +213,6 @@ class SpinalDevice extends events_1.EventEmitter {
                 console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
                 return [];
             }
-            const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
             const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item) { return item.type; });
             if (!this._context || !this._bmsDevice) {
@@ -222,31 +239,41 @@ class SpinalDevice extends events_1.EventEmitter {
                 return;
             }
             const children = this.getProfileDataByInterval(interval);
-            // const networkService = this.getNetworkService();
             const deviceName = this.device.name;
             try {
                 console.log(`[${deviceName}] ===> updating endpoints for interval ${interval}`);
                 const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children);
                 if (!objectListDetails || objectListDetails.length === 0)
                     throw new Error("Failed to retreive endpoints on device");
-                // const obj: any = { id: (this.device as any).idNetwork, children: this._groupByType(lodash.flattenDeep(objectListDetails)) }
                 if (!this._bmsDevice || !this._network)
                     throw new Error("BMS Device or network is not defined, cannot update endpoints");
-                const saveTimeSeries = this.shoulSaveTimeSeries();
-                return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(this._bmsDevice, objectListDetails, saveTimeSeries);
+                const spinalDevice = this;
+                return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, objectListDetails);
             }
             catch (error) {
                 console.error(`[${deviceName}] - Error updating endpoints for device due to "${error.message}"`);
             }
         });
     }
-    shoulSaveTimeSeries() {
-        var _a;
-        return ((_a = this._listenerModel.saveTimeSeries) === null || _a === void 0 ? void 0 : _a.get()) || false;
+    shoulSaveTimeSeries(objectId) {
+        var _a, _b;
+        if (!objectId)
+            return ((_b = (_a = this._listenerModel) === null || _a === void 0 ? void 0 : _a.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.get()) || false;
+        const itemsMonitored = this.getAllItemsMonitored();
+        const found = itemsMonitored.find(el => el.instance == objectId.instance && el.type == objectId.type);
+        return this._getChildrenTimeSeries(found);
     }
     //////////////////////////////////////////////////////////////////////////////
     ////                      PRIVATES                                        ////
     //////////////////////////////////////////////////////////////////////////////
+    _getChildrenTimeSeries(objectId) {
+        if (!objectId.savetimeseries)
+            return this.shoulSaveTimeSeries(); // getGlobalVariable;
+        const timeSeries = objectId.savetimeseries.get();
+        if (typeof timeSeries == "boolean")
+            return timeSeries;
+        return timeSeries.toString().toLowerCase() == "true";
+    }
     _getDeviceInfo(device) {
         return __awaiter(this, void 0, void 0, function* () {
             const deviceAddress = device.address;

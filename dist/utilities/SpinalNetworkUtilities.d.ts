@@ -21,11 +21,11 @@ declare class SpinalNetworkUtilitiesClass {
     getTimeSeriesInstance(): SpinalServiceTimeseries;
     initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue>;
     initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<SpinalDevice>;
-    updateEndpointInGraph(deviceNode: SpinalNode, children: {
+    updateEndpointInGraph(spinalDevice: SpinalDevice, children: {
         id: string | number;
         type: string | number;
         currentValue: any;
-    }[], saveTimeSeries?: boolean): Promise<boolean[]>;
+    }[]): Promise<boolean[]>;
     private _updateEndpointNodeValue;
     _getAllEndpointsInGraph(deviceNode: SpinalNode): Promise<{
         [key: string]: SpinalNode;
@@ -33,6 +33,7 @@ declare class SpinalNetworkUtilitiesClass {
     createEndpointsInGroup(context: SpinalContext, device: SpinalNode, endpointGroupName: string, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
     _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode>;
     _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
+    private _formatEndpointCreationInfo;
     updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode>;
     createNetworkElementNode(nodeInfo: InputDataTypes, type: BmsNodeType): Promise<SpinalNode>;
     private _updateElementInfo;

@@ -93,15 +93,19 @@ class SpinalNetworkUtilitiesClass {
     /////////////////////////////////////////////////////////////
     //                BMS NETWORK FUNCTIONS                    //
     /////////////////////////////////////////////////////////////
-    updateEndpointInGraph(deviceNode_1, children_1) {
-        return __awaiter(this, arguments, void 0, function* (deviceNode, children, saveTimeSeries = false) {
+    updateEndpointInGraph(spinalDevice, children) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const deviceNode = spinalDevice.getBmsDeviceNode();
             const endpointsObj = yield this._getAllEndpointsInGraph(deviceNode);
             const promises = [];
             for (const child of children) {
                 const endpointKey = `${child.type}_${child.id}`;
                 const endpointNode = endpointsObj[endpointKey];
-                if (endpointNode)
+                if (endpointNode) {
+                    const saveTimeSeries = spinalDevice.shoulSaveTimeSeries({ instance: child.id, type: child.type });
                     promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
+                }
+                ;
             }
             return Promise.all(promises);
         });
@@ -154,7 +158,6 @@ class SpinalNetworkUtilitiesClass {
                 id: groupNetworkId,
                 type: spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName,
                 path: "",
-                children: [],
             };
             if (alreadyExist)
                 return this.updateNetworkElementNode(alreadyExist, groupInfo);
@@ -166,8 +169,8 @@ class SpinalNetworkUtilitiesClass {
         return __awaiter(this, void 0, void 0, function* () {
             const endpointAlreadyCreated = yield this._getChildrenAsObj(groupNode, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
             const promises = endpointArray.map((endpointInfo) => __awaiter(this, void 0, void 0, function* () {
+                endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
                 const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
-                endpointInfo.type = spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName;
                 if (existingEndpoint)
                     return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
                 const node = yield this.createNetworkElementNode(endpointInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName);
@@ -175,6 +178,19 @@ class SpinalNetworkUtilitiesClass {
             }));
             return Promise.all(promises);
         });
+    }
+    _formatEndpointCreationInfo(endpointInfo) {
+        return {
+            id: endpointInfo.id || endpointInfo.instance,
+            typeId: endpointInfo.typeId,
+            path: endpointInfo.path || "",
+            currentValue: endpointInfo.currentValue || endpointInfo.present_value,
+            name: endpointInfo.name || endpointInfo.object_name,
+            type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName,
+            description: endpointInfo.description,
+            max_pres_value: endpointInfo.max_pres_value,
+            min_pres_value: endpointInfo.min_pres_value,
+        };
     }
     updateNetworkElementNode(node, newInfo) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -203,6 +219,7 @@ class SpinalNetworkUtilitiesClass {
         }
     }
     _createBmsElementFromType(nodeInfo, type) {
+        nodeInfo.type = type;
         switch (type) {
             case spinal_model_bmsnetwork_1.SpinalBmsNetwork.nodeTypeName:
                 return new spinal_model_bmsnetwork_1.SpinalBmsNetwork(nodeInfo.name, type);
@@ -216,8 +233,8 @@ class SpinalNetworkUtilitiesClass {
     }
     _createBmsNodeFromElement(element) {
         return __awaiter(this, void 0, void 0, function* () {
-            const name = element.getName();
-            const type = element.getType();
+            const name = element.name.get();
+            const type = element.type.get();
             const node = new spinal_model_graph_1.SpinalNode(name, type, element);
             this._modifyNodeInfo(node, element);
             yield this._createOrUpdateAttributesFromElement(node, element);
@@ -248,12 +265,12 @@ class SpinalNetworkUtilitiesClass {
                     spinalAttr = new spinal_models_documentation_1.SpinalAttribute(attr, nodeElement[attr].get());
                     element.push(spinalAttr);
                 }
-                spinalAttr.mod('value', nodeElement[attr].get());
+                spinalAttr.mod_attr('value', nodeElement[attr].get());
             }
             function _convertSpinalAttributeListToObj(element) {
                 const obj = {};
                 for (let i = 0; i < element.length; i++) {
-                    const attrName = element[i].name.get();
+                    const attrName = element[i].label.get();
                     obj[attrName] = element[i];
                 }
                 return obj;
@@ -282,7 +299,7 @@ class SpinalNetworkUtilitiesClass {
                 }
             }
             const name = networkInfo.name;
-            const type = networkInfo.type || spinal_model_bmsnetwork_1.SpinalBmsNetwork.nodeTypeName;
+            const type = spinal_model_bmsnetwork_1.SpinalBmsNetwork.nodeTypeName;
             const element = new spinal_model_bmsnetwork_1.SpinalBmsNetwork(name, type);
             const networkNode = new spinal_model_graph_1.SpinalNode(name, type, element);
             return organ.addChildInContext(networkNode, spinal_model_bmsnetwork_1.SpinalBmsNetwork.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
@@ -300,7 +317,7 @@ class SpinalNetworkUtilitiesClass {
             const children = yield parentNode.getChildren([relationName]);
             const childObj = {};
             for (const child of children) {
-                const networkId = child.idNetwork.get();
+                const networkId = child.info.idNetwork.get();
                 childObj[networkId] = child;
             }
             return childObj;

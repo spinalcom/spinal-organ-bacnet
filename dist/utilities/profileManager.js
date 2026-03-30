@@ -14,8 +14,10 @@ const spinal_env_viewer_plugin_network_tree_service_1 = require("spinal-env-view
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const spinal_env_viewer_plugin_documentation_service_1 = require("spinal-env-viewer-plugin-documentation-service");
 const bacnetEnum_1 = require("./bacnetEnum");
-class ProfileManager {
+const EventEmitter = require("node:events");
+class ProfileManager extends EventEmitter {
     constructor() {
+        super();
         this._isProcessingQueue = false;
         this._profiles = new Map();
     }
@@ -34,12 +36,21 @@ class ProfileManager {
             const profileData = this._profiles.get(profileId);
             if (profileData)
                 return profileData;
+            this._bindProfileNode(profileSpinalNode);
             this._isProcessingQueue = true;
             const data = yield this._fetchProfileData(profileSpinalNode);
             this._profiles.set(profileId, data);
             this._isProcessingQueue = false;
             return data;
         });
+    }
+    _bindProfileNode(profileSpinalNode) {
+        profileSpinalNode.info.directModificationDate.bind(() => __awaiter(this, void 0, void 0, function* () {
+            const profileId = profileSpinalNode.getId().get();
+            const data = yield this._fetchProfileData(profileSpinalNode);
+            this._profiles.set(profileId, data);
+            this.emit("changed", { profileId, data });
+        }), false);
     }
     _waitIfProcessing() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -51,10 +62,22 @@ class ProfileManager {
     _fetchProfileData(profileNode) {
         return __awaiter(this, void 0, void 0, function* () {
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(profileNode);
+            const contextNode = yield this._getProfileContext(profileNode);
+            if (contextNode)
+                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(contextNode);
             const profileId = profileNode.getId().get();
-            const intervalsNodes = yield spinal_env_viewer_plugin_network_tree_service_1.DeviceProfileUtilities.getIntervalNodes(profileId);
+            const contextId = contextNode.getId().get();
+            const intervalsNodes = yield spinal_env_viewer_plugin_network_tree_service_1.DeviceProfileUtilities.getIntervalNodes(profileId, contextId);
             const promises = intervalsNodes.map((intervalNode) => this._getIntervalInfo(intervalNode));
             return Promise.all(promises).then((result) => this._filterIntervals(result));
+        });
+    }
+    _getProfileContext(profileNode) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const parents = yield profileNode.getParents("hasParts");
+            const parent = parents[0];
+            const contexts = yield parent.getParents("hasDevice");
+            return contexts[0];
         });
     }
     _filterIntervals(monitors) {
@@ -101,19 +124,28 @@ class ProfileManager {
         return __awaiter(this, void 0, void 0, function* () {
             const intervalRealNode = spinal_env_viewer_graph_service_1.SpinalGraphService.getRealNode(intervalNode.id.get());
             const profileItems = yield intervalRealNode.getChildren(["hasIntervalTime"]);
-            const promises = profileItems.map((item) => __awaiter(this, void 0, void 0, function* () { return ({ instance: yield this._getIDX(item), type: this._getBacnetObjectType(item) }); }));
+            const promises = profileItems.map((item) => __awaiter(this, void 0, void 0, function* () {
+                const { instance, savetimeseries } = yield this._getInstanceAnPriority(item);
+                return { instance, savetimeseries, type: this._getBacnetObjectType(item) };
+            }));
             return Promise.all(promises).then((result) => {
                 return result.filter(item => item.instance !== undefined);
             });
         });
     }
-    _getIDX(item) {
+    _getInstanceAnPriority(item) {
         return __awaiter(this, void 0, void 0, function* () {
             const attributes = yield spinal_env_viewer_plugin_documentation_service_1.serviceDocumentation.getAttributesByCategory(item, "default");
-            const foundAttribute = attributes.find(attr => attr.label.get() === "IDX");
-            // +1 because profile is 1 indexed and bacnet is 0 indexed;
-            if (foundAttribute)
-                return parseInt(foundAttribute.value.get()) + 1;
+            const result = { instance: undefined, savetimeseries: undefined };
+            for (const attr of attributes) {
+                const label = attr.label.get();
+                const value = attr.value;
+                if (label === "IDX")
+                    result.instance = parseInt(value.get()) + 1;
+                else if (label.toLowerCase() === "savetimeseries")
+                    result.savetimeseries = value;
+            }
+            return result;
         });
     }
     _getBacnetObjectType(item) {

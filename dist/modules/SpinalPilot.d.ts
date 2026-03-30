@@ -13,6 +13,7 @@ declare class SpinalPilot {
     private writeProperty;
     private useDataType;
     private getDataTypes;
+    private _getBacnetPriority;
 }
 declare const spinalPilot: SpinalPilot;
 export default spinalPilot;

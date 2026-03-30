@@ -141,7 +141,7 @@ class SpinalPilot {
          const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
 
 
-         const priority = process.env.BACNET_PRIORITY && (!isNaN(process.env.BACNET_PRIORITY as any) && parseInt(process.env.BACNET_PRIORITY)) || 16;
+         const priority = this._getBacnetPriority(req);
 
          if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
 
@@ -187,6 +187,19 @@ class SpinalPilot {
          APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
          APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
       ];
+   }
+
+   private _getBacnetPriority(req: IRequest): number {
+      // if priority is defined in REQ
+      if (req.priority && !isNaN(req.priority))
+         return parseInt(req.priority);
+
+      // else if priority is defined in .env
+      if (process.env.BACNET_PRIORITY && !isNaN(process.env.BACNET_PRIORITY as any))
+         return parseInt(process.env.BACNET_PRIORITY)
+
+      // else use low priority
+      return 16;
    }
 }
 

@@ -1,9 +1,10 @@
-import { SpinalNode } from "spinal-model-graph";
+import { SpinalContext, SpinalNode } from "spinal-model-graph";
 import { DeviceProfileUtilities } from "spinal-env-viewer-plugin-network-tree-service"
 import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
 import { serviceDocumentation } from "spinal-env-viewer-plugin-documentation-service";
 import { BacnetEnum } from "./bacnetEnum";
 import { IObjectId } from "../Interfaces";
+import EventEmitter = require("node:events");
 
 
 
@@ -21,12 +22,13 @@ type IMonitoData = {
     children: IObjectId[];
 };
 
-export default class ProfileManager {
+export default class ProfileManager extends EventEmitter {
     private static instance: ProfileManager;
     private _profiles: Map<string, IProfileData[]>;
     private _isProcessingQueue: boolean = false;
 
     private constructor() {
+        super();
         this._profiles = new Map();
     }
 
@@ -48,12 +50,25 @@ export default class ProfileManager {
 
         if (profileData) return profileData;
 
+        this._bindProfileNode(profileSpinalNode);
         this._isProcessingQueue = true;
         const data = await this._fetchProfileData(profileSpinalNode);
         this._profiles.set(profileId, data);
         this._isProcessingQueue = false;
 
         return data;
+    }
+
+    private _bindProfileNode(profileSpinalNode: SpinalNode): void {
+
+        profileSpinalNode.info.directModificationDate.bind(async () => {
+            const profileId = profileSpinalNode.getId().get();
+
+            const data = await this._fetchProfileData(profileSpinalNode);
+            this._profiles.set(profileId, data);
+
+            this.emit("changed", { profileId, data });
+        }, false)
     }
 
     private async _waitIfProcessing(): Promise<void> {
@@ -65,14 +80,25 @@ export default class ProfileManager {
 
     private async _fetchProfileData(profileNode: SpinalNode): Promise<IProfileData[]> {
         SpinalGraphService._addNode(profileNode);
-        const profileId = profileNode.getId().get();
+        const contextNode = await this._getProfileContext(profileNode)
+        if (contextNode) SpinalGraphService._addNode(contextNode);
 
-        const intervalsNodes = await DeviceProfileUtilities.getIntervalNodes(profileId);
+        const profileId = profileNode.getId().get();
+        const contextId = contextNode.getId().get();
+
+        const intervalsNodes = await DeviceProfileUtilities.getIntervalNodes(profileId, contextId);
         const promises = intervalsNodes.map((intervalNode) => this._getIntervalInfo(intervalNode));
 
         return Promise.all(promises).then((result) => this._filterIntervals(result));
     }
 
+    private async _getProfileContext(profileNode: SpinalNode): Promise<SpinalContext> {
+        const parents = await profileNode.getParents("hasParts");
+        const parent = parents[0];
+
+        const contexts = await parent.getParents("hasDevice");
+        return contexts[0];
+    }
 
     private async _filterIntervals(monitors: IMonitoData[]) {
         const res: IProfileData[] = [];
@@ -121,19 +147,32 @@ export default class ProfileManager {
         const intervalRealNode = SpinalGraphService.getRealNode(intervalNode.id.get());
         const profileItems = await intervalRealNode.getChildren(["hasIntervalTime"]);
 
-        const promises = profileItems.map(async (item) => ({ instance: await this._getIDX(item), type: this._getBacnetObjectType(item) }));
+        const promises = profileItems.map(async (item) => {
+            const { instance, savetimeseries } = await this._getInstanceAnPriority(item);
+
+            return { instance, savetimeseries, type: this._getBacnetObjectType(item) }
+        });
 
         return Promise.all(promises).then((result) => {
-            return result.filter(item => item.instance !== undefined) as IObjectId[];
+            return result.filter(item => item.instance !== undefined) as unknown as IObjectId[];
         })
     }
 
-    private async _getIDX(item: SpinalNode): Promise<| number | undefined> {
+    private async _getInstanceAnPriority(item: SpinalNode): Promise<{ instance: number | undefined, savetimeseries: spinal.Model | undefined }> {
         const attributes = await serviceDocumentation.getAttributesByCategory(item, "default");
-        const foundAttribute = attributes.find(attr => attr.label.get() === "IDX");
+        const result = { instance: undefined, savetimeseries: undefined };
 
-        // +1 because profile is 1 indexed and bacnet is 0 indexed;
-        if (foundAttribute) return parseInt(foundAttribute.value.get()) + 1;
+        for (const attr of attributes) {
+            const label = attr.label.get();
+            const value = attr.value;
+
+            if (label === "IDX") result.instance = parseInt(value.get()) + 1;
+
+            else if (label.toLowerCase() === "savetimeseries") result.savetimeseries = value;
+
+        }
+
+        return result;
     }
 
     private _getBacnetObjectType(item: SpinalNode): number {

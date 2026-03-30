@@ -311,19 +311,21 @@ class SpinalMonitoring {
       const intervals = spinalDevice.getAllIntervals();
       const id = spinalDevice.Id;
 
+
       for (const interval of intervals) {
-         if (isNaN(Number(interval))) return; // if the interval is not a number, do not add to monitoring
+         const intervalAsNumber = Number(interval);
 
-         const _interval = Number(interval);
-         let priority = Date.now() + _interval;
+         if (isNaN(intervalAsNumber)) return; // if the interval is not a number, do not add to monitoring
 
-         let values = this.intervalTimesMap.get(_interval); // get existing data for this interval time
+         let priority = Date.now() + intervalAsNumber;
+
+         let values = this.intervalTimesMap.get(intervalAsNumber); // get existing data for this interval time
          if (!values) values = []; // create new array if not exist
          values.push({ id });
 
-         this.intervalTimesMap.set(_interval, values);
+         this.intervalTimesMap.set(intervalAsNumber, values);
 
-         this._addToPriorityQueue(_interval, priority);
+         this._addToPriorityQueue(intervalAsNumber, priority);
       }
    }
 
@@ -370,7 +372,6 @@ class SpinalMonitoring {
 
          } catch (error) {
             console.error(error);
-
          }
 
       }

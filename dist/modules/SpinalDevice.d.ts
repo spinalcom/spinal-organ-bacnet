@@ -16,6 +16,7 @@ export declare class SpinalDevice extends EventEmitter {
     private _profile;
     private _profileData;
     constructor(device?: IDevice);
+    private _listenProfileEvent;
     /** use this function only if device is not created yet */
     init(): Promise<boolean>;
     initExistingDevice(listenerModel: SpinalListenerModel): Promise<boolean>;
@@ -25,7 +26,8 @@ export declare class SpinalDevice extends EventEmitter {
     getListenerModel(): SpinalListenerModel;
     getProfileData(): Promise<IProfileData[]>;
     getAllIntervals(): string[];
-    getProfileDataByInterval(interval: number): IObjectId[];
+    getProfileDataByInterval(interval: number | string): IObjectId[];
+    getAllItemsMonitored(): IObjectId[];
     /**  add item to covList */
     pushToCovList(children: IObjectId[] | IObjectId): IObjectId[];
     /** clear covList */
@@ -37,7 +39,8 @@ export declare class SpinalDevice extends EventEmitter {
     /** Check and create endpoints if they do not exist */
     checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNode[]>;
     updateEndpoints(interval: number): Promise<void | boolean[]>;
-    shoulSaveTimeSeries(): boolean;
+    shoulSaveTimeSeries(objectId?: IObjectId): boolean;
+    private _getChildrenTimeSeries;
     private _getDeviceInfo;
     private _groupAndFormatItems;
     private _getDataValue;

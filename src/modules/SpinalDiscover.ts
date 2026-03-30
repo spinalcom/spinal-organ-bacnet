@@ -248,7 +248,6 @@ class SpinalDiscover {
          const { context, graph, organ, network } = await SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
          const devicesObj = await this._getDevicesNodes(network);
 
-         let isFinished = false;
 
          while (!queue.isEmpty()) {
             const device = queue.dequeue();
@@ -302,7 +301,7 @@ class SpinalDiscover {
       const queue: SpinalQueue<spinal.Model> = new SpinalQueue();
       const { protocol, host, port } = config.spinalConnector;
       const url = `${protocol}://${host}:${port}`;
-
+      console.log(url)
       const list = await discoverModel.getTreeToCreate(url);
       queue.addToQueue(list);
 
