@@ -54,6 +54,7 @@ class SpinalDevice extends events_1.EventEmitter {
         // private _networkService: NetworkService;
         this._profileData = {};
         this.device = device;
+        this._listenProfileEvent();
     }
     _listenProfileEvent() {
         const instance = profileManager_1.default.getInstance();
@@ -61,6 +62,7 @@ class SpinalDevice extends events_1.EventEmitter {
             var _a;
             if (((_a = this._profile) === null || _a === void 0 ? void 0 : _a.getId().get()) !== profileId)
                 return;
+            console.log("Profil has been updated for device : ", this.Name);
             this._profileData = this._classifyChildrenByInterval(data);
         });
     }
@@ -153,6 +155,7 @@ class SpinalDevice extends events_1.EventEmitter {
         // const networkService = this.getNetworkService();
         // const covData: ICovData = { spinalModel: this._listenerModel, spinalDevice: this, children, network: this._network };
         // const covData: ICovData = { spinalDevice: this };
+        console.log("Childrens' number ", children.length, " has been added to COV ", this.Name);
         this.covData.push(...children);
         return this.covData;
     }

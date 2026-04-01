@@ -61,14 +61,14 @@ export class SpinalDevice extends EventEmitter {
    constructor(device?: IDevice) {
       super();
       this.device = device;
-
+      this._listenProfileEvent();
    }
 
    private _listenProfileEvent() {
       const instance = ProfileManager.getInstance();
       instance.on("changed", ({ profileId, data }) => {
          if (this._profile?.getId().get() !== profileId) return;
-
+         console.log("Profil has been updated for device : ", this.Name)
          this._profileData = this._classifyChildrenByInterval(data);
       })
    }
@@ -176,6 +176,7 @@ export class SpinalDevice extends EventEmitter {
 
       // const covData: ICovData = { spinalModel: this._listenerModel, spinalDevice: this, children, network: this._network };
       // const covData: ICovData = { spinalDevice: this };
+      console.log("Childrens' number ", children.length, " has been added to COV ", this.Name);
       this.covData.push(...children);
 
       return this.covData;

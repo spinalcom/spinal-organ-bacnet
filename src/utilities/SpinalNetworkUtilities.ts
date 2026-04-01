@@ -209,6 +209,7 @@ class SpinalNetworkUtilitiesClass {
          description: endpointInfo.description,
          max_pres_value: endpointInfo.max_pres_value,
          min_pres_value: endpointInfo.min_pres_value,
+         unit: endpointInfo.unit || "",
       }
    }
 

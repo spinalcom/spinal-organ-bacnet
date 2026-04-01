@@ -102,7 +102,7 @@ class BacnetUtilitiesClass {
 
             client.readPropertyMultiple(address, sadr, requestArray, (err: Error, data: any) => {
                if (err) {
-                  this.incrementState("failed");
+                  // this.incrementState("failed");
                   reject(err);
                   return;
                }
@@ -125,7 +125,7 @@ class BacnetUtilitiesClass {
       return new Promise((resolve, reject) => {
          client.readProperty(address, sadr, objectId, propertyId, options, (err: Error, data: any) => {
             if (err) {
-               this.incrementState("failed");
+               // this.incrementState("failed");
                return reject(err);
             }
 
@@ -335,7 +335,7 @@ class BacnetUtilitiesClass {
             }
 
          } catch (error) {
-            console.error(error);
+            // console.error(error);
          }
       }
 

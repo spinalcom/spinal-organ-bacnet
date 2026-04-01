@@ -10,7 +10,7 @@ import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 class SpinalCov {
     private static _instance: SpinalCov;
 
-    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(30000, false); // 30s delay before start item treatment, no auto start
+    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(60000); // 30s delay before start item treatment, no auto start
     private itemsToStopQueue: SpinalQueue<ICovData> = new SpinalQueue();
 
     // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
@@ -38,8 +38,8 @@ class SpinalCov {
     }
 
     startCovProcessing() {
-        console.log("start cov proccessing with", this.itemMonitored.size, "items to monitor");
-        this.itemToWatchQueue.start();
+        console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
+        // this.itemToWatchQueue.start();
     }
 
     stopAllCovSubscriptions() {

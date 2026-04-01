@@ -228,7 +228,8 @@ class SpinalMonitoring {
 
    private async _handleMonitoredDevice(device: SpinalDevice, resolve: resolveCallback): Promise<SpinalDevice> {
       const id = device.Id;
-      const alreadyInit = this.devices[String(id)];
+      this.devices[id] = device;
+      // const alreadyInit = this.devices[String(id)];
       const deviceName = device.Name;
 
 
@@ -242,16 +243,16 @@ class SpinalMonitoring {
 
       await this._addToEndpointCreationQueue(device, children); // add to endpoint creation queue
 
-
-      if (!alreadyInit && typeof id !== "undefined") {
-         this.devices[id] = device; // store to device object if not already initialized
-         resolve(device);
-         return device;
-      }
+      console.log("params => ", device.Name, id, intervals)
+      // if (!alreadyInit && typeof id !== "undefined") {
+      //    this.devices[id] = device; // store to device object if not already initialized
+      //    resolve(device);
+      //    return device;
+      // }
 
       // separate cov items from poll items
       const [covItems, pollItems] = intervals.reduce((acc, interval: IProfileData) => {
-         if (interval.interval?.toString().toLowerCase() === 'cov' && interval.children?.length) {
+         if ((interval.interval?.toString().toLowerCase() === 'cov' || interval.interval?.toString().toLowerCase() === 'nan') && interval.children?.length) {
             acc[0].push(...interval.children);
          } else if (interval.children?.length) {
             acc[1].push(interval);
@@ -279,14 +280,16 @@ class SpinalMonitoring {
       await device?.clearCovList();
 
       // Keep the device in the list even if not initialized
-      if (!alreadyInit) {
-         this.devices[id as string | number] = device;
+      if (alreadyInit) {
+         delete this.devices[id];
+         // this.devices[id as string | number] = device;
       }
 
       resolve(device);
    }
 
    private async _addToCovQueue(spinalDevice: SpinalDevice, children: IObjectId[]) {
+      console.log("Add to COV : ", spinalDevice.Name);
       const covData = spinalDevice.pushToCovList(children);
       SpinalCov.getInstance().addToCovQueue({ spinalDevice, children: covData });
    }
@@ -311,7 +314,6 @@ class SpinalMonitoring {
       const intervals = spinalDevice.getAllIntervals();
       const id = spinalDevice.Id;
 
-
       for (const interval of intervals) {
          const intervalAsNumber = Number(interval);
 
@@ -322,7 +324,12 @@ class SpinalMonitoring {
          let values = this.intervalTimesMap.get(intervalAsNumber); // get existing data for this interval time
          if (!values) values = []; // create new array if not exist
          values.push({ id });
-
+         // values = [...new Set(values.map(JSON.stringify))].map(JSON.parse)
+         //TODO : Améliorer la détection des duplica
+         values = values.filter(
+            (obj, index, self) =>
+               index === self.findIndex(o => o.id === obj.id)
+         );
          this.intervalTimesMap.set(intervalAsNumber, values);
 
          this._addToPriorityQueue(intervalAsNumber, priority);

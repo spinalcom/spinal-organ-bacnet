@@ -201,7 +201,8 @@ class SpinalMonitoring {
     _handleMonitoredDevice(device, resolve) {
         return __awaiter(this, void 0, void 0, function* () {
             const id = device.Id;
-            const alreadyInit = this.devices[String(id)];
+            this.devices[id] = device;
+            // const alreadyInit = this.devices[String(id)];
             const deviceName = device.Name;
             console.log(`${deviceName} is monitored, it will be initialized`);
             // get All data monitor inside the profile
@@ -210,18 +211,19 @@ class SpinalMonitoring {
                 .flat()
                 .filter((child) => typeof child !== "undefined" && child !== null);
             yield this._addToEndpointCreationQueue(device, children); // add to endpoint creation queue
-            if (!alreadyInit && typeof id !== "undefined") {
-                this.devices[id] = device; // store to device object if not already initialized
-                resolve(device);
-                return device;
-            }
+            console.log("params => ", device.Name, id, intervals);
+            // if (!alreadyInit && typeof id !== "undefined") {
+            //    this.devices[id] = device; // store to device object if not already initialized
+            //    resolve(device);
+            //    return device;
+            // }
             // separate cov items from poll items
             const [covItems, pollItems] = intervals.reduce((acc, interval) => {
-                var _a, _b, _c;
-                if (((_a = interval.interval) === null || _a === void 0 ? void 0 : _a.toString().toLowerCase()) === 'cov' && ((_b = interval.children) === null || _b === void 0 ? void 0 : _b.length)) {
+                var _a, _b, _c, _d;
+                if ((((_a = interval.interval) === null || _a === void 0 ? void 0 : _a.toString().toLowerCase()) === 'cov' || ((_b = interval.interval) === null || _b === void 0 ? void 0 : _b.toString().toLowerCase()) === 'nan') && ((_c = interval.children) === null || _c === void 0 ? void 0 : _c.length)) {
                     acc[0].push(...interval.children);
                 }
-                else if ((_c = interval.children) === null || _c === void 0 ? void 0 : _c.length) {
+                else if ((_d = interval.children) === null || _d === void 0 ? void 0 : _d.length) {
                     acc[1].push(interval);
                 }
                 return acc;
@@ -243,14 +245,16 @@ class SpinalMonitoring {
                 SpinalCov_1.SpinalCov.getInstance().addToStopCovQueue({ spinalDevice: device, children: device.covData });
             yield (device === null || device === void 0 ? void 0 : device.clearCovList());
             // Keep the device in the list even if not initialized
-            if (!alreadyInit) {
-                this.devices[id] = device;
+            if (alreadyInit) {
+                delete this.devices[id];
+                // this.devices[id as string | number] = device;
             }
             resolve(device);
         });
     }
     _addToCovQueue(spinalDevice, children) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log("Add to COV : ", spinalDevice.Name);
             const covData = spinalDevice.pushToCovList(children);
             SpinalCov_1.SpinalCov.getInstance().addToCovQueue({ spinalDevice, children: covData });
         });
@@ -280,6 +284,9 @@ class SpinalMonitoring {
             if (!values)
                 values = []; // create new array if not exist
             values.push({ id });
+            // values = [...new Set(values.map(JSON.stringify))].map(JSON.parse)
+            //TODO : Améliorer la détection des duplica
+            values = values.filter((obj, index, self) => index === self.findIndex(o => o.id === obj.id));
             this.intervalTimesMap.set(intervalAsNumber, values);
             this._addToPriorityQueue(intervalAsNumber, priority);
         }

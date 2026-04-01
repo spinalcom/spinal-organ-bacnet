@@ -46,9 +46,11 @@ class ProfileManager extends EventEmitter {
     }
     _bindProfileNode(profileSpinalNode) {
         profileSpinalNode.info.directModificationDate.bind(() => __awaiter(this, void 0, void 0, function* () {
+            console.log("Profil has been updated");
             const profileId = profileSpinalNode.getId().get();
             const data = yield this._fetchProfileData(profileSpinalNode);
             this._profiles.set(profileId, data);
+            console.log("data => ", data);
             this.emit("changed", { profileId, data });
         }), false);
     }

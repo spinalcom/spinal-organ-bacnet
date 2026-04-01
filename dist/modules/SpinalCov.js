@@ -18,7 +18,7 @@ const cov_1 = require("./cov");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 class SpinalCov {
     constructor() {
-        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(30000, false); // 30s delay before start item treatment, no auto start
+        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(60000); // 30s delay before start item treatment, no auto start
         this.itemsToStopQueue = new spinal_connector_service_1.SpinalQueue();
         // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
         this._lastCovNotification = null;
@@ -37,8 +37,8 @@ class SpinalCov {
         this._lastCovNotification = Date.now();
     }
     startCovProcessing() {
-        console.log("start cov proccessing with", this.itemMonitored.size, "items to monitor");
-        this.itemToWatchQueue.start();
+        console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
+        // this.itemToWatchQueue.start();
     }
     stopAllCovSubscriptions() {
         const allItems = Array.from(this.itemMonitored.values());
