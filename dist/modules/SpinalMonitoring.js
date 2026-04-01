@@ -211,7 +211,6 @@ class SpinalMonitoring {
                 .flat()
                 .filter((child) => typeof child !== "undefined" && child !== null);
             yield this._addToEndpointCreationQueue(device, children); // add to endpoint creation queue
-            console.log("params => ", device.Name, id, intervals);
             // if (!alreadyInit && typeof id !== "undefined") {
             //    this.devices[id] = device; // store to device object if not already initialized
             //    resolve(device);

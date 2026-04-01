@@ -58,7 +58,10 @@ spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExist
    const pm2_instance = await GetPm2Instance(name);
    const pm2_id = pm2_instance ? (pm2_instance as any).pm_id : null;
 
-   if (pm2_id) node.restart.bind(() => restartProcessById(pm2_id));
+   if (pm2_id) node.restart.bind(() => {
+      if (!node.restart?.get()) return;
+      restartProcessById(pm2_id)
+   });
 
    const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
    console.log(message);
