@@ -59,12 +59,14 @@ class SpinalDevice extends events_1.EventEmitter {
     _listenProfileEvent() {
         const instance = profileManager_1.default.getInstance();
         instance.on("changed", ({ profileId, data }) => {
-            var _a;
+            var _a, _b, _c;
             if (((_a = this._profile) === null || _a === void 0 ? void 0 : _a.getId().get()) !== profileId)
                 return;
             console.log(`[PROFILE CHANGED] - ${this.Name} will restart for refreshing data...`);
             this._profileData = this._classifyChildrenByInterval(data);
-            this._restartDevice();
+            // if the device is currently monitored, restart it to update the monitored items with the new profile data
+            if ((_c = (_b = this._listenerModel) === null || _b === void 0 ? void 0 : _b.monitored) === null || _c === void 0 ? void 0 : _c.get())
+                this._restartDevice();
         });
     }
     _restartDevice() {

@@ -71,7 +71,9 @@ export class SpinalDevice extends EventEmitter {
 
          console.log(`[PROFILE CHANGED] - ${this.Name} will restart for refreshing data...`);
          this._profileData = this._classifyChildrenByInterval(data);
-         this._restartDevice();
+
+         // if the device is currently monitored, restart it to update the monitored items with the new profile data
+         if (this._listenerModel?.monitored?.get()) this._restartDevice();
       })
    }
 
