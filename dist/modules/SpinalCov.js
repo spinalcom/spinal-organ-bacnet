@@ -12,21 +12,28 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalCov = void 0;
 const spinal_connector_service_1 = require("spinal-connector-service");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
-const child_process_1 = require("child_process");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const cov_1 = require("./cov");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 class SpinalCov {
     constructor() {
-        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(60000); // 30s delay before start item treatment, no auto start
+        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(5000, false); // 5s delay before start item treatment, no auto start
         this.itemsToStopQueue = new spinal_connector_service_1.SpinalQueue();
         // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
         this._lastCovNotification = null;
         this.itemMonitored = new Map();
         (0, cov_1.listenEventMessage)(); // start listening to messages from cov process
         this._checkCovStatus(); // Check COV status every 1 minute
-        this.itemToWatchQueue.on("start", this.processToQueueTreatment.bind(this, this.itemToWatchQueue, GlobalVariables_1.COV_EVENTS_NAMES.subscribe));
-        this.itemsToStopQueue.on("start", this.processToQueueTreatment.bind(this, this.itemsToStopQueue, GlobalVariables_1.COV_EVENTS_NAMES.unsubscribe));
+        this.itemToWatchQueue.on("start", () => {
+            const list = this.itemToWatchQueue.toArray();
+            this.itemToWatchQueue.clear(); // clear queue to avoid duplicate processing
+            this.processToDataTreatment(list, GlobalVariables_1.COV_EVENTS_NAMES.subscribe);
+        });
+        this.itemsToStopQueue.on("start", () => {
+            const list = this.itemsToStopQueue.toArray();
+            this.itemsToStopQueue.clear(); // clear queue to avoid duplicate processing
+            this.processToDataTreatment(list, GlobalVariables_1.COV_EVENTS_NAMES.unsubscribe);
+        });
     }
     static getInstance() {
         if (!this._instance)
@@ -38,7 +45,7 @@ class SpinalCov {
     }
     startCovProcessing() {
         console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
-        // this.itemToWatchQueue.start();
+        this.itemToWatchQueue.start();
     }
     stopAllCovSubscriptions() {
         const allItems = Array.from(this.itemMonitored.values());
@@ -53,17 +60,6 @@ class SpinalCov {
             this.startCovProcessing();
         }, 4000);
     }
-    // resetAllSubscriptions() {
-    //     const allItems = Array.from(this.itemMonitored.values());
-    //     console.log("[COV] - Resetting all subscriptions", allItems.length);
-    //     this.itemsToStopQueue.setQueue(allItems as ICovData[]); // stop all first
-    //     // then 4s later, re-subscribe all
-    //     setTimeout(() => {
-    //         console.log("[COV] - Re-subscribing all subscriptions", allItems.length);
-    //         this.itemToWatchQueue.setQueue(allItems as ICovData[]);
-    //         this.itemToWatchQueue.start();
-    //     }, 4000);
-    // }
     addToCovQueue(data) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!Array.isArray(data))
@@ -80,15 +76,9 @@ class SpinalCov {
             this.itemsToStopQueue.addToQueue(obj);
         }
     }
-    processToQueueTreatment(queue, eventName) {
+    processToDataTreatment(list, eventName) {
         return __awaiter(this, void 0, void 0, function* () {
-            // init process before starting cov, initialization
-            // if (!this.forkedProcess) {
-            //     this.forkedProcess = this.createForkedProcess();
-            // }
             var _a;
-            const list = queue.toArray();
-            queue.clear();
             const formatted = [];
             for (const { spinalDevice, children } of list) {
                 const ip = (_a = spinalDevice === null || spinalDevice === void 0 ? void 0 : spinalDevice.device) === null || _a === void 0 ? void 0 : _a.address;
@@ -121,30 +111,38 @@ class SpinalCov {
     formatChildren(ip, children) {
         return children.map((child) => ({ ip, object: child }));
     }
-    createForkedProcess() {
+    /*
+    private createForkedProcess(): ChildProcess {
+
         const path = require.resolve("./cov");
-        const forked = (0, child_process_1.fork)(path);
-        forked.on("message", (result) => __awaiter(this, void 0, void 0, function* () {
-            var _a;
+        const forked = fork(path);
+
+        forked.on("message", async (result: { key: string, eventName: string, error?: Error, data: any }) => {
             switch (result.eventName) {
-                case GlobalVariables_1.COV_EVENTS_NAMES.subscribed:
+                case COV_EVENTS_NAMES.subscribed:
                     console.log("[COV] - Subscribed to", result.key);
                     break;
-                case GlobalVariables_1.COV_EVENTS_NAMES.error:
-                    BacnetUtilities_1.default.incrementState("failed");
-                    console.error(`[COV] - Failed  due to", "${(_a = result.error) === null || _a === void 0 ? void 0 : _a.message}"`);
+                case COV_EVENTS_NAMES.error:
+                    BacnetUtilities.incrementState("failed");
+                    console.error(`[COV] - Failed  due to", "${result.error?.message}"`);
                     // forked.kill();
                     break;
-                case GlobalVariables_1.COV_EVENTS_NAMES.changed:
+                case COV_EVENTS_NAMES.changed:
                     this.updateLastCovNotificationTime();
-                    yield this._updateDeviceValue(result.data.address, result.data.request);
+                    await this._updateDeviceValue(result.data.address, result.data.request);
                     break;
+
             }
-        }));
-        forked.on("error", (err) => { });
-        forked.on("exit", (code) => { });
+
+        });
+
+        forked.on("error", (err: Error) => { });
+
+        forked.on("exit", (code: number) => { });
+
         return forked;
     }
+    */
     _updateDeviceValue(address, request) {
         return __awaiter(this, void 0, void 0, function* () {
             const currentValue = request.values.find((v) => { var _a; return ((_a = v.property) === null || _a === void 0 ? void 0 : _a.id) === GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE; });

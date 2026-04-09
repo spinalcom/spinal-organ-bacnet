@@ -10,7 +10,7 @@ import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 class SpinalCov {
     private static _instance: SpinalCov;
 
-    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(60000); // 30s delay before start item treatment, no auto start
+    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(5000, false); // 5s delay before start item treatment, no auto start
     private itemsToStopQueue: SpinalQueue<ICovData> = new SpinalQueue();
 
     // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
@@ -23,8 +23,17 @@ class SpinalCov {
 
         this._checkCovStatus(); // Check COV status every 1 minute
 
-        this.itemToWatchQueue.on("start", this.processToQueueTreatment.bind(this, this.itemToWatchQueue, COV_EVENTS_NAMES.subscribe));
-        this.itemsToStopQueue.on("start", this.processToQueueTreatment.bind(this, this.itemsToStopQueue, COV_EVENTS_NAMES.unsubscribe));
+        this.itemToWatchQueue.on("start", () => {
+            const list = this.itemToWatchQueue.toArray();
+            this.itemToWatchQueue.clear(); // clear queue to avoid duplicate processing
+            this.processToDataTreatment(list, COV_EVENTS_NAMES.subscribe);
+        });
+
+        this.itemsToStopQueue.on("start", () => {
+            const list = this.itemsToStopQueue.toArray();
+            this.itemsToStopQueue.clear(); // clear queue to avoid duplicate processing
+            this.processToDataTreatment(list, COV_EVENTS_NAMES.unsubscribe);
+        });
     }
 
 
@@ -33,22 +42,22 @@ class SpinalCov {
         return this._instance;
     }
 
-    updateLastCovNotificationTime() {
+    public updateLastCovNotificationTime() {
         this._lastCovNotification = Date.now();
     }
 
-    startCovProcessing() {
+    public startCovProcessing() {
         console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
-        // this.itemToWatchQueue.start();
+        this.itemToWatchQueue.start();
     }
 
-    stopAllCovSubscriptions() {
+    public stopAllCovSubscriptions() {
         const allItems = Array.from(this.itemMonitored.values());
         this.addToStopCovQueue(allItems as ICovData[]);
         return allItems;
     }
 
-    restartAllCovSubscriptions() {
+    public restartAllCovSubscriptions() {
         console.log("[COV] - Restarting all COV subscriptions after client reset");
         const allItems = Array.from(this.itemMonitored.values());
         this.addToCovQueue(allItems as ICovData[]);
@@ -58,21 +67,9 @@ class SpinalCov {
         }, 4000);
     }
 
-    // resetAllSubscriptions() {
-    //     const allItems = Array.from(this.itemMonitored.values());
-    //     console.log("[COV] - Resetting all subscriptions", allItems.length);
-    //     this.itemsToStopQueue.setQueue(allItems as ICovData[]); // stop all first
-
-    //     // then 4s later, re-subscribe all
-    //     setTimeout(() => {
-    //         console.log("[COV] - Re-subscribing all subscriptions", allItems.length);
-    //         this.itemToWatchQueue.setQueue(allItems as ICovData[]);
-    //         this.itemToWatchQueue.start();
-    //     }, 4000);
-    // }
-
     public async addToCovQueue(data: ICovData | ICovData[]): Promise<void> {
         if (!Array.isArray(data)) data = [data];
+
         for (const obj of data) {
             this.itemToWatchQueue.addToQueue(obj);
         }
@@ -85,14 +82,7 @@ class SpinalCov {
         }
     }
 
-    public async processToQueueTreatment(queue: SpinalQueue<ICovData>, eventName: typeof COV_EVENTS_NAMES[keyof typeof COV_EVENTS_NAMES]) {
-        // init process before starting cov, initialization
-        // if (!this.forkedProcess) {
-        //     this.forkedProcess = this.createForkedProcess();
-        // }
-
-        const list = queue.toArray();
-        queue.clear();
+    public async processToDataTreatment(list: ICovData[], eventName: typeof COV_EVENTS_NAMES[keyof typeof COV_EVENTS_NAMES]) {
 
         const formatted: ICovSubscribeReq[] = [];
 
@@ -137,7 +127,7 @@ class SpinalCov {
         return children.map((child) => ({ ip, object: child }));
     }
 
-
+    /*
     private createForkedProcess(): ChildProcess {
 
         const path = require.resolve("./cov");
@@ -168,8 +158,8 @@ class SpinalCov {
 
         return forked;
     }
-
-    async _updateDeviceValue(address: string, request: any) {
+    */
+    public async _updateDeviceValue(address: string, request: any) {
         const currentValue = request.values.find((v: any) => v.property?.id === PropertyIds.PROP_PRESENT_VALUE);
         if (!currentValue) return;
 

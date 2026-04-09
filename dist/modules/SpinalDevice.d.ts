@@ -17,6 +17,7 @@ export declare class SpinalDevice extends EventEmitter {
     private _profileData;
     constructor(device?: IDevice);
     private _listenProfileEvent;
+    private _restartDevice;
     /** use this function only if device is not created yet */
     init(): Promise<boolean>;
     initExistingDevice(listenerModel: SpinalListenerModel): Promise<boolean>;

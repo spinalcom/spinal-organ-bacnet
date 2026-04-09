@@ -68,9 +68,20 @@ export class SpinalDevice extends EventEmitter {
       const instance = ProfileManager.getInstance();
       instance.on("changed", ({ profileId, data }) => {
          if (this._profile?.getId().get() !== profileId) return;
-         console.log("Profil has been updated for device : ", this.Name)
+
+         console.log(`[PROFILE CHANGED] - ${this.Name} will restart for refreshing data...`);
          this._profileData = this._classifyChildrenByInterval(data);
+         this._restartDevice();
       })
+   }
+
+   private _restartDevice() {
+      this._listenerModel.monitored.set(false);
+
+      // restart the device after 1 second to let time to the system to remove old data
+      setTimeout(() => {
+         this._listenerModel.monitored.set(true);
+      }, 1000);
    }
 
    /** use this function only if device is not created yet */
