@@ -113,7 +113,7 @@ class SpinalCov extends events_1.default {
         }, 60 * 1000);
     }
     formatChildren(ip, children) {
-        return children.map((child) => ({ ip, object: child }));
+        return children.map((child) => ({ ip, object: { instance: child.instance, type: child.type } }));
     }
     /*
     private createForkedProcess(): ChildProcess {
@@ -168,16 +168,16 @@ class SpinalCov extends events_1.default {
     }
     _listenEvents() {
         this.on(GlobalVariables_1.COV_EVENTS_NAMES.subscribed, (data) => __awaiter(this, void 0, void 0, function* () {
-            console.log("[COV] - Subscribed to", data);
+            console.log("[COV] - Subscribed to", data === null || data === void 0 ? void 0 : data.key);
         }));
         this.on(GlobalVariables_1.COV_EVENTS_NAMES.error, (data) => __awaiter(this, void 0, void 0, function* () {
             var _a;
             console.error(`[COV] - Failed to subscribe to ${data === null || data === void 0 ? void 0 : data.key} due to", "${(_a = data === null || data === void 0 ? void 0 : data.error) === null || _a === void 0 ? void 0 : _a.message}"`);
         }));
-        this.on(GlobalVariables_1.COV_EVENTS_NAMES.changed, (data) => __awaiter(this, void 0, void 0, function* () {
-            console.log("[COV] - Change event received", data);
+        this.on(GlobalVariables_1.COV_EVENTS_NAMES.changed, (_a) => __awaiter(this, [_a], void 0, function* ({ data }) {
+            console.log("[COV] - Change event received from", data === null || data === void 0 ? void 0 : data.address);
             // SpinalCov.getInstance().updateLastCovNotificationTime();
-            // await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
+            yield SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
         }));
     }
 }

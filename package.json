@@ -26,7 +26,7 @@
     "socket.io": "^3.1.1",
     "three": "^0.183.2",
     "ts-priority-queue": "^0.1.1",
-    "uuid": "^13.0.0"
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/node": "^18.7.6",

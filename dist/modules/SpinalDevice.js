@@ -183,7 +183,13 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     getProfileDataByInterval(interval) {
         const data = this._profileData[interval] || [];
-        return data.map(el => el.children).flat().filter((el) => typeof el !== "undefined");
+        const allChildren = data.map(el => el.children).flat();
+        return allChildren.reduce((acc, curr) => {
+            if (typeof curr === "undefined")
+                return acc;
+            acc.push({ instance: curr.instance, type: curr.type });
+            return acc;
+        }, []);
     }
     getAllItemsMonitored() {
         const intervals = this.getAllIntervals();
@@ -263,7 +269,8 @@ class SpinalDevice extends events_1.EventEmitter {
                     console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
                     return [];
                 }
-                const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
+                const endpointToCreateFormatted = endpointsToCreate.map(el => ({ type: el.type, instance: el.instance }));
+                const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, endpointToCreateFormatted);
                 const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item) { return item.type; });
                 if (!this._context || !this._bmsDevice) {
                     console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);

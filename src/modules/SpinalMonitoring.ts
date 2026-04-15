@@ -85,6 +85,7 @@ class SpinalMonitoring {
             if (!item) continue;
 
             const { spinalDevice, children } = item;
+
             await spinalDevice.checkAndCreateEndpointsIfNotExist(children);
             // console.log("end")
          } catch (error) {

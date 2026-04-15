@@ -671,7 +671,7 @@ class BacnetUtilitiesClass {
             parameters: parameters
          };
 
-         this._ipcClient.emit(MESSAGE_EVENT_NAME, params);
+         this._ipcClient.emit(MESSAGE_EVENT_NAME, (params));
 
          this._ipcClient.once(`${RESPONSE_EVENT_NAME}_${params.id}`, (response: any) => {
             if (response.status === "error") {

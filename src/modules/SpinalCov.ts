@@ -130,7 +130,7 @@ class SpinalCov extends EventEmitter {
     }
 
     private formatChildren(ip: string, children: ICovData["children"]): ICovSubscribeReq[] {
-        return children.map((child) => ({ ip, object: child }));
+        return children.map((child) => ({ ip, object: { instance: child.instance, type: child.type } }));
     }
 
     /*
@@ -183,7 +183,7 @@ class SpinalCov extends EventEmitter {
         const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
 
 
-        console.log(`[COV] - Updating ${address}_${key}`, value);
+        console.log(`[COV] - Updating item (${object}) from device ${address} with value ${value}`);
 
         const node = spinalDevice.getBmsDeviceNode();
 
@@ -192,18 +192,18 @@ class SpinalCov extends EventEmitter {
 
     private _listenEvents() {
 
-        this.on(COV_EVENTS_NAMES.subscribed, async (data: ICovSubscribeReq[]) => {
-            console.log("[COV] - Subscribed to", data);
+        this.on(COV_EVENTS_NAMES.subscribed, async (data: any) => {
+            console.log("[COV] - Subscribed to", data?.key);
         });
 
         this.on(COV_EVENTS_NAMES.error, async (data: any) => {
             console.error(`[COV] - Failed to subscribe to ${data?.key} due to", "${data?.error?.message}"`);
         });
 
-        this.on(COV_EVENTS_NAMES.changed, async (data: any) => {
-            console.log("[COV] - Change event received", data);
+        this.on(COV_EVENTS_NAMES.changed, async ({ data }: any) => {
+            console.log("[COV] - Change event received from", data?.address);
             // SpinalCov.getInstance().updateLastCovNotificationTime();
-            // await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
+            await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
 
         });
 

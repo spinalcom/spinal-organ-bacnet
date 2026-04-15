@@ -593,7 +593,7 @@ class BacnetUtilitiesClass {
                 id: (0, uuid_1.v4)(),
                 parameters: parameters
             };
-            this._ipcClient.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, params);
+            this._ipcClient.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, (params));
             this._ipcClient.once(`${spinal_bacnet_service_1.RESPONSE_EVENT_NAME}_${params.id}`, (response) => {
                 if (response.status === "error") {
                     return reject({ message: response.error });

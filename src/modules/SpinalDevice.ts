@@ -164,7 +164,14 @@ export class SpinalDevice extends EventEmitter {
 
    public getProfileDataByInterval(interval: number | string): IObjectId[] {
       const data = this._profileData[interval] || [];
-      return data.map(el => el.children).flat().filter((el: any): el is IObjectId => typeof el !== "undefined");
+      const allChildren = data.map(el => el.children).flat();
+
+      return allChildren.reduce((acc: IObjectId[], curr: IObjectId) => {
+         if (typeof curr === "undefined") return acc;
+         acc.push({ instance: curr.instance, type: curr.type });
+
+         return acc;
+      }, []);
    }
 
    getAllItemsMonitored(): IObjectId[] {
@@ -261,7 +268,9 @@ export class SpinalDevice extends EventEmitter {
             return [];
          }
 
-         const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
+         const endpointToCreateFormatted = endpointsToCreate.map(el => ({ type: el.type, instance: el.instance }));
+         const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointToCreateFormatted);
+
          const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type });
 
          if (!this._context || !this._bmsDevice) {
