@@ -31,6 +31,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GetPm2Instance = void 0;
 exports.bindAllModels = bindAllModels;
@@ -44,7 +47,7 @@ const SpinalNetworkUtilities_1 = require("./SpinalNetworkUtilities");
 const SpinalDiscover_1 = require("../modules/SpinalDiscover");
 const SpinalMonitoring_1 = require("../modules/SpinalMonitoring");
 const SpinalPilot_1 = require("../modules/SpinalPilot");
-const pm2 = require("pm2");
+const pm2_1 = __importDefault(require("pm2"));
 const Q = require('q');
 function bindAllModels(organModel) {
     const listenerAlreadyBinded = new Set();
@@ -52,6 +55,11 @@ function bindAllModels(organModel) {
     ///////////////// listen discover model to browse bacnet network and get all devices (broadcast or unicast)
     organModel.discover.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const discoverList = yield organModel.getDiscoverModelFromGraph();
+        if (!discoverList) {
+            console.error('no discover model found in graph');
+            return;
+        }
+        ;
         for (const spinalDiscoverModel of discoverList) {
             if (discoverAlreadyBinded.has(spinalDiscoverModel._server_id))
                 continue;
@@ -62,6 +70,10 @@ function bindAllModels(organModel) {
     ///////////////// listen pilot model to update bacnet value of devices
     organModel.pilot.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const pilotList = yield organModel.getPilotModelFromGraph();
+        if (!pilotList) {
+            console.error('no pilot model found in graph');
+            return;
+        }
         for (const spinalPilotModel of pilotList) {
             SpinalPilotCallback(spinalPilotModel, organModel);
         }
@@ -69,6 +81,10 @@ function bindAllModels(organModel) {
     ///////////////// listen listener model to monitor devices
     organModel.listener.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const listenerList = yield organModel.getListenerModelFromGraph();
+        if (!listenerList) {
+            console.error('no listener model found in graph');
+            return;
+        }
         for (let i = 0; i < listenerList.length; i++) {
             const spinalListenerModel = listenerList[i];
             if (listenerAlreadyBinded.has(spinalListenerModel._server_id))
@@ -80,6 +96,10 @@ function bindAllModels(organModel) {
     ///////////////// listen allbacnetvalues model to get bacnet values of devices
     organModel.allBacnetValues.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const allBacnetValuesList = yield organModel.getBacnetValuesModelFromGraph();
+        if (!allBacnetValuesList) {
+            console.error('no bacnet values model found in graph');
+            return;
+        }
         for (const spinalBacnetValueModel of allBacnetValuesList) {
             SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);
         }
@@ -87,7 +107,7 @@ function bindAllModels(organModel) {
 }
 const GetPm2Instance = (organName) => {
     return new Promise((resolve, reject) => {
-        pm2.list((err, apps) => {
+        pm2_1.default.list((err, apps) => {
             if (err) {
                 return reject(err);
             }
@@ -99,7 +119,7 @@ const GetPm2Instance = (organName) => {
 exports.GetPm2Instance = GetPm2Instance;
 function restartProcessById(instanceId) {
     return new Promise((resolve, reject) => {
-        pm2.restart(instanceId, (err) => {
+        pm2_1.default.restart(instanceId, (err) => {
             if (err)
                 return resolve(false);
             resolve(true);

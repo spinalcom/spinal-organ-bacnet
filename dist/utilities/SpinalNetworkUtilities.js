@@ -96,6 +96,8 @@ class SpinalNetworkUtilitiesClass {
     updateEndpointInGraph(spinalDevice, children) {
         return __awaiter(this, void 0, void 0, function* () {
             const deviceNode = spinalDevice.getBmsDeviceNode();
+            if (!deviceNode)
+                throw new Error("Device node not found in graph");
             const endpointsObj = yield this._getAllEndpointsInGraph(deviceNode);
             const promises = [];
             for (const child of children) {

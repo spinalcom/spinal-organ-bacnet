@@ -31,11 +31,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalPilot = void 0;
 const spinal_connector_service_1 = require("spinal-connector-service");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
-const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
+const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
 class SpinalPilot {
     constructor() {
         this.queue = new spinal_connector_service_1.SpinalQueue();
@@ -182,10 +185,10 @@ class SpinalPilot {
     }
     _getBacnetPriority(req) {
         // if priority is defined in REQ
-        if (req.priority && !isNaN(req.priority))
+        if (req.priority && !isNaN(parseInt(req.priority)))
             return parseInt(req.priority);
         // else if priority is defined in .env
-        if (process.env.BACNET_PRIORITY && !isNaN(process.env.BACNET_PRIORITY))
+        if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
             return parseInt(process.env.BACNET_PRIORITY);
         // else use low priority
         return 16;

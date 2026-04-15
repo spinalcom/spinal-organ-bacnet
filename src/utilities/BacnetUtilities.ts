@@ -22,19 +22,18 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import * as lodash from "lodash";
 import * as bacnet from "bacstack";
-import { SpinalGraphService, SpinalNodeRef } from "spinal-env-viewer-graph-service";
-import { ObjectTypes, PropertyIds, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
-import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty, ICovData } from "../Interfaces";
-import { SEGMENTATIONS } from "./GlobalVariables";
-import { SpinalCov } from "../modules/SpinalCov";
-
-
+import { ObjectTypes, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
+import { IDevice, IObjectId } from "../Interfaces";
+import { EventPayload, SpinalCov } from "../modules/SpinalCov";
+import { v4 as uuid } from 'uuid';
+import ipc from "node-ipc";
+import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, BACNET_COV_EVENT_NAME } from "spinal-bacnet-service";
 class BacnetUtilitiesClass {
 
    private static instance: BacnetUtilitiesClass;
    private _client: bacnet = null;
+   private _ipcClient: any = null;
 
    private constructor() { }
 
@@ -49,6 +48,41 @@ class BacnetUtilitiesClass {
       return this.instance;
    }
 
+   public async initAndConnect() {
+      this._ipcClient = await this._connectToServer();
+
+      this._ipcClient.on('disconnect', async () => {
+         this._ipcClient = await this._connectToServer();
+      });
+
+      console.log("connected to bacnet service");
+
+      this._ipcClient.on(BACNET_COV_EVENT_NAME, (result: any) => {
+         // console.log("cov result event received", result);
+         SpinalCov.getInstance().emit(result.eventName, result);
+      });
+   }
+
+   private _connectToServer() {
+      return new Promise((resolve, reject) => {
+         const serverServiceName = SERVICE_NAME;
+         const clientServiceName = process.env.ORGAN_NAME || "spinal-organ-bacnet";
+
+         ipc.config.id = clientServiceName; // Set the IPC client ID to the organ name or a default value
+         ipc.config.retry = 5000; // Retry every 5 seconds if connection to server is lost 
+         ipc.config.silent = true; // Disable IPC debug logs
+
+         const bacnetServicePort = process.env.BACNET_SERVICE_PORT?.trim();
+         const ipcServerPort = bacnetServicePort ? parseInt(bacnetServicePort) : 47810;
+
+         ipc.connectToNet(serverServiceName, "127.0.0.1", ipcServerPort, () => {
+            this._ipcClient = ipc.of[serverServiceName];
+            resolve(ipc.of[serverServiceName]);
+         });
+      });
+
+   }
+
    public createNewBacnetClient(): bacnet {
       const client = new bacnet({ adpuTimeout: 10000 });
 
@@ -61,144 +95,153 @@ class BacnetUtilitiesClass {
 
          return resolve(this._client);
       });
-
    }
 
-   public incrementState(state: "failed" | "success") {
-      if (state === "failed") {
-         this.clientState.consecutiveFailures++;
-
-         // reset client if consecutive failures
-         if (this.clientState.consecutiveFailures >= 5) {
-
-            this._client = null; // reset client after 5 consecutive failures;
-            SpinalCov.getInstance().restartAllCovSubscriptions();
-
-            this.clientState.consecutiveFailures = 0;
-         }
-
-      } else {
-         this.clientState.consecutiveFailures = 0;
-      }
+   public sendCovRequest(data: EventPayload) {
+      if (this._ipcClient) this._ipcClient.emit(COV_EVENT_NAME, data);
    }
 
-   private _listenClientErrorEvent(client: bacnet): void {
-      client.on('error', () => {
-         console.log("error client");
-         this._client = null;
-      });
-   }
+   // public incrementState(state: "failed" | "success") {
+   //    if (state === "failed") {
+   //       this.clientState.consecutiveFailures++;
+
+   //       // reset client if consecutive failures
+   //       if (this.clientState.consecutiveFailures >= 5) {
+
+   //          this._client = null; // reset client after 5 consecutive failures;
+   //          SpinalCov.getInstance().restartAllCovSubscriptions();
+
+   //          this.clientState.consecutiveFailures = 0;
+   //       }
+
+   //    } else {
+   //       this.clientState.consecutiveFailures = 0;
+   //    }
+   // }
+
+   // private _listenClientErrorEvent(client: bacnet): void {
+   //    client.on('error', () => {
+   //       console.log("error client");
+   //       this._client = null;
+   //    });
+   // }
 
    ////////////////////////////////////////////////////////////////
    ////                  READ BACNET DATA                        //
    ////////////////////////////////////////////////////////////////
 
-   public readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[]): Promise<IReadPropertyMultiple> {
-      return new Promise(async (resolve, reject) => {
-         try {
-            const client = await this.getClient();
-            requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
-            if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
+   // public readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[]): Promise<IReadPropertyMultiple> {
+   //    return new Promise(async (resolve, reject) => {
+   //       try {
+   //          const client = await this.getClient();
+   //          requestArray = Array.isArray(requestArray) ? requestArray : [requestArray];
+   //          if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
-            client.readPropertyMultiple(address, sadr, requestArray, (err: Error, data: any) => {
-               if (err) {
-                  // this.incrementState("failed");
-                  reject(err);
-                  return;
-               }
+   //          client.readPropertyMultiple(address, sadr, requestArray, (err: Error, data: any) => {
+   //             if (err) {
+   //                // this.incrementState("failed");
+   //                reject(err);
+   //                return;
+   //             }
 
-               this.incrementState("success");
-               resolve(data);
-            })
-         } catch (error) {
-            reject(error);
-         }
-      });
-   }
+   //             this.incrementState("success");
+   //             resolve(data);
+   //          })
+   //       } catch (error) {
+   //          reject(error);
+   //       }
+   //    });
+   // }
 
-   public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, clientOptions?: any): Promise<IReadProperty> {
+   // public async readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, clientOptions?: any): Promise<IReadProperty> {
 
-      const client = await this.getClient();
-      const options = clientOptions || {};
-      if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
+   //    const client = await this.getClient();
+   //    const options = clientOptions || {};
+   //    if (sadr && typeof sadr == "object") sadr = Object.keys(sadr).length === 0 ? null : sadr;
 
-      return new Promise((resolve, reject) => {
-         client.readProperty(address, sadr, objectId, propertyId, options, (err: Error, data: any) => {
-            if (err) {
-               // this.incrementState("failed");
-               return reject(err);
-            }
+   //    return new Promise((resolve, reject) => {
+   //       client.readProperty(address, sadr, objectId, propertyId, options, (err: Error, data: any) => {
+   //          if (err) {
+   //             // this.incrementState("failed");
+   //             return reject(err);
+   //          }
 
-            this.incrementState("success");
-            resolve(data);
-         })
-      });
-   }
+   //          this.incrementState("success");
+   //          resolve(data);
+   //       })
+   //    });
+   // }
 
    ////////////////////////////////////////////////////////////////
    ////                  GET ALL BACNET OBJECT LIST              //
    ////////////////////////////////////////////////////////////////
 
    public async _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, getListUsingFragment: boolean = false): Promise<IObjectId[]> {
-      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
-      let values;
-      const deviceAddress = device.address;
-      if (!deviceAddress) throw new Error("Device address is required");
 
-      try {
-         if (getListUsingFragment) throw new Error("reason:4") // Force to use fragment method;
-
-         const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
-
-         if (deviceAcceptSegmentation) {
-            const params = [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }]
-            let data = await this.readPropertyMultiple(deviceAddress, device.SADR, params);
-            const dataFormatted = data.values.map(el => el.values.map(el2 => el2.value));
-            values = lodash.flattenDeep(dataFormatted);
-         } else {
-            const params = [objectId, PropertyIds.PROP_OBJECT_LIST];
-            let data = await this.readProperty(deviceAddress, device.SADR, params[0], params[1]);
-            values = data.values;
-         }
+      return this._sendDataToBacnetServer("_getDeviceObjectList", [device, SENSOR_TYPES, getListUsingFragment]);
 
 
-      } catch (error: any) {
-         if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId);
-      }
+      // const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: device.deviceId };
+      // let values;
+      // const deviceAddress = device.address;
+      // if (!deviceAddress) throw new Error("Device address is required");
 
-      if (typeof values === "undefined" || !values?.length) throw "No values found";
+      // try {
+      //    if (getListUsingFragment) throw new Error("reason:4") // Force to use fragment method;
 
-      return values.filter((item: any) => SENSOR_TYPES.indexOf(item.value.type) !== -1);
+      //    const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) != -1;
+
+      //    if (deviceAcceptSegmentation) {
+      //       const params = [{ objectId: objectId, properties: [{ id: PropertyIds.PROP_OBJECT_LIST }] }]
+      //       let data = await this.readPropertyMultiple(deviceAddress, device.SADR, params);
+      //       const dataFormatted = data.values.map(el => el.values.map(el2 => el2.value));
+      //       values = lodash.flattenDeep(dataFormatted);
+      //    } else {
+      //       const params = [objectId, PropertyIds.PROP_OBJECT_LIST];
+      //       let data = await this.readProperty(deviceAddress, device.SADR, params[0], params[1]);
+      //       values = data.values;
+      //    }
+
+
+      // } catch (error: any) {
+      //    if (error.message.match(/reason:4/i) || error.message.match(/err_timeout/i)) values = await this.getItemListByFragment(device, objectId);
+      // }
+
+      // if (typeof values === "undefined" || !values?.length) throw "No values found";
+
+      // return values.filter((item: any) => SENSOR_TYPES.indexOf(item.value.type) !== -1);
    }
 
    public async getItemListByFragment(device: IDevice, objectId: IObjectId): Promise<IObjectId[]> {
-      const bacnetItemsFound: IObjectId[] = [];
-      let error: Error;
-      let index = 1;
-      let finish = false;
-      const deviceAddress = device.address;
-      if (!deviceAddress) throw new Error("Device address is required");
+      return this._sendDataToBacnetServer("getItemListByFragment", [device, objectId]);
 
-      return new Promise(async (resolve) => {
+      // const bacnetItemsFound: IObjectId[] = [];
+      // let error: Error;
+      // let index = 1;
+      // let finish = false;
+      // const deviceAddress = device.address;
+      // if (!deviceAddress) throw new Error("Device address is required");
 
-         while (!error && !finish) {
-            try {
-               const clientOptions = { arrayIndex: index }
-               const value = await this.readProperty(deviceAddress, device.SADR, objectId, PropertyIds.PROP_OBJECT_LIST, clientOptions);
-               if (value) {
-                  index++;
-                  bacnetItemsFound.push(...(value.values as any[]));
-               } else {
-                  finish = true;
-               }
+      // return new Promise(async (resolve) => {
 
-            } catch (err: any) {
-               error = err;
-            }
-         }
+      //    while (!error && !finish) {
+      //       try {
+      //          const clientOptions = { arrayIndex: index }
+      //          const value = await this.readProperty(deviceAddress, device.SADR, objectId, PropertyIds.PROP_OBJECT_LIST, clientOptions);
+      //          if (value) {
+      //             index++;
+      //             bacnetItemsFound.push(...(value.values as any[]));
+      //          } else {
+      //             finish = true;
+      //          }
 
-         resolve(bacnetItemsFound);
-      });
+      //       } catch (err: any) {
+      //          error = err;
+      //       }
+      //    }
+
+      //    resolve(bacnetItemsFound);
+      // });
    }
 
    ////////////////////////////////////////////////////////////////
@@ -207,207 +250,216 @@ class BacnetUtilitiesClass {
 
    public async _getObjectDetail(device: IDevice, objects: Array<IObjectId>): Promise<{ [key: string]: string | boolean | number }[]> {
 
-      let objectLists = [...objects];
+      return this._sendDataToBacnetServer("_getObjectDetail", [device, objects]);
 
-      let objectListDetails: Array<{ [key: string]: string | boolean | number }> = [];
-      const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+      // let objectLists = [...objects];
 
-      const callbackFunc = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
+      // let objectListDetails: Array<{ [key: string]: string | boolean | number }> = [];
+      // const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+
+      // const callbackFunc = deviceAcceptSegmentation ? this._getObjectDetailWithReadPropertyMultiple : this._getObjectDetailWithReadProperty;
 
 
-      if (deviceAcceptSegmentation) {
-         objectLists = lodash.chunk(objects, 10);
-      }
+      // if (deviceAcceptSegmentation) {
+      //    objectLists = lodash.chunk(objects, 10);
+      // }
 
-      while (objectLists.length > 0) {
-         const object: any = objectLists.shift();
-         if (object) {
-            try {
-               const res = await callbackFunc.call(this, device, object);
-               objectListDetails.push(res);
-            } catch (err) {
-               if (deviceAcceptSegmentation) {
-                  const itemsFound = await this._retryGetObjectDetailWithReadProperty(object, device);
-                  if (itemsFound.length > 0) objectListDetails.push(itemsFound);
-               }
-            }
-         }
-      }
+      // while (objectLists.length > 0) {
+      //    const object: any = objectLists.shift();
+      //    if (object) {
+      //       try {
+      //          const res = await callbackFunc.call(this, device, object);
+      //          objectListDetails.push(res);
+      //       } catch (err) {
+      //          if (deviceAcceptSegmentation) {
+      //             const itemsFound = await this._retryGetObjectDetailWithReadProperty(object, device);
+      //             if (itemsFound.length > 0) objectListDetails.push(itemsFound);
+      //          }
+      //       }
+      //    }
+      // }
 
-      if (deviceAcceptSegmentation) objectListDetails = lodash.flattenDeep(objectListDetails);
+      // if (deviceAcceptSegmentation) objectListDetails = lodash.flattenDeep(objectListDetails);
 
-      return objectListDetails;
+      // return objectListDetails;
 
    }
 
-   private async _retryGetObjectDetailWithReadProperty(items: any, device: IDevice): Promise<any> {
-      const itemsFound = [];
-      for (const item of items) {
-         try {
-            const res = await this._getObjectDetailWithReadProperty(device, item);
-            if (res) itemsFound.push(res);
-         } catch (error) {
+   // private async _retryGetObjectDetailWithReadProperty(items: any, device: IDevice): Promise<any> {
+   //    const itemsFound = [];
+   //    for (const item of items) {
+   //       try {
+   //          const res = await this._getObjectDetailWithReadProperty(device, item);
+   //          if (res) itemsFound.push(res);
+   //       } catch (error) {
 
-         }
-      }
+   //       }
+   //    }
 
-      return itemsFound;
-   }
+   //    return itemsFound;
+   // }
 
    public async _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: IObjectId[]): Promise<any[]> {
 
-      try {
-         const deviceAddress = device.address;
-         if (!deviceAddress) throw new Error("Device address is required");
+      return this._sendDataToBacnetServer("_getObjectDetailWithReadPropertyMultiple", [device, objects]);
 
-         const requestArray: IRequestArray[] = objects.map(el => ({
-            objectId: JSON.parse(JSON.stringify(el)),
-            properties: [
-               { id: PropertyIds.PROP_OBJECT_NAME },
-               { id: PropertyIds.PROP_PRESENT_VALUE },
-               { id: PropertyIds.PROP_DESCRIPTION },
-               { id: PropertyIds.PROP_OBJECT_TYPE },
-               { id: PropertyIds.PROP_UNITS },
-               { id: PropertyIds.PROP_MAX_PRES_VALUE },
-               { id: PropertyIds.PROP_MIN_PRES_VALUE },
-            ]
-         }))
-         const data = await this.readPropertyMultiple(deviceAddress, device.SADR, requestArray);
+      // try {
+      //    const deviceAddress = device.address;
+      //    if (!deviceAddress) throw new Error("Device address is required");
 
-         return data.values.map(el => {
-            const { objectId } = el;
+      //    const requestArray: IRequestArray[] = objects.map(el => ({
+      //       objectId: JSON.parse(JSON.stringify(el)),
+      //       properties: [
+      //          { id: PropertyIds.PROP_OBJECT_NAME },
+      //          { id: PropertyIds.PROP_PRESENT_VALUE },
+      //          { id: PropertyIds.PROP_DESCRIPTION },
+      //          { id: PropertyIds.PROP_OBJECT_TYPE },
+      //          { id: PropertyIds.PROP_UNITS },
+      //          { id: PropertyIds.PROP_MAX_PRES_VALUE },
+      //          { id: PropertyIds.PROP_MIN_PRES_VALUE },
+      //       ]
+      //    }))
+      //    const data = await this.readPropertyMultiple(deviceAddress, device.SADR, requestArray);
 
-            const itemInfo: any = {
-               objectId: objectId,
-               id: objectId.instance,
-               typeId: objectId.type,
-               type: this._getObjectTypeByCode(objectId.type),
-               instance: objectId.instance,
-               deviceId: device.deviceId
-            }
+      //    return data.values.map(el => {
+      //       const { objectId } = el;
 
-            const formated: any = this._formatProperty(el);
+      //       const itemInfo: any = {
+      //          objectId: objectId,
+      //          id: objectId.instance,
+      //          typeId: objectId.type,
+      //          type: this._getObjectTypeByCode(objectId.type),
+      //          instance: objectId.instance,
+      //          deviceId: device.deviceId
+      //       }
 
-            for (let key in formated) {
-               itemInfo[key] = formated[key];
-            }
+      //       const formated: any = this._formatProperty(el);
 
-            return itemInfo;
-         });
+      //       for (let key in formated) {
+      //          itemInfo[key] = formated[key];
+      //       }
 
-      } catch (error) {
-         throw error;
-      }
+      //       return itemInfo;
+      //    });
+
+      // } catch (error) {
+      //    throw error;
+      // }
    }
 
    public async _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId): Promise<any> {
-
-      const properties = [
-         PropertyIds.PROP_OBJECT_NAME, PropertyIds.PROP_PRESENT_VALUE, PropertyIds.PROP_DESCRIPTION,
-         PropertyIds.PROP_OBJECT_TYPE, PropertyIds.PROP_UNITS,
-         PropertyIds.PROP_MAX_PRES_VALUE, PropertyIds.PROP_MIN_PRES_VALUE
-      ]
-
-      const itemInfo: any = {
-         objectId: objectId,
-         id: objectId.instance,
-         typeId: objectId.type,
-         type: this._getObjectTypeByCode(objectId.type),
-         instance: objectId.instance,
-         deviceId: device.deviceId
-      };
-
-      const deviceAddress = device.address;
-      if (!deviceAddress) throw new Error("Device address is required");
-
-      while (properties.length > 0) {
-         try {
-            const property = properties.shift();
-            if (typeof property !== "undefined") {
-               // console.log("property not undefined");
-               const formated = await this._getPropertyValue(deviceAddress, device.SADR, objectId, property);
-
-               for (let key in formated) {
-                  itemInfo[key] = formated[key];
-               }
-            } else {
-               // console.log("property is undefined");
-            }
-
-         } catch (error) {
-            // console.error(error);
-         }
-      }
+      return this._sendDataToBacnetServer("_getObjectDetailWithReadProperty", [device, objectId]);
 
 
-      return itemInfo;
+      // const properties = [
+      //    PropertyIds.PROP_OBJECT_NAME, PropertyIds.PROP_PRESENT_VALUE, PropertyIds.PROP_DESCRIPTION,
+      //    PropertyIds.PROP_OBJECT_TYPE, PropertyIds.PROP_UNITS,
+      //    PropertyIds.PROP_MAX_PRES_VALUE, PropertyIds.PROP_MIN_PRES_VALUE
+      // ]
+
+      // const itemInfo: any = {
+      //    objectId: objectId,
+      //    id: objectId.instance,
+      //    typeId: objectId.type,
+      //    type: this._getObjectTypeByCode(objectId.type),
+      //    instance: objectId.instance,
+      //    deviceId: device.deviceId
+      // };
+
+      // const deviceAddress = device.address;
+      // if (!deviceAddress) throw new Error("Device address is required");
+
+      // while (properties.length > 0) {
+      //    try {
+      //       const property = properties.shift();
+      //       if (typeof property !== "undefined") {
+      //          // console.log("property not undefined");
+      //          const formated = await this._getPropertyValue(deviceAddress, device.SADR, objectId, property);
+
+      //          for (let key in formated) {
+      //             itemInfo[key] = formated[key];
+      //          }
+      //       } else {
+      //          // console.log("property is undefined");
+      //       }
+
+      //    } catch (error) {
+      //       // console.error(error);
+      //    }
+      // }
+
+
+      // return itemInfo;
    }
 
    public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
-      const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
 
-      if (deviceAcceptSegmentation) return this.getChildrenNewValueWithReadPropertyMultiple(device, children);
+      return this._sendDataToBacnetServer("_getChildrenNewValue", [device, children]);
 
-      return this.getChildrenNewValueWithReadProperty(device, children);
+      // const deviceAcceptSegmentation = [SEGMENTATIONS.SEGMENTATION_BOTH, SEGMENTATIONS.SEGMENTATION_TRANSMIT].indexOf(device.segmentation) !== -1;
+
+      // if (deviceAcceptSegmentation) return this.getChildrenNewValueWithReadPropertyMultiple(device, children);
+
+      // return this.getChildrenNewValueWithReadProperty(device, children);
    }
 
-   private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
+   // private async getChildrenNewValueWithReadPropertyMultiple(device: IDevice, children: Array<IObjectId>): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
 
-      try {
-         const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
+   //    try {
+   //       const requestArray = children.map(el => ({ objectId: el, properties: [{ id: PropertyIds.PROP_PRESENT_VALUE }] }));
 
-         const list_chunked = lodash.chunk(requestArray, 50);
-         const deviceAddress = device.address;
-         if (!deviceAddress) throw new Error("Device address is required");
+   //       const list_chunked = lodash.chunk(requestArray, 50);
+   //       const deviceAddress = device.address;
+   //       if (!deviceAddress) throw new Error("Device address is required");
 
-         const res = [];
-         while (list_chunked.length > 0) {
-            const arr = list_chunked.pop();
-            const data = await this.readPropertyMultiple(deviceAddress, device.SADR, arr);
+   //       const res = [];
+   //       while (list_chunked.length > 0) {
+   //          const arr = list_chunked.pop();
+   //          const data = await this.readPropertyMultiple(deviceAddress, device.SADR, arr);
 
-            const dataFormated = data.values.map(el => {
-               const value = this._getObjValue(el.values[0].value);
-               return {
-                  id: el.objectId.instance,
-                  type: el.objectId.type,
-                  currentValue: this._formatCurrentValue(value, el.objectId.type)
-               }
-            })
+   //          const dataFormated = data.values.map(el => {
+   //             const value = this._getObjValue(el.values[0].value);
+   //             return {
+   //                id: el.objectId.instance,
+   //                type: el.objectId.type,
+   //                currentValue: this._formatCurrentValue(value, el.objectId.type)
+   //             }
+   //          })
 
-            res.push(dataFormated);
-         }
+   //          res.push(dataFormated);
+   //       }
 
-         return lodash.flattenDeep(res);
+   //       return lodash.flattenDeep(res);
 
-      } catch (error) { }
-   }
+   //    } catch (error) { }
+   // }
 
-   private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
-      const res = [];
+   // private async getChildrenNewValueWithReadProperty(device: IDevice, children: Array<IObjectId>): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
+   //    const res = [];
 
-      try {
-         const deep_children = [...children];
-         while (deep_children.length > 0) {
-            const child: any = deep_children.shift();
-            const deviceAddress = device.address;
-            if (!deviceAddress) throw new Error("Device address is required");
+   //    try {
+   //       const deep_children = [...children];
+   //       while (deep_children.length > 0) {
+   //          const child: any = deep_children.shift();
+   //          const deviceAddress = device.address;
+   //          if (!deviceAddress) throw new Error("Device address is required");
 
-            if (child) {
-               try {
-                  child.id = child.instance;
-                  const data = await this.readProperty(deviceAddress, device.SADR, child, PropertyIds.PROP_PRESENT_VALUE);
-                  const value = data.values[0]?.value;
-                  child.currentValue = this._getObjValue(value);
-                  res.push(child);
-               } catch (error) { }
-            }
-         }
+   //          if (child) {
+   //             try {
+   //                child.id = child.instance;
+   //                const data = await this.readProperty(deviceAddress, device.SADR, child, PropertyIds.PROP_PRESENT_VALUE);
+   //                const value = data.values[0]?.value;
+   //                child.currentValue = this._getObjValue(value);
+   //                res.push(child);
+   //             } catch (error) { }
+   //          }
+   //       }
 
-         return res;
-      } catch (error) {
-         throw error;
-      }
-   }
+   //       return res;
+   //    } catch (error) {
+   //       throw error;
+   //    }
+   // }
 
    ////////////////////////////////////////////////////////////////
    ////                       Endpoints                          //
@@ -519,21 +571,22 @@ class BacnetUtilitiesClass {
 
 
    public async _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string): Promise<any> {
+      return this._sendDataToBacnetServer("_getPropertyValue", [address, sadr, objectId, propertyId]);
+      // try {
+      //    const data = await this.readProperty(address, sadr, objectId, propertyId);
+      //    const formated: any = this._formatProperty(data);
+      //    return formated;
 
-      try {
-         const data = await this.readProperty(address, sadr, objectId, propertyId);
-         const formated: any = this._formatProperty(data);
-         return formated;
-
-      } catch (error) {
-         throw error;
-      }
+      // } catch (error) {
+      //    throw error;
+      // }
    }
 
    public async getDeviceId(address: string, sadr: any): Promise<number> {
-      const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
-      const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER);
-      return data.values[0].value.instance;
+      return this._sendDataToBacnetServer("getDeviceId", [address, sadr]);
+      // const objectId = { type: ObjectTypes.OBJECT_DEVICE, instance: PropertyIds.MAX_BACNET_PROPERTY_ID };
+      // const data = await this.readProperty(address, sadr, objectId, PropertyIds.PROP_OBJECT_IDENTIFIER);
+      // return data.values[0].value.instance;
    }
 
 
@@ -598,17 +651,36 @@ class BacnetUtilitiesClass {
       return;
    }
 
+   // private async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
+   //    const children = await SpinalGraphService.getChildren(parentId, [relationName]);
+   //    const childObj: { [key: string]: SpinalNodeRef } = {};
+
+   //    for (const child of children) {
+   //       const networkId = child.idNetwork.get();
+   //       childObj[networkId] = child;
+   //    }
+   //    return childObj;
+   // }
 
 
-   private async getChildrenObj(parentId: string, relationName: string): Promise<{ [key: string]: SpinalNodeRef }> {
-      const children = await SpinalGraphService.getChildren(parentId, [relationName]);
-      const childObj: { [key: string]: SpinalNodeRef } = {};
+   private _sendDataToBacnetServer(functionName: string, parameters: any[]): Promise<any> {
+      return new Promise((resolve, reject) => {
+         const params = {
+            name: functionName,
+            id: uuid(),
+            parameters: parameters
+         };
 
-      for (const child of children) {
-         const networkId = child.idNetwork.get();
-         childObj[networkId] = child;
-      }
-      return childObj;
+         this._ipcClient.emit(MESSAGE_EVENT_NAME, params);
+
+         this._ipcClient.once(`${RESPONSE_EVENT_NAME}_${params.id}`, (response: any) => {
+            if (response.status === "error") {
+               return reject({ message: response.error });
+            }
+
+            resolve(response.data);
+         });
+      });
    }
 
 }

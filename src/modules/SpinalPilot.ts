@@ -156,7 +156,7 @@ class SpinalPilot {
       });
    }
 
-   private getDataTypes(type: number): number[] {
+   private getDataTypes(type: number | string): number[] {
       const analogTypes = new Set([
          ObjectTypes.OBJECT_ANALOG_INPUT,
          ObjectTypes.OBJECT_ANALOG_OUTPUT,
@@ -189,13 +189,13 @@ class SpinalPilot {
       ];
    }
 
-   private _getBacnetPriority(req: IRequest): number {
+   private _getBacnetPriority(req: any | IRequest): number {
       // if priority is defined in REQ
-      if (req.priority && !isNaN(req.priority))
+      if (req.priority && !isNaN(parseInt(req.priority)))
          return parseInt(req.priority);
 
       // else if priority is defined in .env
-      if (process.env.BACNET_PRIORITY && !isNaN(process.env.BACNET_PRIORITY as any))
+      if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
          return parseInt(process.env.BACNET_PRIORITY)
 
       // else use low priority

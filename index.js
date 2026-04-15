@@ -1,5 +1,10 @@
-require('./dist/index')
+// require('./dist/index')
 
+
+
+const { BacnetUtilities } = require("./dist/utilities/BacnetUtilities");
+
+BacnetUtilities.initAndConnect()
 
 
 

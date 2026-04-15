@@ -31,8 +31,9 @@ import { GetPm2Instance, bindAllModels, restartProcessById } from './utilities/F
 
 import ConfigFile from "spinal-lib-organ-monitoring";
 import * as nodePath from "path";
+import BacnetUtilities from "./utilities/BacnetUtilities";
+import { launchBacnetService } from "spinal-bacnet-service";
 
-const pm2 = require("pm2");
 const config = require("../config.js");
 
 const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
@@ -51,6 +52,11 @@ const organInfo = {
 const spinalConnectorService = SpinalConnectorService.getInstance();
 
 spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExists, node }) => {
+
+   await BacnetUtilities.initAndConnect(); // initialize and connect to the bacnet server
+
+   await launchBacnetService(); // launch the bacnet service
+
    await node.initializeModelsList(); // initialize the list of models in the organ
 
    await ConfigFile.init(connect, name, host, protocol, port); // API health
@@ -66,7 +72,7 @@ spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExist
    const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
    console.log(message);
 
-   bindAllModels(node);
+   bindAllModels(node as SpinalOrganConfigModel);
 
 }).catch((err) => {
    console.error("Error", err);

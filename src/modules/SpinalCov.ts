@@ -1,16 +1,21 @@
 import { ICovData, ICovSubscribeReq } from "../Interfaces";
 import { SpinalQueue } from "spinal-connector-service";
 import BacnetUtilities from "../utilities/BacnetUtilities";
-import { ChildProcess, fork } from "child_process";
 import { COV_EVENTS_NAMES, PropertyIds } from "../utilities/GlobalVariables";
-import { listenEventMessage, sendEvent } from "./cov";
 import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
+import EventEmitter from "events";
 
+export type EventPayload = {
+    error?: { message: string };
+    key?: string;
+    data?: any;
+    eventName: string;
+};
 
-class SpinalCov {
+class SpinalCov extends EventEmitter {
     private static _instance: SpinalCov;
 
-    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(5000, false); // 5s delay before start item treatment, no auto start
+    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(10000); // 5s delay before start item treatment, no auto start
     private itemsToStopQueue: SpinalQueue<ICovData> = new SpinalQueue();
 
     // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
@@ -18,10 +23,9 @@ class SpinalCov {
     private itemMonitored: Map<string, ICovData> = new Map();
 
     private constructor() {
+        super();
 
-        listenEventMessage(); // start listening to messages from cov process
-
-        this._checkCovStatus(); // Check COV status every 1 minute
+        this._listenEvents(); // start listening to messages from cov process
 
         this.itemToWatchQueue.on("start", () => {
             const list = this.itemToWatchQueue.toArray();
@@ -34,6 +38,7 @@ class SpinalCov {
             this.itemsToStopQueue.clear(); // clear queue to avoid duplicate processing
             this.processToDataTreatment(list, COV_EVENTS_NAMES.unsubscribe);
         });
+
     }
 
 
@@ -101,7 +106,8 @@ class SpinalCov {
             formatted.push(...this.formatChildren(ip, children));
         }
 
-        sendEvent({ eventName, data: formatted });
+        BacnetUtilities.sendCovRequest({ eventName, data: formatted });
+        // sendEvent({ eventName, data: formatted });
     }
 
 
@@ -183,6 +189,26 @@ class SpinalCov {
 
         if (node) return SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);
     }
+
+    private _listenEvents() {
+
+        this.on(COV_EVENTS_NAMES.subscribed, async (data: ICovSubscribeReq[]) => {
+            console.log("[COV] - Subscribed to", data);
+        });
+
+        this.on(COV_EVENTS_NAMES.error, async (data: any) => {
+            console.error(`[COV] - Failed to subscribe to ${data?.key} due to", "${data?.error?.message}"`);
+        });
+
+        this.on(COV_EVENTS_NAMES.changed, async (data: any) => {
+            console.log("[COV] - Change event received", data);
+            // SpinalCov.getInstance().updateLastCovNotificationTime();
+            // await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
+
+        });
+
+    }
+
 
 
 

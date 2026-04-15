@@ -22,6 +22,39 @@
  * with this file. If not, see
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -31,10 +64,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalDevice = void 0;
 exports.addToGetAllBacnetValuesQueue = addToGetAllBacnetValuesQueue;
-const lodash = require("lodash");
+const lodash = __importStar(require("lodash"));
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
 const events_1 = require("events");
 const spinal_model_graph_1 = require("spinal-model-graph");
@@ -44,7 +80,7 @@ const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const spinal_connector_service_1 = require("spinal-connector-service");
 const Functions_1 = require("../utilities/Functions");
-const profileManager_1 = require("../utilities/profileManager");
+const profileManager_1 = __importDefault(require("../utilities/profileManager"));
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 class SpinalDevice extends events_1.EventEmitter {
     // private client: bacnet;
@@ -218,31 +254,32 @@ class SpinalDevice extends events_1.EventEmitter {
     /** Check and create endpoints if they do not exist */
     checkAndCreateEndpointsIfNotExist(endpointsToCreate) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a;
-            // const networkService = this.getNetworkService();
-            const deviceName = (_a = this.device) === null || _a === void 0 ? void 0 : _a.name;
-            console.log(`[${deviceName}] - check and create endpoints, if not exist`);
-            if (!this.device) {
-                console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
-                return [];
-            }
-            const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
-            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item) { return item.type; });
-            if (!this._context || !this._bmsDevice) {
-                console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
-                return [];
-            }
-            const promises = Array.from(Object.keys(childrenGroups)).map((childKey) => {
-                return SpinalNetworkUtilities_1.SpinalNetworkUtilities.createEndpointsInGroup(this._context, this._bmsDevice, childKey, childrenGroups[childKey]);
-            });
-            return Promise.all(promises)
-                .then((result) => {
+            var _a, _b;
+            try {
+                // const networkService = this.getNetworkService();
+                const deviceName = (_a = this.device) === null || _a === void 0 ? void 0 : _a.name;
+                console.log(`[${deviceName}] - check and create endpoints, if not exist`);
+                if (!this.device) {
+                    console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
+                    return [];
+                }
+                const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
+                const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item) { return item.type; });
+                if (!this._context || !this._bmsDevice) {
+                    console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
+                    return [];
+                }
+                const promises = Array.from(Object.keys(childrenGroups)).map((childKey) => {
+                    return SpinalNetworkUtilities_1.SpinalNetworkUtilities.createEndpointsInGroup(this._context, this._bmsDevice, childKey, childrenGroups[childKey]);
+                });
+                const result = yield Promise.all(promises);
                 console.log(`[${deviceName}] - endpoints creation completed`);
                 return result.flat();
-            }).catch((err) => {
-                console.error(`[${deviceName}] - check and create endpoints failed due to "${err.message}"`);
+            }
+            catch (error) {
+                console.error(`[${(_b = this.device) === null || _b === void 0 ? void 0 : _b.name}] - check and create endpoints failed due to "${error.message}"`);
                 return [];
-            });
+            }
         });
     }
     updateEndpoints(interval) {

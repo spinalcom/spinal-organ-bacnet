@@ -1,6 +1,15 @@
 import { ICovData } from "../Interfaces";
 import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
-declare class SpinalCov {
+import EventEmitter from "events";
+export type EventPayload = {
+    error?: {
+        message: string;
+    };
+    key?: string;
+    data?: any;
+    eventName: string;
+};
+declare class SpinalCov extends EventEmitter {
     private static _instance;
     private itemToWatchQueue;
     private itemsToStopQueue;
@@ -18,5 +27,6 @@ declare class SpinalCov {
     private _checkCovStatus;
     private formatChildren;
     _updateDeviceValue(address: string, request: any): Promise<boolean[]>;
+    private _listenEvents;
 }
 export { SpinalCov };

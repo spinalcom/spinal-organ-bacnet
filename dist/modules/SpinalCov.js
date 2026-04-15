@@ -8,22 +8,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SpinalCov = void 0;
 const spinal_connector_service_1 = require("spinal-connector-service");
-const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
+const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
-const cov_1 = require("./cov");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
-class SpinalCov {
+const events_1 = __importDefault(require("events"));
+class SpinalCov extends events_1.default {
     constructor() {
-        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(5000, false); // 5s delay before start item treatment, no auto start
+        super();
+        this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(10000); // 5s delay before start item treatment, no auto start
         this.itemsToStopQueue = new spinal_connector_service_1.SpinalQueue();
         // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
         this._lastCovNotification = null;
         this.itemMonitored = new Map();
-        (0, cov_1.listenEventMessage)(); // start listening to messages from cov process
-        this._checkCovStatus(); // Check COV status every 1 minute
+        this._listenEvents(); // start listening to messages from cov process
         this.itemToWatchQueue.on("start", () => {
             const list = this.itemToWatchQueue.toArray();
             this.itemToWatchQueue.clear(); // clear queue to avoid duplicate processing
@@ -92,7 +95,8 @@ class SpinalCov {
                 }
                 formatted.push(...this.formatChildren(ip, children));
             }
-            (0, cov_1.sendEvent)({ eventName, data: formatted });
+            BacnetUtilities_1.default.sendCovRequest({ eventName, data: formatted });
+            // sendEvent({ eventName, data: formatted });
         });
     }
     _checkCovStatus() {
@@ -161,6 +165,20 @@ class SpinalCov {
             if (node)
                 return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);
         });
+    }
+    _listenEvents() {
+        this.on(GlobalVariables_1.COV_EVENTS_NAMES.subscribed, (data) => __awaiter(this, void 0, void 0, function* () {
+            console.log("[COV] - Subscribed to", data);
+        }));
+        this.on(GlobalVariables_1.COV_EVENTS_NAMES.error, (data) => __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            console.error(`[COV] - Failed to subscribe to ${data === null || data === void 0 ? void 0 : data.key} due to", "${(_a = data === null || data === void 0 ? void 0 : data.error) === null || _a === void 0 ? void 0 : _a.message}"`);
+        }));
+        this.on(GlobalVariables_1.COV_EVENTS_NAMES.changed, (data) => __awaiter(this, void 0, void 0, function* () {
+            console.log("[COV] - Change event received", data);
+            // SpinalCov.getInstance().updateLastCovNotificationTime();
+            // await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
+        }));
     }
 }
 exports.SpinalCov = SpinalCov;

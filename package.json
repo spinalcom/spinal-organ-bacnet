@@ -14,16 +14,19 @@
   "license": "ISC",
   "dependencies": {
     "@datastructures-js/priority-queue": "^5.1.1",
+    "@types/node-ipc": "^9.2.3",
     "bacstack": "file:./lib/bacstack",
     "big-json": "^3.1.0",
     "dotenv": "^16.0.1",
     "json5": "^2.2.3",
     "lodash": "^4.17.21",
     "lodash.debounce": "^4.0.8",
+    "node-ipc": "^12.0.0",
     "pm2": "^4.5.6",
     "socket.io": "^3.1.1",
     "three": "^0.183.2",
-    "ts-priority-queue": "^0.1.1"
+    "ts-priority-queue": "^0.1.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^18.7.6",
@@ -40,6 +43,7 @@
     "spinal-model-bmsnetwork": "spinal-model-bmsnetwork@bacnet",
     "spinal-env-viewer-plugin-network-tree-service": "spinal-env-viewer-plugin-network-tree-service",
     "spinal-env-viewer-graph-service": "Spinal-Graph-Service",
-    "spinal-env-viewer-plugin-documentation-service": "spinal-env-viewer-plugin-documentation-service"
+    "spinal-env-viewer-plugin-documentation-service": "spinal-env-viewer-plugin-documentation-service",
+    "spinal-bacnet-service": "spinal-bacnet-service"
   }
 }

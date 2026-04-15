@@ -1,23 +1,24 @@
 import * as bacnet from "bacstack";
-import { IDevice, IObjectId } from "../Interfaces";
-import { EventPayload } from "../modules/SpinalCov";
+import { IDevice, IObjectId, IReadPropertyMultiple, IRequestArray, IReadProperty } from "../Interfaces";
 declare class BacnetUtilitiesClass {
     private static instance;
     private _client;
-    private _ipcClient;
     private constructor();
     private clientState;
     static getInstance(): BacnetUtilitiesClass;
-    initAndConnect(): Promise<void>;
-    private _connectToServer;
+    initAndConnect(): void;
     createNewBacnetClient(): bacnet;
     getClient(): Promise<bacnet>;
-    sendCovRequest(data: EventPayload): void;
+    incrementState(state: "failed" | "success"): void;
+    private _listenClientErrorEvent;
+    readPropertyMultiple(address: string, sadr: any, requestArray: IRequestArray | IRequestArray[]): Promise<IReadPropertyMultiple>;
+    readProperty(address: string, sadr: any, objectId: IObjectId, propertyId: number | string, clientOptions?: any): Promise<IReadProperty>;
     _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, getListUsingFragment?: boolean): Promise<IObjectId[]>;
     getItemListByFragment(device: IDevice, objectId: IObjectId): Promise<IObjectId[]>;
     _getObjectDetail(device: IDevice, objects: Array<IObjectId>): Promise<{
         [key: string]: string | boolean | number;
     }[]>;
+    private _retryGetObjectDetailWithReadProperty;
     _getObjectDetailWithReadPropertyMultiple(device: IDevice, objects: IObjectId[]): Promise<any[]>;
     _getObjectDetailWithReadProperty(device: IDevice, objectId: IObjectId): Promise<any>;
     _getChildrenNewValue(device: IDevice, children: Array<IObjectId>): Promise<Array<{
@@ -25,6 +26,8 @@ declare class BacnetUtilitiesClass {
         type: string | number;
         currentValue: any;
     }> | undefined>;
+    private getChildrenNewValueWithReadPropertyMultiple;
+    private getChildrenNewValueWithReadProperty;
     _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string): Promise<any>;
     getDeviceId(address: string, sadr: any): Promise<number>;
     _formatProperty(propertyValue: any): {
@@ -35,7 +38,7 @@ declare class BacnetUtilitiesClass {
     _getPropertyNameByCode(type: number): string | undefined;
     _getObjectTypeByCode(typeCode: number | string): string | undefined;
     _getUnitsByCode(typeCode: number): string | undefined;
-    private _sendDataToBacnetServer;
+    private getChildrenObj;
 }
 declare const BacnetUtilities: BacnetUtilitiesClass;
 export default BacnetUtilities;

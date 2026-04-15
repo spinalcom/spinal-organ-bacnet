@@ -1,5 +1,5 @@
 import { SpinalOrganConfigModel } from "spinal-model-bacnet";
-import * as pm2 from "pm2";
+import pm2 from "pm2";
 export declare function bindAllModels(organModel: SpinalOrganConfigModel): void;
 export declare const GetPm2Instance: (organName: string) => Promise<pm2.ProcessDescription | undefined>;
 export declare function restartProcessById(instanceId: string | number): Promise<boolean>;

@@ -33,7 +33,7 @@ import { spinalMonitoring } from "../modules/SpinalMonitoring";
 import { spinalPilot } from "../modules/SpinalPilot";
 
 
-import * as pm2 from "pm2";
+import pm2 from "pm2";
 
 const Q = require('q');
 
@@ -45,6 +45,10 @@ export function bindAllModels(organModel: SpinalOrganConfigModel) {
    ///////////////// listen discover model to browse bacnet network and get all devices (broadcast or unicast)
    organModel.discover.modification_date.bind(async () => {
       const discoverList = await organModel.getDiscoverModelFromGraph();
+      if (!discoverList) {
+         console.error('no discover model found in graph');
+         return;
+      };
 
       for (const spinalDiscoverModel of discoverList) {
          if (discoverAlreadyBinded.has(spinalDiscoverModel._server_id)) continue;
@@ -58,6 +62,11 @@ export function bindAllModels(organModel: SpinalOrganConfigModel) {
    organModel.pilot.modification_date.bind(async () => {
       const pilotList = await organModel.getPilotModelFromGraph();
 
+      if (!pilotList) {
+         console.error('no pilot model found in graph');
+         return;
+      }
+
       for (const spinalPilotModel of pilotList) {
          SpinalPilotCallback(spinalPilotModel, organModel);
       }
@@ -67,6 +76,11 @@ export function bindAllModels(organModel: SpinalOrganConfigModel) {
    ///////////////// listen listener model to monitor devices
    organModel.listener.modification_date.bind(async () => {
       const listenerList = await organModel.getListenerModelFromGraph();
+
+      if (!listenerList) {
+         console.error('no listener model found in graph');
+         return;
+      }
 
       for (let i = 0; i < listenerList.length; i++) {
          const spinalListenerModel = listenerList[i];
@@ -81,6 +95,11 @@ export function bindAllModels(organModel: SpinalOrganConfigModel) {
    ///////////////// listen allbacnetvalues model to get bacnet values of devices
    organModel.allBacnetValues.modification_date.bind(async () => {
       const allBacnetValuesList = await organModel.getBacnetValuesModelFromGraph();
+
+      if (!allBacnetValuesList) {
+         console.error('no bacnet values model found in graph');
+         return;
+      }
 
       for (const spinalBacnetValueModel of allBacnetValuesList) {
          SpinalBacnetValueModelCallback(spinalBacnetValueModel, organModel);

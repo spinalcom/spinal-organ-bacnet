@@ -1,115 +1,120 @@
-import * as bacnet from "bacstack";
-import BacnetUtilities from "../utilities/BacnetUtilities";
-import { ICovData, ICovSubscribeReq, IObjectId } from "../Interfaces";
-import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
-import { EventEmitter } from "stream";
-import { SpinalCov } from "./SpinalCov";
+// import * as bacnet from "bacstack";
+// import BacnetUtilities from "../utilities/BacnetUtilities";
+// import { ICovData, ICovSubscribeReq, IObjectId } from "../Interfaces";
+// import { COV_EVENTS_NAMES } from "../utilities/GlobalVariables";
+// import { EventEmitter } from "stream";
 // import { SpinalCov } from "./SpinalCov";
+// // import { SpinalCov } from "./SpinalCov";
 
-const eventEmitter = new EventEmitter();
-// const eventEmitter = process
+// const eventEmitter = new EventEmitter();
+// // const eventEmitter = process
 
-export type EventPayload = {
-    error?: { message: string };
-    key?: string;
-    data?: any;
-    eventName: string;
-};
+// export type EventPayload = {
+//     error?: { message: string };
+//     key?: string;
+//     data?: any;
+//     eventName: string;
+// };
 
-export function listenEventMessage() {
+// export function listenEventMessage() {
 
-    eventEmitter.on("message", async (result: EventPayload) => {
+//     eventEmitter.on("message", async (result: EventPayload) => {
 
-        switch (result.eventName) {
-            case COV_EVENTS_NAMES.subscribe:
-                for (const data of result.data) {
-                    await subscribe(data);
-                }
-                break;
+//         switch (result.eventName) {
+//             case COV_EVENTS_NAMES.subscribe:
+//                 // for (const data of result.data) {
+//                 //     await subscribe(data);
+//                 // }
+//                 break;
 
-            case COV_EVENTS_NAMES.unsubscribe:
-                for (const data of result.data) {
-                    await unsubscribe(data);
-                }
-                break;
+//             case COV_EVENTS_NAMES.unsubscribe:
+//                 // for (const data of result.data) {
+//                 //     await unsubscribe(data);
+//                 // }
+//                 break;
 
-            case COV_EVENTS_NAMES.subscribed:
-                console.log("[COV] - Subscribed to", result.key);
-                break;
+//             case COV_EVENTS_NAMES.subscribed:
+//                 console.log("[COV] - Subscribed to", result.key);
+//                 break;
 
-            case COV_EVENTS_NAMES.error:
-                BacnetUtilities.incrementState("failed");
-                console.error(`[COV] - Failed  due to", "${result.error?.message}"`);
-                break;
+//             case COV_EVENTS_NAMES.error:
+//                 console.error(`[COV] - Failed  due to", "${result.error?.message}"`);
+//                 break;
 
-            case COV_EVENTS_NAMES.changed:
-                SpinalCov.getInstance().updateLastCovNotificationTime();
-                await SpinalCov.getInstance()._updateDeviceValue(result.data.address, result.data.request);
-                break;
-        }
+//             case COV_EVENTS_NAMES.changed:
+//                 SpinalCov.getInstance().updateLastCovNotificationTime();
+//                 await SpinalCov.getInstance()._updateDeviceValue(result.data.address, result.data.request);
+//                 break;
+//         }
 
-    });
-}
+//     });
+// }
 
-async function subscribe(data: ICovSubscribeReq) {
-    const client = await BacnetUtilities.getClient();
-    const key = `${data.ip}_${data.object.type}_${data.object.instance}`;
+// async function subscribe(data: ICovSubscribeReq) {
 
-    listenChangeEvent(client);
+//     //TODO: implement subscribe function
 
+//     // const client = await BacnetUtilities.getClient();
+//     // const key = `${data.ip}_${data.object.type}_${data.object.instance}`;
 
-    try {
-        await subscribeProperty(client, data.ip, data.object);
-        sendEvent({ key, eventName: COV_EVENTS_NAMES.subscribed });
-    } catch (error) {
-        sendEvent({ key, eventName: COV_EVENTS_NAMES.error, error: { message: (error as Error).message } });
-    }
-}
-
-async function unsubscribe(data: ICovSubscribeReq) {
-    const client = await BacnetUtilities.getClient();
-    const key = `${data.ip}_${data.object.type}_${data.object.instance}`;
-    try {
-        const cancel = true;
-        await subscribeProperty(client, data.ip, data.object, cancel);
-        sendEvent({ key, eventName: COV_EVENTS_NAMES.unsubscribed });
-    } catch (error) {
-        sendEvent({ key, eventName: COV_EVENTS_NAMES.error, error: { message: (error as Error).message } });
-    }
-}
+//     // listenChangeEvent(client);
 
 
-function subscribeProperty(client: bacnet, ip: string, object: IObjectId, cancel = false) {
+//     // try {
+//     //     await subscribeProperty(client, data.ip, data.object);
+//     //     sendEvent({ key, eventName: COV_EVENTS_NAMES.subscribed });
+//     // } catch (error) {
+//     //     sendEvent({ key, eventName: COV_EVENTS_NAMES.error, error: { message: (error as Error).message } });
+//     // }
+// }
 
-    return new Promise((resolve, reject) => {
-        try {
-            const subscribe_id = `${ip}_${object.type}_${object.instance}`;
+// async function unsubscribe(data: ICovSubscribeReq) {
 
-            client.subscribeCOV(ip, object, subscribe_id, cancel, false, 0, (err: Error, value: any) => {
-                if (err) return reject(err);
-                resolve(subscribe_id);
-            });
+//     //TODO: implement unsubscribe function
 
-        } catch (error) {
-            return reject(error);
-        }
+//     // const client = await BacnetUtilities.getClient();
+//     // const key = `${data.ip}_${data.object.type}_${data.object.instance}`;
+//     // try {
+//     //     const cancel = true;
+//     //     await subscribeProperty(client, data.ip, data.object, cancel);
+//     //     sendEvent({ key, eventName: COV_EVENTS_NAMES.unsubscribed });
+//     // } catch (error) {
+//     //     sendEvent({ key, eventName: COV_EVENTS_NAMES.error, error: { message: (error as Error).message } });
+//     // }
+// }
 
-    });
 
-}
+// function subscribeProperty(client: bacnet, ip: string, object: IObjectId, cancel = false) {
 
-function listenChangeEvent(client: bacnet) {
-    // client.on("covNotifyUnconfirmed", (data) => {
-    if (client.listenerCount("covNotifyUnconfirmed") > 0) return; // already listening
+//     return new Promise((resolve, reject) => {
+//         try {
+//             const subscribe_id = `${ip}_${object.type}_${object.instance}`;
 
-    client.on("covNotifyUnconfirmed", (data: any) => {
-        // SpinalCov.getInstance().setLastCovNotificationTime(); // update last notification time
-        sendEvent({ key: data.address, eventName: COV_EVENTS_NAMES.changed, data });
-    });
+//             client.subscribeCOV(ip, object, subscribe_id, cancel, false, 0, (err: Error, value: any) => {
+//                 if (err) return reject(err);
+//                 resolve(subscribe_id);
+//             });
 
-}
+//         } catch (error) {
+//             return reject(error);
+//         }
 
-export function sendEvent(data: EventPayload) {
-    // process.send(data);
-    eventEmitter.emit("message", data);
-}
+//     });
+
+// }
+
+// function listenChangeEvent(client: bacnet) {
+//     // client.on("covNotifyUnconfirmed", (data) => {
+//     if (client.listenerCount("covNotifyUnconfirmed") > 0) return; // already listening
+
+//     client.on("covNotifyUnconfirmed", (data: any) => {
+//         // SpinalCov.getInstance().setLastCovNotificationTime(); // update last notification time
+//         sendEvent({ key: data.address, eventName: COV_EVENTS_NAMES.changed, data });
+//     });
+
+// }
+
+// export function sendEvent(data: EventPayload) {
+//     // process.send(data);
+//     eventEmitter.emit("message", data);
+// }

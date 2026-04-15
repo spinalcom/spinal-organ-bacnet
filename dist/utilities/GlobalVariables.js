@@ -22,9 +22,12 @@
  * with this file. If not, see
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.COV_EVENTS_NAMES = exports.SENSOR_TYPES = exports.UNITS_TYPES = exports.ObjectTypesCode = exports.PropertyNames = exports.SEGMENTATIONS = exports.APPLICATION_TAGS = exports.ENUM_DISABLE = exports.PropertyIds = exports.ObjectTypes = void 0;
-const bacnetEnum_1 = require("./bacnetEnum");
+const bacnetEnum_1 = __importDefault(require("./bacnetEnum"));
 exports.ObjectTypes = bacnetEnum_1.default.ObjectTypes;
 exports.PropertyIds = bacnetEnum_1.default.PropertyIds;
 exports.ENUM_DISABLE = bacnetEnum_1.default.EnableDisable;

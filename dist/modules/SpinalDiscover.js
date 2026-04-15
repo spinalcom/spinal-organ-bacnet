@@ -31,6 +31,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalDiscover = void 0;
 const events_1 = require("events");
@@ -40,7 +43,7 @@ const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_connector_service_2 = require("spinal-connector-service");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
-const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
+const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
 const config = require("../../config.js");
 class SpinalDiscover {
     constructor(model) {

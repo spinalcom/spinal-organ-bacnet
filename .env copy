@@ -6,3 +6,5 @@ HOST="127.0.0.1"
 PORT="8080"
 ORGAN_FOLDER_PATH="/__users__/admin/organs"
 BACNET_PRIORITY="16"
+
+BACNET_SERVICE_PORT="47810" # default 47810

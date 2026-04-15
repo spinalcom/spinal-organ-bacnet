@@ -251,35 +251,37 @@ export class SpinalDevice extends EventEmitter {
 
    /** Check and create endpoints if they do not exist */
    public async checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNode[]> {
-      // const networkService = this.getNetworkService();
-      const deviceName = this.device?.name;
-      console.log(`[${deviceName}] - check and create endpoints, if not exist`);
+      try {
+         // const networkService = this.getNetworkService();
+         const deviceName = this.device?.name;
+         console.log(`[${deviceName}] - check and create endpoints, if not exist`);
 
-      if (!this.device) {
-         console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
-         return [];
-      }
-
-      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
-      const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type });
-
-      if (!this._context || !this._bmsDevice) {
-         console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
-         return [];
-      }
-
-      const promises = Array.from(Object.keys(childrenGroups)).map((childKey: string) => {
-         return SpinalNetworkUtilities.createEndpointsInGroup(this._context as SpinalContext, this._bmsDevice as SpinalNode, childKey, childrenGroups[childKey]);
-      })
-
-      return Promise.all(promises)
-         .then((result) => {
-            console.log(`[${deviceName}] - endpoints creation completed`);
-            return result.flat();
-         }).catch((err) => {
-            console.error(`[${deviceName}] - check and create endpoints failed due to "${err.message}"`);
+         if (!this.device) {
+            console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
             return [];
-         });
+         }
+
+         const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointsToCreate);
+         const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type });
+
+         if (!this._context || !this._bmsDevice) {
+            console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
+            return [];
+         }
+
+         const promises = Array.from(Object.keys(childrenGroups)).map((childKey: string) => {
+            return SpinalNetworkUtilities.createEndpointsInGroup(this._context as SpinalContext, this._bmsDevice as SpinalNode, childKey, childrenGroups[childKey]);
+         })
+
+         const result = await Promise.all(promises);
+
+         console.log(`[${deviceName}] - endpoints creation completed`);
+         return result.flat();
+      } catch (error) {
+         console.error(`[${this.device?.name}] - check and create endpoints failed due to "${(error as Error).message}"`);
+         return [];
+      }
+
    }
 
 

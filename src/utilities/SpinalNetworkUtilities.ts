@@ -106,6 +106,8 @@ class SpinalNetworkUtilitiesClass {
    public async updateEndpointInGraph(spinalDevice: SpinalDevice, children: { id: string | number; type: string | number; currentValue: any }[]): Promise<boolean[]> {
 
       const deviceNode = spinalDevice.getBmsDeviceNode();
+      if (!deviceNode) throw new Error("Device node not found in graph");
+
       const endpointsObj = await this._getAllEndpointsInGraph(deviceNode);
 
       const promises = [];
@@ -309,7 +311,7 @@ class SpinalNetworkUtilitiesClass {
       }
    }
 
-   private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalGraph; organ: SpinalNode, context: SpinalContext }> {
+   private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalNode; organ: SpinalNode, context: SpinalContext }> {
 
       const promises = [discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()];
       const [graph, context, organ] = await Promise.all(promises);

@@ -1,7 +1,7 @@
-import { SpinalContext, SpinalGraph, SpinalNode } from "spinal-model-graph";
+import { SpinalContext, SpinalNode } from "spinal-model-graph";
 export interface IDataDiscover {
     network: SpinalNode;
-    graph: SpinalGraph;
+    graph: SpinalNode;
     organ: SpinalNode;
     context: SpinalContext;
 }
