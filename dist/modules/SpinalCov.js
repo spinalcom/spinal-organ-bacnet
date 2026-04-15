@@ -160,7 +160,7 @@ class SpinalCov extends events_1.default {
             const { spinalDevice } = monitoredData;
             const key = `${object.type}_${object.instance}`;
             const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
-            console.log(`[COV] - Updating ${address}_${key}`, value);
+            console.log(`[COV] - Updating item (${object}) from device ${address} with value ${value}`);
             const node = spinalDevice.getBmsDeviceNode();
             if (node)
                 return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);

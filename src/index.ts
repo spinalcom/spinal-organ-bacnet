@@ -55,7 +55,7 @@ spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExist
 
    await BacnetUtilities.initAndConnect(); // initialize and connect to the bacnet server
 
-   // await launchBacnetService(); // launch the bacnet service
+   await launchBacnetService(); // launch the bacnet service
 
    await node.initializeModelsList(); // initialize the list of models in the organ
 
