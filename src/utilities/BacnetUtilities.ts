@@ -23,7 +23,7 @@
  */
 
 import * as bacnet from "bacstack";
-import { ObjectTypes, PropertyNames, ObjectTypesCode, UNITS_TYPES } from "./GlobalVariables";
+import { PropertyNames, ObjectTypesCode } from "./GlobalVariables";
 import { IDevice, IObjectId } from "../Interfaces";
 import { EventPayload, SpinalCov } from "../modules/SpinalCov";
 import { v4 as uuid } from 'uuid';

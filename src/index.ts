@@ -53,9 +53,10 @@ const spinalConnectorService = SpinalConnectorService.getInstance();
 
 spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExists, node }) => {
 
-   await BacnetUtilities.initAndConnect(); // initialize and connect to the bacnet server
-
    await launchBacnetService(); // launch the bacnet service
+
+
+   await BacnetUtilities.initAndConnect(); // initialize and connect to the bacnet server
 
    await node.initializeModelsList(); // initialize the list of models in the organ
 
