@@ -9,11 +9,6 @@ declare class SpinalPilot {
     addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void>;
     private pilot;
     private _handlePilot;
-    private writeProperties;
-    private writeProperty;
-    private useDataType;
-    private getDataTypes;
-    private _getBacnetPriority;
 }
 declare const spinalPilot: SpinalPilot;
 export default spinalPilot;

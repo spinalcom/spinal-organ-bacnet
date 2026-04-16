@@ -183,7 +183,7 @@ class SpinalCov extends EventEmitter {
         const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
 
 
-        console.log(`[COV] - Updating item (${object}) from device ${address} with value ${value}`);
+        console.log(`[COV] - Updating item (${JSON.stringify(object)}) from device ${address} with value ${value}`);
 
         const node = spinalDevice.getBmsDeviceNode();
 
@@ -201,7 +201,7 @@ class SpinalCov extends EventEmitter {
         });
 
         this.on(COV_EVENTS_NAMES.changed, async ({ data }: any) => {
-            console.log("[COV] - Change event received from", data?.address);
+            // console.log("[COV] - Change event received from", data?.address);
             // SpinalCov.getInstance().updateLastCovNotificationTime();
             await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
 

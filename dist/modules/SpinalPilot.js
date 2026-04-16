@@ -37,7 +37,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.spinalPilot = void 0;
 const spinal_connector_service_1 = require("spinal-connector-service");
-const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
 class SpinalPilot {
     constructor() {
@@ -84,14 +83,17 @@ class SpinalPilot {
     _handlePilot(pilot) {
         return __awaiter(this, void 0, void 0, function* () {
             const actualState = pilot.state.get();
+            // if the pilot is already treated, we remove it from the graph and exit
             if (actualState === spinal_connector_service_1.PILOT_STATES.error || actualState === spinal_connector_service_1.PILOT_STATES.success) {
                 console.log("pilot already treated with state:", actualState);
                 yield pilot.removeFromGraph();
                 return;
             }
-            pilot.changeState(spinal_connector_service_1.PILOT_STATES.processing);
             try {
-                yield this.writeProperties(pilot.requests.get());
+                pilot.changeState(spinal_connector_service_1.PILOT_STATES.processing);
+                // await this.writeProperties(pilot.requests.get());
+                const request = pilot.requests.get();
+                yield BacnetUtilities_1.default.sendPilotRequest(request[0]);
                 console.log("pilot success");
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.success);
             }
@@ -103,95 +105,6 @@ class SpinalPilot {
                 yield pilot.removeFromGraph();
             }
         });
-    }
-    writeProperties() {
-        return __awaiter(this, arguments, void 0, function* (requests = []) {
-            for (let index = 0; index < requests.length; index++) {
-                const req = requests[index];
-                try {
-                    yield this.writeProperty(req);
-                }
-                catch (error) {
-                    throw error;
-                }
-            }
-        });
-    }
-    writeProperty(req) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const types = this.getDataTypes(req.objectId.type);
-            let success = false;
-            while (types.length > 0 && !success) {
-                const type = types.shift();
-                try {
-                    if (!type)
-                        throw new Error("error");
-                    yield this.useDataType(req, type);
-                    success = true;
-                }
-                catch (error) {
-                    // throw error;
-                }
-            }
-            if (!success) {
-                throw new Error("error");
-            }
-        });
-    }
-    useDataType(req, dataType) {
-        return new Promise((resolve, reject) => __awaiter(this, void 0, void 0, function* () {
-            const client = yield BacnetUtilities_1.default.getClient();
-            const value = dataType === GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
-            const priority = this._getBacnetPriority(req);
-            if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0)
-                req.SADR = null;
-            client.writeProperty(req.address, req.SADR, req.objectId, GlobalVariables_1.PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err, value) => {
-                if (err) {
-                    reject(err);
-                    return;
-                }
-                resolve(value);
-            });
-        }));
-    }
-    getDataTypes(type) {
-        const analogTypes = new Set([
-            GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_INPUT,
-            GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_OUTPUT,
-            GlobalVariables_1.ObjectTypes.OBJECT_ANALOG_VALUE,
-            GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_INPUT,
-            GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
-            GlobalVariables_1.ObjectTypes.OBJECT_MULTI_STATE_VALUE
-        ]);
-        const binaryTypes = new Set([
-            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_INPUT,
-            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_OUTPUT,
-            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_VALUE,
-            GlobalVariables_1.ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
-        ]);
-        if (analogTypes.has(type)) {
-            return [
-                GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
-                GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
-            ];
-        }
-        if (binaryTypes.has(type))
-            return [GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
-        return [
-            GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
-            GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
-            GlobalVariables_1.APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
-        ];
-    }
-    _getBacnetPriority(req) {
-        // if priority is defined in REQ
-        if (req.priority && !isNaN(parseInt(req.priority)))
-            return parseInt(req.priority);
-        // else if priority is defined in .env
-        if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
-            return parseInt(process.env.BACNET_PRIORITY);
-        // else use low priority
-        return 16;
     }
 }
 const spinalPilot = SpinalPilot.getInstance();

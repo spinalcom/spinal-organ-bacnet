@@ -27,14 +27,10 @@ declare class BacnetUtilitiesClass {
     }> | undefined>;
     _getPropertyValue(address: string, sadr: any, objectId: IObjectId, propertyId: number | string): Promise<any>;
     getDeviceId(address: string, sadr: any): Promise<number>;
-    _formatProperty(propertyValue: any): {
-        [key: string]: boolean | string | number;
-    };
+    sendPilotRequest(request: any): Promise<any>;
     _getObjValue(value: any): boolean | string | number;
-    _formatCurrentValue(value: any, type: number | string): boolean | string | number;
     _getPropertyNameByCode(type: number): string | undefined;
     _getObjectTypeByCode(typeCode: number | string): string | undefined;
-    _getUnitsByCode(typeCode: number): string | undefined;
     private _sendDataToBacnetServer;
 }
 declare const BacnetUtilities: BacnetUtilitiesClass;

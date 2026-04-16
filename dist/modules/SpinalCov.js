@@ -160,7 +160,7 @@ class SpinalCov extends events_1.default {
             const { spinalDevice } = monitoredData;
             const key = `${object.type}_${object.instance}`;
             const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
-            console.log(`[COV] - Updating item (${object}) from device ${address} with value ${value}`);
+            console.log(`[COV] - Updating item (${JSON.stringify(object)}) from device ${address} with value ${value}`);
             const node = spinalDevice.getBmsDeviceNode();
             if (node)
                 return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);
@@ -175,7 +175,7 @@ class SpinalCov extends events_1.default {
             console.error(`[COV] - Failed to subscribe to ${data === null || data === void 0 ? void 0 : data.key} due to", "${(_a = data === null || data === void 0 ? void 0 : data.error) === null || _a === void 0 ? void 0 : _a.message}"`);
         }));
         this.on(GlobalVariables_1.COV_EVENTS_NAMES.changed, (_a) => __awaiter(this, [_a], void 0, function* ({ data }) {
-            console.log("[COV] - Change event received from", data === null || data === void 0 ? void 0 : data.address);
+            // console.log("[COV] - Change event received from", data?.address);
             // SpinalCov.getInstance().updateLastCovNotificationTime();
             yield SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
         }));

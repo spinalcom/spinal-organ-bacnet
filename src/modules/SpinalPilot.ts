@@ -79,16 +79,21 @@ class SpinalPilot {
 
    private async _handlePilot(pilot: SpinalPilotModel): Promise<void> {
       const actualState = pilot.state.get();
+
+      // if the pilot is already treated, we remove it from the graph and exit
       if (actualState === PILOT_STATES.error || actualState === PILOT_STATES.success) {
          console.log("pilot already treated with state:", actualState);
          await pilot.removeFromGraph();
          return;
       }
 
-      pilot.changeState(PILOT_STATES.processing);
 
       try {
-         await this.writeProperties(pilot.requests.get());
+         pilot.changeState(PILOT_STATES.processing);
+         // await this.writeProperties(pilot.requests.get());
+
+         const request = pilot.requests.get();
+         await BacnetUtilities.sendPilotRequest(request[0]);
          console.log("pilot success");
          pilot.changeState(PILOT_STATES.success);
       } catch (error: any) {
@@ -100,107 +105,106 @@ class SpinalPilot {
 
    }
 
-   private async writeProperties(requests: IRequest[] = []) {
-      for (let index = 0; index < requests.length; index++) {
-         const req = requests[index];
-         try {
-            await this.writeProperty(req);
-         } catch (error) {
-            throw error;
-         }
+   // private async writeProperties(requests: IRequest[] = []) {
+   //    for (let index = 0; index < requests.length; index++) {
+   //       const req = requests[index];
+   //       try {
+   //          await this.writeProperty(req);
+   //       } catch (error) {
+   //          throw error;
+   //       }
 
-      }
-   }
+   //    }
+   // }
 
-   private async writeProperty(req: IRequest) {
-      const types = this.getDataTypes(req.objectId.type);
-      let success = false;
+   // private async writeProperty(req: IRequest) {
+   //    const types = this.getDataTypes(req.objectId.type);
+   //    let success = false;
 
-      while (types.length > 0 && !success) {
-         const type = types.shift();
-         try {
-            if (!type) throw new Error("error");
+   //    while (types.length > 0 && !success) {
+   //       const type = types.shift();
+   //       try {
+   //          if (!type) throw new Error("error");
 
-            await this.useDataType(req, type);
-            success = true;
-         } catch (error) {
-            // throw error;
-         }
-      }
+   //          await this.useDataType(req, type);
+   //          success = true;
+   //       } catch (error) {
+   //          // throw error;
+   //       }
+   //    }
 
-      if (!success) {
-         throw new Error("error");
-      }
+   //    if (!success) {
+   //       throw new Error("error");
+   //    }
 
-   }
+   // }
+
+   // private useDataType(req: IRequest, dataType: number) {
+   //    return new Promise(async (resolve, reject) => {
+   //       const client = await BacnetUtilities.getClient();
+   //       const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
 
 
-   private useDataType(req: IRequest, dataType: number) {
-      return new Promise(async (resolve, reject) => {
-         const client = await BacnetUtilities.getClient();
-         const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
+   //       const priority = this._getBacnetPriority(req);
 
+   //       if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
 
-         const priority = this._getBacnetPriority(req);
+   //       client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err: Error, value: any) => {
+   //          if (err) {
+   //             reject(err);
+   //             return;
+   //          }
 
-         if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
+   //          resolve(value);
+   //       })
+   //    });
+   // }
 
-         client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err: Error, value: any) => {
-            if (err) {
-               reject(err);
-               return;
-            }
+   // private getDataTypes(type: number | string): number[] {
+   //    const analogTypes = new Set([
+   //       ObjectTypes.OBJECT_ANALOG_INPUT,
+   //       ObjectTypes.OBJECT_ANALOG_OUTPUT,
+   //       ObjectTypes.OBJECT_ANALOG_VALUE,
+   //       ObjectTypes.OBJECT_MULTI_STATE_INPUT,
+   //       ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
+   //       ObjectTypes.OBJECT_MULTI_STATE_VALUE
+   //    ]);
 
-            resolve(value);
-         })
-      });
-   }
+   //    const binaryTypes = new Set([
+   //       ObjectTypes.OBJECT_BINARY_INPUT,
+   //       ObjectTypes.OBJECT_BINARY_OUTPUT,
+   //       ObjectTypes.OBJECT_BINARY_VALUE,
+   //       ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
+   //    ]);
 
-   private getDataTypes(type: number | string): number[] {
-      const analogTypes = new Set([
-         ObjectTypes.OBJECT_ANALOG_INPUT,
-         ObjectTypes.OBJECT_ANALOG_OUTPUT,
-         ObjectTypes.OBJECT_ANALOG_VALUE,
-         ObjectTypes.OBJECT_MULTI_STATE_INPUT,
-         ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
-         ObjectTypes.OBJECT_MULTI_STATE_VALUE
-      ]);
+   //    if (analogTypes.has(type)) {
+   //       return [
+   //          APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
+   //          APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
+   //       ];
+   //    }
 
-      const binaryTypes = new Set([
-         ObjectTypes.OBJECT_BINARY_INPUT,
-         ObjectTypes.OBJECT_BINARY_OUTPUT,
-         ObjectTypes.OBJECT_BINARY_VALUE,
-         ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
-      ]);
+   //    if (binaryTypes.has(type)) return [APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
 
-      if (analogTypes.has(type)) {
-         return [
-            APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
-            APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
-         ];
-      }
+   //    return [
+   //       APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
+   //       APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
+   //       APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
+   //    ];
+   // }
 
-      if (binaryTypes.has(type)) return [APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
+   // private _getBacnetPriority(req: any | IRequest): number {
+   //    // if priority is defined in REQ
+   //    if (req.priority && !isNaN(parseInt(req.priority)))
+   //       return parseInt(req.priority);
 
-      return [
-         APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
-         APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
-         APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
-      ];
-   }
+   //    // else if priority is defined in .env
+   //    if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
+   //       return parseInt(process.env.BACNET_PRIORITY)
 
-   private _getBacnetPriority(req: any | IRequest): number {
-      // if priority is defined in REQ
-      if (req.priority && !isNaN(parseInt(req.priority)))
-         return parseInt(req.priority);
-
-      // else if priority is defined in .env
-      if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
-         return parseInt(process.env.BACNET_PRIORITY)
-
-      // else use low priority
-      return 16;
-   }
+   //    // else use low priority
+   //    return 16;
+   // }
 }
 
 
