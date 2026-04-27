@@ -39,6 +39,8 @@ export declare class SpinalDevice extends EventEmitter {
     private fetchAndFormatAllBacnetObjectList;
     /** Check and create endpoints if they do not exist */
     checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNode[]>;
+    private generateNetworkEndpoints;
+    private formatAndGroupEndpoints;
     updateEndpoints(interval: number): Promise<void | boolean[]>;
     shoulSaveTimeSeries(objectId?: IObjectId): boolean;
     private _getChildrenTimeSeries;

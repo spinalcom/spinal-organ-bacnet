@@ -224,3 +224,22 @@ export function loadPtrValue(ptrModel: spinal.Ptr): Promise<any> {
       ptrModel.load((data) => resolve(data));
    });
 }
+
+export function decodeBitStringValue(value: { value: number[], bitsUsed: number }, bitText: string | string[] = []): { id: number; value: boolean; name: string }[] {
+   if (!Array.isArray(bitText)) bitText = [bitText];
+
+   const result: { id: number; value: boolean; name: string }[] = [];
+   const { value: valueArray, bitsUsed } = value;
+
+   for (let i = 0; i < bitsUsed; i++) {
+      const byteIndex = Math.floor(i / 8);
+      const bitIndex = i % 8;
+
+      const isActive = (valueArray[byteIndex] & (1 << bitIndex)) !== 0;
+      const name = bitText[i] || `Bit ${i}`;
+
+      result.push({ id: i, value: isActive, name });
+   }
+
+   return result;
+}

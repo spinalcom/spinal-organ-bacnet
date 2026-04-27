@@ -1,45 +1,25 @@
 // require('./dist/index')
 
 
-
 const { BacnetUtilities } = require("./dist/utilities/BacnetUtilities");
-
 BacnetUtilities.initAndConnect()
 
 
 
-// // const bacnet = require('node-bacstack');
-// // const client = new bacnet({ interface: "192.168.1.66" });
-// const client = new bacnet();
+// export function decodeBitStringValue(value, bitText) {
+//     const result = [];
+//     const { value: valueArray, bitsUsed } = value;
 
+//     for (let i = 0; i < bitsUsed; i++) {
+//         const byteIndex = Math.floor(i / 8);
+//         const bitIndex = i % 8;
 
-// setInterval(() => {
-//     client.readProperty('192.168.1.46', null, { type: 2, instance: 14 }, 85, (err, data) => {
-//         if (err) {
-//             console.log('error COV: ', err);
-//             return;
-//         }
+//         const isActive = (valueArray[byteIndex] & (1 << bitIndex)) !== 0;
 
-//         console.log('readProperty');
-
-//     });
-// }, 5000);
-
-// client.subscribeCOV('192.168.1.46', { type: 2, instance: 14 }, 1, false, false, 0, (err, data) => {
-//     if (err) {
-//         console.log('error COV: ', err);
-//         return;
+//         result.push({ id: i, value: isActive, name: bitText ? bitText[i] : `Bit ${i}` });
 //     }
-// });
 
-// // client.subscribeProperty('192.168.1.144', {type: 0, instance: 9015},{id:85, index:4294967295}, 1, false, false, (err) => {
-// //     console.log('error COV: ', err);
-// // });
+//     return result;
+// }
 
-
-// client.on('covNotifyUnconfirmed', (data) => {
-//     console.log('Received COV');
-//     // console.log(data);
-
-//     // console.log(client._events["covNotifyUnconfirmed"].length)
-// });
+// console.log(decodeBitStringValue({ value: [0, 0, 0], bitsUsed: 20 }, ["Bit 0", "Bit 1", "Bit 2", "Bit 3"]));

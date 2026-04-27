@@ -4,3 +4,11 @@ export declare function bindAllModels(organModel: SpinalOrganConfigModel): void;
 export declare const GetPm2Instance: (organName: string) => Promise<pm2.ProcessDescription | undefined>;
 export declare function restartProcessById(instanceId: string | number): Promise<boolean>;
 export declare function loadPtrValue(ptrModel: spinal.Ptr): Promise<any>;
+export declare function decodeBitStringValue(value: {
+    value: number[];
+    bitsUsed: number;
+}, bitText?: string | string[]): {
+    id: number;
+    value: boolean;
+    name: string;
+}[];

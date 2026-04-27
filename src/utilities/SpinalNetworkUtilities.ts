@@ -32,6 +32,7 @@ import { IDataDiscover } from "../Interfaces/IDataDiscover";
 import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
 import { ObjectTypes } from "./GlobalVariables";
 import { SpinalGraphService } from "spinal-env-viewer-graph-service";
+import { decodeBitStringValue } from "./Functions";
 
 
 const bmsTypeNames = [SpinalBmsNetwork.nodeTypeName, SpinalBmsDevice.nodeTypeName, SpinalBmsEndpointGroup.nodeTypeName, SpinalBmsEndpoint.nodeTypeName] as const;
@@ -161,7 +162,14 @@ class SpinalNetworkUtilitiesClass {
    public async createEndpointsInGroup(context: SpinalContext, device: SpinalNode, endpointGroupName: string, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]> {
       const endpointGroup = await this._createEndpointsGroup(context, device, endpointGroupName);
       // const groupId = endpointGroup.id.get();
-      return this._createEndpointByArray(context, endpointGroup, endpointArray);
+
+      const endpointsNode = await this._createEndpointByArray(context, endpointGroup, endpointArray);
+
+      if (endpointGroup.info?.idNetwork?.get() == ObjectTypes.OBJECT_BITSTRING_VALUE) {
+         await this._createBitStringSubEndpoints(context, endpointsNode);
+      }
+
+      return endpointsNode;
    }
 
    public async _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode> {
@@ -181,6 +189,39 @@ class SpinalNetworkUtilitiesClass {
 
       const endpointGroup = await this.createNetworkElementNode(groupInfo, SpinalBmsEndpointGroup.nodeTypeName);
       return deviceNode.addChildInContext(endpointGroup, SpinalBmsEndpointGroup.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
+   }
+
+   public async _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]> {
+      const promises = endpointsNode.map(async (endpointNode) => this._createOrUpdateEndpointsByBitStringValue(context, endpointNode));
+
+      return Promise.all(promises);
+   }
+
+   public async _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode> {
+
+      const element = await endpointNode.getElement(true);
+      const bitText: string[] = element.bit_text.get();
+      const value: { value: number[], bitsUsed: number } = element.currentValue.get();
+
+      const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
+      return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo)
+         .then(() => endpointNode);
+
+   }
+
+
+   private _convertBitStringValueToEndpointInfo(value: { value: number[], bitsUsed: number }, bitText: string[], parentInfo: any): InputDataEndpoint[] {
+      const bitStringArray: { id: number; value: boolean; name: string }[] = decodeBitStringValue(value, bitText);
+
+      return bitStringArray.map(bit => ({
+         id: `${parentInfo.idNetwork}_${bit.id}`,
+         typeId: parentInfo.typeId,
+         path: ` ${parentInfo.name}/${bit.name}`,
+         currentValue: bit.value,
+         present_value: bit.value,
+         name: bit.name,
+         type: SpinalBmsEndpoint.nodeTypeName,
+      }) as any);
    }
 
    public async _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]> {
@@ -212,6 +253,7 @@ class SpinalNetworkUtilitiesClass {
          max_pres_value: endpointInfo.max_pres_value,
          min_pres_value: endpointInfo.min_pres_value,
          unit: endpointInfo.unit || "",
+         ...(endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }),
       }
    }
 

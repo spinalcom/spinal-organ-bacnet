@@ -236,7 +236,7 @@ export class SpinalDevice extends EventEmitter {
 
          await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.success);
       } catch (error) {
-         console.log(`[${deviceName}] - items creation failed`);
+         console.log(`[${deviceName}] - items creation failed due to "${(error as Error).message}"`);
          await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.error);
          return;
       }
@@ -251,7 +251,6 @@ export class SpinalDevice extends EventEmitter {
       let useFragment = true; // TODO: remove this line when useFragment is implemented in the UI
 
       const objectListDetails = await this._getObjectListDetails(sensors, useFragment);
-
       // group and format items by type to optimize the creation in the graph
       return this._groupAndFormatItems(objectListDetails);
    }
@@ -263,26 +262,16 @@ export class SpinalDevice extends EventEmitter {
          const deviceName = this.device?.name;
          console.log(`[${deviceName}] - check and create endpoints, if not exist`);
 
-         if (!this.device) {
-            console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
-            return [];
-         }
 
-         const endpointToCreateFormatted = endpointsToCreate.map(el => ({ type: el.type, instance: el.instance }));
-         const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointToCreateFormatted);
-
-         const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type });
 
          if (!this._context || !this._bmsDevice) {
             console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
             return [];
          }
 
-         const promises = Array.from(Object.keys(childrenGroups)).map((childKey: string) => {
-            return SpinalNetworkUtilities.createEndpointsInGroup(this._context as SpinalContext, this._bmsDevice as SpinalNode, childKey, childrenGroups[childKey]);
-         })
+         const childrenGroups = await this.formatAndGroupEndpoints(deviceName!, endpointsToCreate);
 
-         const result = await Promise.all(promises);
+         const result = await this.generateNetworkEndpoints(childrenGroups);
 
          console.log(`[${deviceName}] - endpoints creation completed`);
          return result.flat();
@@ -293,6 +282,28 @@ export class SpinalDevice extends EventEmitter {
 
    }
 
+
+   private async generateNetworkEndpoints(childrenGroups: any) {
+      const promises = Array.from(Object.keys(childrenGroups)).map((childKey: string) => {
+         return SpinalNetworkUtilities.createEndpointsInGroup(this._context as SpinalContext, this._bmsDevice as SpinalNode, childKey, childrenGroups[childKey]);
+      });
+
+      const result = await Promise.all(promises);
+      return result;
+   }
+
+   private async formatAndGroupEndpoints(deviceName: string, endpointsToCreate: IObjectId[]) {
+      if (!this.device) {
+         console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
+         return [];
+      }
+
+      const endpointToCreateFormatted = endpointsToCreate.map(el => ({ type: el.type, instance: el.instance }));
+      const objectListDetails = await BacnetUtilities._getObjectDetail(this.device, endpointToCreateFormatted);
+
+      const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item: any) { return item.type; });
+      return childrenGroups;
+   }
 
    public async updateEndpoints(interval: number): Promise<void | boolean[]> {
       if (!this.device) {

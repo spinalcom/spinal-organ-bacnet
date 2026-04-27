@@ -39,6 +39,7 @@ exports.GetPm2Instance = void 0;
 exports.bindAllModels = bindAllModels;
 exports.restartProcessById = restartProcessById;
 exports.loadPtrValue = loadPtrValue;
+exports.decodeBitStringValue = decodeBitStringValue;
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
@@ -205,5 +206,19 @@ function loadPtrValue(ptrModel) {
     return new Promise((resolve) => {
         ptrModel.load((data) => resolve(data));
     });
+}
+function decodeBitStringValue(value, bitText = []) {
+    if (!Array.isArray(bitText))
+        bitText = [bitText];
+    const result = [];
+    const { value: valueArray, bitsUsed } = value;
+    for (let i = 0; i < bitsUsed; i++) {
+        const byteIndex = Math.floor(i / 8);
+        const bitIndex = i % 8;
+        const isActive = (valueArray[byteIndex] & (1 << bitIndex)) !== 0;
+        const name = bitText[i] || `Bit ${i}`;
+        result.push({ id: i, value: isActive, name });
+    }
+    return result;
 }
 //# sourceMappingURL=Functions.js.map

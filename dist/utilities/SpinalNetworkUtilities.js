@@ -40,6 +40,7 @@ const spinal_models_documentation_1 = require("spinal-models-documentation");
 const SpinalDevice_1 = require("../modules/SpinalDevice");
 const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
+const Functions_1 = require("./Functions");
 const bmsTypeNames = [spinal_model_bmsnetwork_1.SpinalBmsNetwork.nodeTypeName, spinal_model_bmsnetwork_1.SpinalBmsDevice.nodeTypeName, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName];
 class SpinalNetworkUtilitiesClass {
     constructor() {
@@ -146,9 +147,14 @@ class SpinalNetworkUtilitiesClass {
     }
     createEndpointsInGroup(context, device, endpointGroupName, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             const endpointGroup = yield this._createEndpointsGroup(context, device, endpointGroupName);
             // const groupId = endpointGroup.id.get();
-            return this._createEndpointByArray(context, endpointGroup, endpointArray);
+            const endpointsNode = yield this._createEndpointByArray(context, endpointGroup, endpointArray);
+            if (((_b = (_a = endpointGroup.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get()) == GlobalVariables_1.ObjectTypes.OBJECT_BITSTRING_VALUE) {
+                yield this._createBitStringSubEndpoints(context, endpointsNode);
+            }
+            return endpointsNode;
         });
     }
     _createEndpointsGroup(context, deviceNode, endpointGroupName) {
@@ -167,6 +173,34 @@ class SpinalNetworkUtilitiesClass {
             return deviceNode.addChildInContext(endpointGroup, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
         });
     }
+    _createBitStringSubEndpoints(context, endpointsNode) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const promises = endpointsNode.map((endpointNode) => __awaiter(this, void 0, void 0, function* () { return this._createOrUpdateEndpointsByBitStringValue(context, endpointNode); }));
+            return Promise.all(promises);
+        });
+    }
+    _createOrUpdateEndpointsByBitStringValue(context, endpointNode) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const element = yield endpointNode.getElement(true);
+            const bitText = element.bit_text.get();
+            const value = element.currentValue.get();
+            const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
+            return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo)
+                .then(() => endpointNode);
+        });
+    }
+    _convertBitStringValueToEndpointInfo(value, bitText, parentInfo) {
+        const bitStringArray = (0, Functions_1.decodeBitStringValue)(value, bitText);
+        return bitStringArray.map(bit => ({
+            id: `${parentInfo.idNetwork}_${bit.id}`,
+            typeId: parentInfo.typeId,
+            path: ` ${parentInfo.name}/${bit.name}`,
+            currentValue: bit.value,
+            present_value: bit.value,
+            name: bit.name,
+            type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName,
+        }));
+    }
     _createEndpointByArray(context, groupNode, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
             const endpointAlreadyCreated = yield this._getChildrenAsObj(groupNode, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
@@ -182,18 +216,7 @@ class SpinalNetworkUtilitiesClass {
         });
     }
     _formatEndpointCreationInfo(endpointInfo) {
-        return {
-            id: endpointInfo.id || endpointInfo.instance,
-            typeId: endpointInfo.typeId,
-            path: endpointInfo.path || "",
-            currentValue: endpointInfo.currentValue || endpointInfo.present_value,
-            name: endpointInfo.name || endpointInfo.object_name,
-            type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName,
-            description: endpointInfo.description,
-            max_pres_value: endpointInfo.max_pres_value,
-            min_pres_value: endpointInfo.min_pres_value,
-            unit: endpointInfo.unit || "",
-        };
+        return Object.assign({ id: endpointInfo.id || endpointInfo.instance, typeId: endpointInfo.typeId, path: endpointInfo.path || "", currentValue: endpointInfo.currentValue || endpointInfo.present_value, name: endpointInfo.name || endpointInfo.object_name, type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName, description: endpointInfo.description, max_pres_value: endpointInfo.max_pres_value, min_pres_value: endpointInfo.min_pres_value, unit: endpointInfo.unit || "" }, (endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }));
     }
     updateNetworkElementNode(node, newInfo) {
         return __awaiter(this, void 0, void 0, function* () {

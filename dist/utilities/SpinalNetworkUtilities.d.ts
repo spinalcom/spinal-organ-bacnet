@@ -32,6 +32,9 @@ declare class SpinalNetworkUtilitiesClass {
     }>;
     createEndpointsInGroup(context: SpinalContext, device: SpinalNode, endpointGroupName: string, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
     _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode>;
+    _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]>;
+    _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode>;
+    private _convertBitStringValueToEndpointInfo;
     _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
     private _formatEndpointCreationInfo;
     updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode>;
