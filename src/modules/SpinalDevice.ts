@@ -414,12 +414,13 @@ export class SpinalDevice extends EventEmitter {
    }
 
    private _getSensors(spinalBacnetValueModel: SpinalBacnetValueModel): number[] {
-      if (spinalBacnetValueModel) {
-         spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.recover);
-         return spinalBacnetValueModel.sensor.get();
-      }
+      return [ObjectTypes.OBJECT_BITSTRING_VALUE];
+      // if (spinalBacnetValueModel) {
+      //    spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.recover);
+      //    return spinalBacnetValueModel.sensor.get();
+      // }
 
-      return SENSOR_TYPES;
+      // return SENSOR_TYPES;
    }
 
    private async _getObjectListDetails(sensors: number[], useFragment: boolean = false) {

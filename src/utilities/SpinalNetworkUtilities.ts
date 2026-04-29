@@ -119,15 +119,14 @@ class SpinalNetworkUtilitiesClass {
 
          if (endpointNode) {
             const saveTimeSeries = spinalDevice.shoulSaveTimeSeries({ instance: child.id, type: child.type });
-
-            promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries))
+            promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
          };
       }
 
       return Promise.all(promises);
    }
 
-   private async _updateEndpointNodeValue(endpointNode: SpinalNode, newValue: any, saveTimeSeries = false): Promise<boolean> {
+   private async _updateEndpointNodeValue(endpointNode: SpinalNode, newValue: any, saveTimeSeries = false, itsBitStringChild = false): Promise<boolean> {
       const element = await endpointNode.getElement(true);
       if (!element) return false;
 
@@ -137,10 +136,16 @@ class SpinalNetworkUtilitiesClass {
       if (saveTimeSeries && (typeof newValue === "number" || typeof newValue === "boolean")) {
          SpinalGraphService._addNode(endpointNode);
          const timeSeriesService = this.getTimeSeriesInstance();
-         return timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
+         await timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
       }
 
-      return false;
+      const { typeId } = endpointNode.info.get();
+
+      if (typeId === ObjectTypes.OBJECT_BITSTRING_VALUE && !itsBitStringChild) {
+         await this.updateBitStringEndpointValue(endpointNode, newValue);
+      }
+
+      return true;
    }
 
    public async _getAllEndpointsInGraph(deviceNode: SpinalNode): Promise<{ [key: string]: SpinalNode }> {
@@ -206,6 +211,23 @@ class SpinalNetworkUtilitiesClass {
       const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
       return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo)
          .then(() => endpointNode);
+   }
+
+   public async updateBitStringEndpointValue(endpointNode: SpinalNode, newValue: { value: number[], bitsUsed: number }, saveTimeSeries: boolean = false): Promise<SpinalNode> {
+      const children = await endpointNode.getChildren([SpinalBmsEndpoint.relationName]);
+      const childrenObj: { [key: string]: SpinalNode } = children.reduce((acc: {}, child) => ({ ...acc, [`${child.info.idNetwork.get()}`]: child }), {});
+
+      const bitText: string[] = (await endpointNode.getElement(true)).bit_text.get();
+
+      const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(newValue, bitText, endpointNode.info.get());
+      const promises = [];
+
+      for (const endpoint of convertedValueToEndpointInfo) {
+         const childFound = childrenObj[endpoint.id];
+         if (childFound) promises.push(this._updateEndpointNodeValue(childFound, endpoint.currentValue, saveTimeSeries, true));
+      }
+
+      return Promise.all(promises).then(() => endpointNode);
 
    }
 
