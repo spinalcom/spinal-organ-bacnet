@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { EventEmitter } from "events";
 import { SpinalDisoverModel } from 'spinal-model-bacnet';
 declare class Discover extends EventEmitter {

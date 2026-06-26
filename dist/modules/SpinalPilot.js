@@ -91,8 +91,8 @@ class SpinalPilot {
             }
         });
     }
-    writeProperties() {
-        return __awaiter(this, arguments, void 0, function* (requests = []) {
+    writeProperties(requests = []) {
+        return __awaiter(this, void 0, void 0, function* () {
             for (let index = 0; index < requests.length; index++) {
                 const req = requests[index];
                 try {

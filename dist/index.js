@@ -44,13 +44,15 @@ const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
 // Cette fonction est executée en cas de deconnexion au hub
 spinal_core_connectorjs_type_1.FileSystem.onConnectionError = (error_code) => {
     setTimeout(() => {
-        console.log('disconned from hub, exit with process');
+        console.log("disconned from hub, exit with process");
         process.exit(error_code); // kill le process;
     }, 5000);
 };
 (0, Functions_1.CreateOrganConfigFile)(connect, path, name)
     .then((organModel) => __awaiter(void 0, void 0, void 0, function* () {
+    console.warn("This organ use load_type function, please use the master branch to optimize the performance of the organ");
     yield spinal_lib_organ_monitoring_1.default.init(connect, name, host, protocol, port); // API health
     (0, Functions_1.bindAndRestartOrgan)(connect, name, organModel);
-})).catch((err) => process.exit(0));
+}))
+    .catch((err) => process.exit(0));
 //# sourceMappingURL=index.js.map

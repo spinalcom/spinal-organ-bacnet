@@ -9,8 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listenEventMessage = listenEventMessage;
-exports.sendEvent = sendEvent;
+exports.sendEvent = exports.listenEventMessage = void 0;
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const stream_1 = require("stream");
@@ -46,6 +45,7 @@ function listenEventMessage() {
         }
     }));
 }
+exports.listenEventMessage = listenEventMessage;
 function subscribe(data) {
     return __awaiter(this, void 0, void 0, function* () {
         const client = yield BacnetUtilities_1.default.getClient();
@@ -102,4 +102,5 @@ function sendEvent(data) {
     // process.send(data);
     eventEmitter.emit("message", data);
 }
+exports.sendEvent = sendEvent;
 //# sourceMappingURL=cov.js.map

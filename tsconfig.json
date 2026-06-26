@@ -1,26 +1,15 @@
 {
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "*": [
-        "types/*"
-      ]
-    },
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
-    "target": "es2015",
-    "module": "commonjs",
-    "outDir": "dist",
-    "sourceMap": true,
-    "declaration": true,
-    "moduleResolution": "node",
-    "resolveJsonModule": true
-  },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "src/old/*"
-  ]
+	"compilerOptions": {
+		"skipLibCheck": true,
+		"skipDefaultLibCheck": true,
+		"target": "es2015",
+		"module": "commonjs",
+		"rootDir": "src",
+		"outDir": "dist",
+		"sourceMap": true,
+		"declaration": true,
+		"resolveJsonModule": true
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "src/old/*"]
 }

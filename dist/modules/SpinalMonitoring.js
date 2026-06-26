@@ -119,8 +119,8 @@ class SpinalMonitoring {
         });
     }
     startMonitoring() {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
             console.log("start monitoring...");
             let p = true;
             while (p) {
@@ -162,11 +162,13 @@ class SpinalMonitoring {
                 liste.push(res);
                 return liste;
             }), Promise.resolve([]));
-            return lodash.flattenDeep(yield Promise.all(promises)).filter(el => typeof el !== "undefined");
+            return lodash.flattenDeep(yield Promise.all(promises)).filter((el) => !!el);
         });
     }
     _createMaps(devices) {
         return devices.map(({ id, spinalModel, spinalDevice, networkService, network }) => {
+            if (!spinalModel || !spinalDevice || !networkService || !network)
+                return Promise.resolve(undefined);
             return new Promise((resolve, reject) => {
                 let process = this.binded.get(id);
                 if (process)
@@ -234,7 +236,7 @@ class SpinalMonitoring {
         this.removeFromPriorityQueue(deviceId);
         this.intervalTimesMap.forEach((value, key) => {
             const copy = !Array.isArray(value) ? [value] : value;
-            const filtered = copy.filter(el => el.id !== deviceId);
+            const filtered = copy.filter((el) => el.id !== deviceId);
             if (filtered.length === 0)
                 this.intervalTimesMap.delete(key);
             else
@@ -273,7 +275,7 @@ class SpinalMonitoring {
                 // //    this.initializedMap.set(id, true);
                 //    await spinalDevice.checkAndCreateIfNotExist(networkService, children);
                 // // }
-                // Traiter la creation des endpoinrs dans une Queue, 
+                // Traiter la creation des endpoinrs dans une Queue,
                 // pour eviter l'envoie de plusieurs requête bacnet
                 this._endpointsCreationQueue.addToQueue({ spinalDevice, children, networkService });
             }
@@ -294,7 +296,10 @@ class SpinalMonitoring {
             const monitors_copy = Object.assign([], monitors);
             const res = [];
             while (monitors_copy.length > 0) {
-                const { interval, children } = monitors_copy.shift();
+                const monitor = monitors_copy.shift();
+                if (!monitor)
+                    continue;
+                const { interval, children } = monitor;
                 if (children.length <= 0 || interval == 0)
                     continue;
                 // if cov or 0

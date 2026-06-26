@@ -32,8 +32,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SpinalDevice = void 0;
-exports.addToGetAllBacnetValuesQueue = addToGetAllBacnetValuesQueue;
+exports.addToGetAllBacnetValuesQueue = exports.SpinalDevice = void 0;
 const lodash = require("lodash");
 const events_1 = require("events");
 // import { store } from "../store";
@@ -48,11 +47,13 @@ class SpinalDevice extends events_1.EventEmitter {
         this.device = device;
     }
     init() {
-        return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
+        return this._getDeviceInfo(this.device)
+            .then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
             this.info = deviceInfo;
             this.device = deviceInfo;
             this.emit("initialized", this);
-        })).catch((err) => {
+        }))
+            .catch((err) => {
             this.emit("error", err);
         });
     }
@@ -70,7 +71,6 @@ class SpinalDevice extends events_1.EventEmitter {
         if (node) {
             return Promise.resolve(node);
         }
-        ;
         return this._createDevice(networkService, parentId);
     }
     createDeviceItemList(networkService, node, spinalBacnetValueModel) {
@@ -82,7 +82,9 @@ class SpinalDevice extends events_1.EventEmitter {
                 console.log(`[${this.device.name}] - getting object list`);
                 const objectListDetails = yield this._getObjecListDetails(sensors, useFragment);
                 console.log(`[${this.device.name}] - ${objectListDetails.length} item(s) found`);
-                const itemsGrouped = lodash.groupBy(objectListDetails, function (a) { return a.type; });
+                const itemsGrouped = lodash.groupBy(objectListDetails, function (a) {
+                    return a.type;
+                });
                 const listes = Array.from(Object.keys(itemsGrouped)).map((key) => [key, itemsGrouped[key]]);
                 const maxLength = listes.length;
                 // let isError = false;
@@ -116,7 +118,9 @@ class SpinalDevice extends events_1.EventEmitter {
             console.log("check and create endpoints, if not exist");
             const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectIds, client);
-            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) { return a.type; });
+            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (a) {
+                return a.type;
+            });
             const promises = Array.from(Object.keys(childrenGroups)).map((el) => {
                 return BacnetUtilities_1.BacnetUtilities.createEndpointsInGroup(networkService, this.device.id, el, childrenGroups[el], this.device.name);
             });
@@ -133,7 +137,7 @@ class SpinalDevice extends events_1.EventEmitter {
                     throw new Error("Failed to retreive endpoints on device");
                 const obj = {
                     id: this.device.idNetwork,
-                    children: this._groupByType(lodash.flattenDeep(objectListDetails))
+                    children: this._groupByType(lodash.flattenDeep(objectListDetails)),
                 };
                 this.updateEndpointInGraph(obj, networkService, networkNode);
             }
@@ -167,7 +171,7 @@ class SpinalDevice extends events_1.EventEmitter {
                     description: yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
                     segmentation: device.segmentation || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
                     vendorId: device.vendorId || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                    maxApdu: device.maxApdu || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
+                    maxApdu: device.maxApdu || (yield this._getDataValue(device.address, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)),
                 };
             }
             catch (error) {
@@ -185,7 +189,7 @@ class SpinalDevice extends events_1.EventEmitter {
         for (const [key, value] of Object.entries(obj)) {
             res.push({
                 id: parseInt(key),
-                children: obj[key]
+                children: obj[key],
             });
         }
         return res;
@@ -203,8 +207,8 @@ class SpinalDevice extends events_1.EventEmitter {
         }
         return GlobalVariables_1.SENSOR_TYPES;
     }
-    _getObjecListDetails(sensors_1) {
-        return __awaiter(this, arguments, void 0, function* (sensors, useFragment = false) {
+    _getObjecListDetails(sensors, useFragment = false) {
+        return __awaiter(this, void 0, void 0, function* () {
             const client = yield BacnetUtilities_1.BacnetUtilities.getClient();
             const objectLists = yield BacnetUtilities_1.BacnetUtilities._getDeviceObjectList(this.device, sensors, client, useFragment);
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, objectLists.map((el) => el.value), client);
@@ -235,4 +239,5 @@ allBacnetValueQueue.on("start", () => __awaiter(void 0, void 0, void 0, function
 function addToGetAllBacnetValuesQueue(device, node, networkService, spinalBacnetValueModel) {
     allBacnetValueQueue.addToQueue({ device, node, networkService, spinalBacnetValueModel });
 }
+exports.addToGetAllBacnetValuesQueue = addToGetAllBacnetValuesQueue;
 //# sourceMappingURL=SpinalDevice.js.map

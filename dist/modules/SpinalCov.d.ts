@@ -16,7 +16,7 @@ declare class SpinalCov {
     startCovProcessing(): void;
     stopAllCovSubscriptions(): {
         networkService: NetworkService;
-        network: SpinalNode;
+        network: SpinalNode<any>;
         spinalDevice: SpinalDevice;
         children: any[];
     }[];

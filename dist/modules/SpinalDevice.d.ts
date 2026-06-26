@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import * as bacnet from "bacstack";
 import { InputDataDevice, NetworkService } from "spinal-model-bmsnetwork";
 import { EventEmitter } from "events";
