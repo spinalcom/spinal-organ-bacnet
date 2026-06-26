@@ -80,7 +80,7 @@ class BacnetUtilitiesClass {
         this._client = null;
         this._ipcClient = null;
         this.clientState = {
-            consecutiveFailures: 0
+            consecutiveFailures: 0,
         };
     }
     static getInstance() {
@@ -91,7 +91,7 @@ class BacnetUtilitiesClass {
     initAndConnect() {
         return __awaiter(this, void 0, void 0, function* () {
             this._ipcClient = yield this._connectToServer();
-            this._ipcClient.on('disconnect', () => __awaiter(this, void 0, void 0, function* () {
+            this._ipcClient.on("disconnect", () => __awaiter(this, void 0, void 0, function* () {
                 this._ipcClient = yield this._connectToServer();
             }));
             console.log("connected to bacnet service");
@@ -106,7 +106,7 @@ class BacnetUtilitiesClass {
             const serverServiceName = spinal_bacnet_service_1.SERVICE_NAME;
             const clientServiceName = process.env.ORGAN_NAME || "spinal-organ-bacnet";
             node_ipc_1.default.config.id = clientServiceName; // Set the IPC client ID to the organ name or a default value
-            node_ipc_1.default.config.retry = 5000; // Retry every 5 seconds if connection to server is lost 
+            node_ipc_1.default.config.retry = 5000; // Retry every 5 seconds if connection to server is lost
             node_ipc_1.default.config.silent = true; // Disable IPC debug logs
             const bacnetServicePort = (_a = process.env.BACNET_SERVICE_PORT) === null || _a === void 0 ? void 0 : _a.trim();
             const ipcServerPort = bacnetServicePort ? parseInt(bacnetServicePort) : 47810;
@@ -184,7 +184,7 @@ class BacnetUtilitiesClass {
         return this._sendDataToBacnetServer("writeProperty", [request]);
     }
     /////////////////////////////////////////////////////////
-    //                         UTILS                      // 
+    //                         UTILS                      //
     ////////////////////////////////////////////////////////
     _getObjValue(value) {
         var _a;
@@ -196,13 +196,13 @@ class BacnetUtilitiesClass {
     _getPropertyNameByCode(type) {
         const property = GlobalVariables_1.PropertyNames[type];
         if (property)
-            return property.toLocaleLowerCase().replace('prop_', '');
+            return property.toLocaleLowerCase().replace("prop_", "");
         return;
     }
     _getObjectTypeByCode(typeCode) {
         const property = GlobalVariables_1.ObjectTypesCode[typeCode];
         if (property)
-            return property.toLocaleLowerCase().replace('object_', '');
+            return property.toLocaleLowerCase().replace("object_", "");
         return;
     }
     _sendDataToBacnetServer(functionName, parameters) {
@@ -210,9 +210,9 @@ class BacnetUtilitiesClass {
             const params = {
                 name: functionName,
                 id: (0, uuid_1.v4)(),
-                parameters: parameters
+                parameters: parameters,
             };
-            this._ipcClient.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, (params));
+            this._ipcClient.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, params);
             this._ipcClient.once(`${spinal_bacnet_service_1.RESPONSE_EVENT_NAME}_${params.id}`, (response) => {
                 if (response.status === "error") {
                     return reject({ message: response.error });

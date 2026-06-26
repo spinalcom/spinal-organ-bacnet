@@ -37,8 +37,8 @@ exports.PropertyNames = swapObject(bacnetEnum_1.default.PropertyIds);
 exports.ObjectTypesCode = swapObject(bacnetEnum_1.default.ObjectTypes);
 exports.UNITS_TYPES = swapObject(bacnetEnum_1.default.UnitsId);
 /*
-* TYPE of item retrieved to devices
-*/
+ * TYPE of item retrieved to devices
+ */
 exports.SENSOR_TYPES = [
     // ANALOG
     exports.ObjectTypes.OBJECT_ANALOG_INPUT,
@@ -53,18 +53,18 @@ exports.SENSOR_TYPES = [
     exports.ObjectTypes.OBJECT_MULTI_STATE_INPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
     exports.ObjectTypes.OBJECT_MULTI_STATE_VALUE,
-    exports.ObjectTypes.OBJECT_BITSTRING_VALUE
+    exports.ObjectTypes.OBJECT_BITSTRING_VALUE,
     //NETWORK
 ];
 exports.COV_EVENTS_NAMES = {
-    "subscribed": "subscribed",
-    "subscribe": "subscribe",
-    "failed": "failed",
-    "changed": "changed",
-    "unsubscribe": "unsubscribe",
-    "unsubscribed": "unsubscribed",
-    "error": "error",
-    "exit": "exit"
+    subscribed: "subscribed",
+    subscribe: "subscribe",
+    failed: "failed",
+    changed: "changed",
+    unsubscribe: "unsubscribe",
+    unsubscribed: "unsubscribed",
+    error: "error",
+    exit: "exit",
 };
 function swapObject(json) {
     const swapped = {};

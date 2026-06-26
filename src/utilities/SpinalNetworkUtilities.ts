@@ -1,19 +1,19 @@
 /*
  * Copyright 2022 SpinalCom - www.spinalcom.com
- * 
+ *
  * This file is part of SpinalCore.
- * 
+ *
  * Please read all of the following terms and conditions
  * of the Free Software license Agreement ("Agreement")
  * carefully.
- * 
+ *
  * This Agreement is a legally binding contract between
  * the Licensee (as defined below) and SpinalCom that
  * sets forth the terms and conditions that govern your
  * use of the Program. By installing and/or using the
  * Program, you agree to abide by all the terms and
  * conditions stated or referenced herein.
- * 
+ *
  * If you do not agree to abide by these terms and
  * conditions, do not demonstrate your acceptance and do
  * not install or use the Program.
@@ -34,407 +34,393 @@ import { ObjectTypes } from "./GlobalVariables";
 import { SpinalGraphService } from "spinal-env-viewer-graph-service";
 import { decodeBitStringValue } from "./Functions";
 
-
 const bmsTypeNames = [SpinalBmsNetwork.nodeTypeName, SpinalBmsDevice.nodeTypeName, SpinalBmsEndpointGroup.nodeTypeName, SpinalBmsEndpoint.nodeTypeName] as const;
-type BmsNodeType = typeof bmsTypeNames[number];
+type BmsNodeType = (typeof bmsTypeNames)[number];
 
-type InputDataTypes = ({ name: string; type: string; } | InputDataDevice | InputDataEndpointGroup | InputDataEndpoint) & { [key: string]: any };
-
+type InputDataTypes = ({ name: string; type: string } | InputDataDevice | InputDataEndpointGroup | InputDataEndpoint) & { [key: string]: any };
 
 class SpinalNetworkUtilitiesClass {
-   private static _instance: SpinalNetworkUtilitiesClass
-   private _timeSeriesService: SpinalServiceTimeseries | null = null;
+	private static _instance: SpinalNetworkUtilitiesClass;
+	private _timeSeriesService: SpinalServiceTimeseries | null = null;
 
-   private constructor() { }
+	private constructor() {}
 
-   public static getIntance(): SpinalNetworkUtilitiesClass {
-      if (!this._instance) this._instance = new SpinalNetworkUtilitiesClass();
-      return this._instance;
-   }
+	public static getIntance(): SpinalNetworkUtilitiesClass {
+		if (!this._instance) this._instance = new SpinalNetworkUtilitiesClass();
+		return this._instance;
+	}
+
+	////////////////////////////////////////////////////////////////////////
+	////              INITIALIZATION FUNCTIONS FOR MODELS              ////
+	////////////////////////////////////////////////////////////////////////
+
+	public async initSpinalDiscoverNetwork(spinalModel: SpinalDiscoverModel): Promise<IDataDiscover> {
+		const { graph, organ, context } = await this._getSpinalDiscoverModel(spinalModel);
+		const network = await this._getOrCreateNetworkNode(context, organ, spinalModel.network.get());
+
+		return { graph, context, organ, network };
+	}
 
+	public getTimeSeriesInstance(): SpinalServiceTimeseries {
+		if (!this._timeSeriesService) this._timeSeriesService = new SpinalServiceTimeseries();
+		return this._timeSeriesService;
+	}
+
+	public async initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue> {
+		const { node, context, network, organ } = await spinalModel.getAllItem();
 
-   ////////////////////////////////////////////////////////////////////////
-   ////              INITIALIZATION FUNCTIONS FOR MODELS              ////
-   ////////////////////////////////////////////////////////////////////////
+		// if (node) SpinalGraphService._addNode(node);
+		// if (context) SpinalGraphService._addNode(context);
+		// if (graph) SpinalGraphService._addNode(graph);
+		// if (network) SpinalGraphService._addNode(network);
 
-   public async initSpinalDiscoverNetwork(spinalModel: SpinalDiscoverModel): Promise<IDataDiscover> {
-      const { graph, organ, context } = await this._getSpinalDiscoverModel(spinalModel);
-      const network = await this._getOrCreateNetworkNode(context, organ, spinalModel.network.get());
+		// const networkService: NetworkService = new NetworkService(false);
+		// const organNetwork = {
+		//    contextName: context.getName().get(),
+		//    contextType: context.getType().get(),
+		//    networkType: network.getType().get(),
+		//    networkName: network.getName().get()
+		// };
 
-      return { graph, context, organ, network };
-   }
+		// await networkService.init(graph, organNetwork);
 
-   public getTimeSeriesInstance(): SpinalServiceTimeseries {
-      if (!this._timeSeriesService) this._timeSeriesService = new SpinalServiceTimeseries();
-      return this._timeSeriesService;
-   }
+		return { device: node, context, network, organ };
+	}
 
+	public async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<SpinalDevice> {
+		const spinalDevice = new SpinalDevice();
+		await spinalDevice.initExistingDevice(spinalModel);
+		return spinalDevice;
+	}
 
-   public async initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue> {
-      const { node, context, network, organ } = await spinalModel.getAllItem();
+	/////////////////////////////////////////////////////////////
+	//                BMS NETWORK FUNCTIONS                    //
+	/////////////////////////////////////////////////////////////
 
-      // if (node) SpinalGraphService._addNode(node);
-      // if (context) SpinalGraphService._addNode(context);
-      // if (graph) SpinalGraphService._addNode(graph);
-      // if (network) SpinalGraphService._addNode(network);
+	public async updateEndpointInGraph(spinalDevice: SpinalDevice, children: { id: string | number; type: string | number; currentValue: any }[]): Promise<boolean[]> {
+		const deviceNode = spinalDevice.getBmsDeviceNode();
+		if (!deviceNode) throw new Error("Device node not found in graph");
 
+		const endpointsObj = await this._getAllEndpointsInGraph(deviceNode);
 
+		const promises = [];
 
-      // const networkService: NetworkService = new NetworkService(false);
-      // const organNetwork = {
-      //    contextName: context.getName().get(),
-      //    contextType: context.getType().get(),
-      //    networkType: network.getType().get(),
-      //    networkName: network.getName().get()
-      // };
+		for (const child of children) {
+			const endpointKey = `${child.type}_${child.id}`;
+			const endpointNode = endpointsObj[endpointKey];
 
-      // await networkService.init(graph, organNetwork);
+			if (endpointNode) {
+				const saveTimeSeries = spinalDevice.shouldSaveTimeSeries({ instance: child.id, type: child.type });
+				promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
+			}
+		}
 
-      return { device: node, context, network, organ };
-   }
+		return Promise.all(promises);
+	}
 
-   public async initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<SpinalDevice> {
+	private async _updateEndpointNodeValue(endpointNode: SpinalNode, newValue: any, saveTimeSeries = false, itsBitStringChild = false): Promise<boolean> {
+		const element = await endpointNode.getElement(true);
+		if (!element) return false;
 
-      const spinalDevice = new SpinalDevice();
-      await spinalDevice.initExistingDevice(spinalModel);
-      return spinalDevice;
-   }
+		if (element.currentValue) element.currentValue.set(newValue);
+		if (endpointNode.info.currentValue) endpointNode.info.currentValue.set(newValue);
 
-   /////////////////////////////////////////////////////////////
-   //                BMS NETWORK FUNCTIONS                    //
-   /////////////////////////////////////////////////////////////
+		if (saveTimeSeries && (typeof newValue === "number" || typeof newValue === "boolean")) {
+			SpinalGraphService._addNode(endpointNode);
+			const timeSeriesService = this.getTimeSeriesInstance();
+			await timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
+		}
 
-   public async updateEndpointInGraph(spinalDevice: SpinalDevice, children: { id: string | number; type: string | number; currentValue: any }[]): Promise<boolean[]> {
+		const { typeId } = endpointNode.info.get();
 
-      const deviceNode = spinalDevice.getBmsDeviceNode();
-      if (!deviceNode) throw new Error("Device node not found in graph");
+		if (typeId === ObjectTypes.OBJECT_BITSTRING_VALUE && !itsBitStringChild) {
+			await this.updateBitStringEndpointValue(endpointNode, newValue);
+		}
 
-      const endpointsObj = await this._getAllEndpointsInGraph(deviceNode);
+		return true;
+	}
 
-      const promises = [];
+	public async _getAllEndpointsInGraph(deviceNode: SpinalNode): Promise<{ [key: string]: SpinalNode }> {
+		const endpointGroups = await deviceNode.getChildren([SpinalBmsEndpointGroup.relationName]);
+
+		const promises = endpointGroups.map(async (group) => {
+			const endpointsObj: { [key: string]: SpinalNode } = {};
+			const typeId = group.info.idNetwork.get();
+			const children = await group.getChildren([SpinalBmsEndpoint.relationName]);
+			children.forEach((child) => (endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child));
+			return endpointsObj;
+		});
 
-      for (const child of children) {
-         const endpointKey = `${child.type}_${child.id}`;
-         const endpointNode = endpointsObj[endpointKey];
+		return Promise.all(promises).then((result) => {
+			return result.reduce((acc: {}, curr) => ({ ...acc, ...curr }), {});
+		});
+	}
 
-         if (endpointNode) {
-            const saveTimeSeries = spinalDevice.shoulSaveTimeSeries({ instance: child.id, type: child.type });
-            promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
-         };
-      }
-
-      return Promise.all(promises);
-   }
-
-   private async _updateEndpointNodeValue(endpointNode: SpinalNode, newValue: any, saveTimeSeries = false, itsBitStringChild = false): Promise<boolean> {
-      const element = await endpointNode.getElement(true);
-      if (!element) return false;
-
-      if (element.currentValue) element.currentValue.set(newValue);
-      if (endpointNode.info.currentValue) endpointNode.info.currentValue.set(newValue);
-
-      if (saveTimeSeries && (typeof newValue === "number" || typeof newValue === "boolean")) {
-         SpinalGraphService._addNode(endpointNode);
-         const timeSeriesService = this.getTimeSeriesInstance();
-         await timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
-      }
-
-      const { typeId } = endpointNode.info.get();
-
-      if (typeId === ObjectTypes.OBJECT_BITSTRING_VALUE && !itsBitStringChild) {
-         await this.updateBitStringEndpointValue(endpointNode, newValue);
-      }
-
-      return true;
-   }
-
-   public async _getAllEndpointsInGraph(deviceNode: SpinalNode): Promise<{ [key: string]: SpinalNode }> {
-      const endpointGroups = await deviceNode.getChildren([SpinalBmsEndpointGroup.relationName]);
-
-      const promises = endpointGroups.map(async (group) => {
-         const endpointsObj: { [key: string]: SpinalNode } = {};
-         const typeId = group.info.idNetwork.get();
-         const children = await group.getChildren([SpinalBmsEndpoint.relationName]);
-         children.forEach((child) => endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child);
-         return endpointsObj;
-      });
-
-      return Promise.all(promises).then((result) => {
-         return result.reduce((acc: {}, curr) => ({ ...acc, ...curr }), {});
-      })
-   }
-
-   public async createEndpointsInGroup(context: SpinalContext, device: SpinalNode, endpointGroupName: string, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]> {
-      const endpointGroup = await this._createEndpointsGroup(context, device, endpointGroupName);
-      // const groupId = endpointGroup.id.get();
-
-      const endpointsNode = await this._createEndpointByArray(context, endpointGroup, endpointArray);
-
-      if (endpointGroup.info?.idNetwork?.get() == ObjectTypes.OBJECT_BITSTRING_VALUE) {
-         await this._createBitStringSubEndpoints(context, endpointsNode);
-      }
-
-      return endpointsNode;
-   }
-
-   public async _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode> {
-      const groupNetworkId = ObjectTypes[`object_${endpointGroupName}`.toUpperCase()]
-
-      const alreadyExist = await this._itemExistInChild(deviceNode, SpinalBmsEndpointGroup.relationName, groupNetworkId);
-
-
-      const groupInfo: any = {
-         name: endpointGroupName,
-         id: groupNetworkId,
-         type: SpinalBmsEndpointGroup.nodeTypeName,
-         path: "",
-      };
-
-      if (alreadyExist) return this.updateNetworkElementNode(alreadyExist, groupInfo);
-
-      const endpointGroup = await this.createNetworkElementNode(groupInfo, SpinalBmsEndpointGroup.nodeTypeName);
-      return deviceNode.addChildInContext(endpointGroup, SpinalBmsEndpointGroup.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
-   }
-
-   public async _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]> {
-      const promises = endpointsNode.map(async (endpointNode) => this._createOrUpdateEndpointsByBitStringValue(context, endpointNode));
-
-      return Promise.all(promises);
-   }
-
-   public async _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode> {
-
-      const element = await endpointNode.getElement(true);
-      const bitText: string[] = element.bit_text.get();
-      const value: { value: number[], bitsUsed: number } = element.currentValue.get();
-
-      const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
-      return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo)
-         .then(() => endpointNode);
-   }
-
-   public async updateBitStringEndpointValue(endpointNode: SpinalNode, newValue: { value: number[], bitsUsed: number }, saveTimeSeries: boolean = false): Promise<SpinalNode> {
-      const children = await endpointNode.getChildren([SpinalBmsEndpoint.relationName]);
-      const childrenObj: { [key: string]: SpinalNode } = children.reduce((acc: {}, child) => ({ ...acc, [`${child.info.idNetwork.get()}`]: child }), {});
-
-      const bitText: string[] = (await endpointNode.getElement(true)).bit_text.get();
-
-      const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(newValue, bitText, endpointNode.info.get());
-      const promises = [];
-
-      for (const endpoint of convertedValueToEndpointInfo) {
-         const childFound = childrenObj[endpoint.id];
-         if (childFound) promises.push(this._updateEndpointNodeValue(childFound, endpoint.currentValue, saveTimeSeries, true));
-      }
-
-      return Promise.all(promises).then(() => endpointNode);
-
-   }
-
-
-   private _convertBitStringValueToEndpointInfo(value: { value: number[], bitsUsed: number }, bitText: string[], parentInfo: any): InputDataEndpoint[] {
-      const bitStringArray: { id: number; value: boolean; name: string }[] = decodeBitStringValue(value, bitText);
-
-      return bitStringArray.map(bit => ({
-         id: `${parentInfo.idNetwork}_${bit.id}`,
-         typeId: parentInfo.typeId,
-         path: ` ${parentInfo.name}/${bit.name}`,
-         currentValue: bit.value,
-         present_value: bit.value,
-         name: bit.name,
-         type: SpinalBmsEndpoint.nodeTypeName,
-      }) as any);
-   }
-
-   public async _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]> {
-      const endpointAlreadyCreated = await this._getChildrenAsObj(groupNode, SpinalBmsEndpoint.relationName);
-
-      const promises = endpointArray.map(async (endpointInfo) => {
-         endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
-
-         const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
-
-         if (existingEndpoint) return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
-
-         const node = await this.createNetworkElementNode(endpointInfo, SpinalBmsEndpoint.nodeTypeName);
-         return groupNode.addChildInContext(node, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
-      });
-
-      return Promise.all(promises);
-   }
-
-   private _formatEndpointCreationInfo(endpointInfo: InputDataEndpoint): any {
-      return {
-         id: endpointInfo.id || endpointInfo.instance,
-         typeId: endpointInfo.typeId,
-         path: endpointInfo.path || "",
-         currentValue: endpointInfo.currentValue || endpointInfo.present_value,
-         name: endpointInfo.name || endpointInfo.object_name,
-         type: SpinalBmsEndpoint.nodeTypeName,
-         description: endpointInfo.description,
-         max_pres_value: endpointInfo.max_pres_value,
-         min_pres_value: endpointInfo.min_pres_value,
-         unit: endpointInfo.unit || "",
-         ...(endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }),
-      }
-   }
-
-   public async updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode> {
-      const element = await node.getElement(true);
-      this._updateElementInfo(element, newInfo);
-      this._modifyNodeInfo(node, element);
-      await this._createOrUpdateAttributesFromElement(node, element);
-
-      return node;
-   }
-
-   public async createNetworkElementNode(nodeInfo: InputDataTypes, type: BmsNodeType): Promise<SpinalNode> {
-      const element = this._createBmsElementFromType(nodeInfo, type);
-
-      if (!element) throw new Error(`Unsupported BMS node type: ${type}`);
-
-      return this._createBmsNodeFromElement(element);
-   }
-
-   private _updateElementInfo(element: spinal.Model, newInfo: InputDataTypes): void {
-      for (const key in newInfo) {
-         const value = newInfo[key];
-         if (element[key]) element[key].set(value);
-         else element.add_attr({ [key]: value });
-      }
-   }
-
-
-   private _createBmsElementFromType(nodeInfo: InputDataTypes, type: BmsNodeType): SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint | undefined {
-      nodeInfo.type = type;
-
-      switch (type) {
-         case SpinalBmsNetwork.nodeTypeName:
-            return new SpinalBmsNetwork(nodeInfo.name, type);
-
-         case SpinalBmsDevice.nodeTypeName:
-            return new SpinalBmsDevice(nodeInfo as InputDataDevice);
-
-         case SpinalBmsEndpointGroup.nodeTypeName:
-            return new SpinalBmsEndpointGroup(nodeInfo as InputDataEndpointGroup);
-
-         case SpinalBmsEndpoint.nodeTypeName:
-            return new SpinalBmsEndpoint(nodeInfo as InputDataEndpoint);
-      }
-   }
-
-   private async _createBmsNodeFromElement(element: SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint): Promise<SpinalNode> {
-      const name = element.name.get();
-      const type = element.type.get();
-
-      const node = new SpinalNode(name, type, element);
-
-      this._modifyNodeInfo(node, element);
-      await this._createOrUpdateAttributesFromElement(node, element);
-
-      return node;
-   }
-
-   private _modifyNodeInfo(node: SpinalNode, element: spinal.Model): void {
-      const attribuesToMod = element._attribute_names;
-
-      for (let attr of attribuesToMod) {
-         const value = element[attr];
-         if (attr === 'id') attr = 'idNetwork';
-
-         if (node.info[attr]) node.info.mod_attr(attr, value);
-         else node.info.add_attr({ [attr]: value });
-      }
-   }
-
-   private async _createOrUpdateAttributesFromElement(node: SpinalNode, nodeElement: SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint): Promise<void> {
-      const attributes = nodeElement._attribute_names;
-
-      const { element } = await serviceDocumentation.addCategoryAttribute(node, "default");
-      const existingAttributes = _convertSpinalAttributeListToObj(element);
-
-      for (const attr of attributes) {
-         let spinalAttr = existingAttributes[attr];
-         if (!spinalAttr) {
-            // use .get because attributeService need a string as value 
-            spinalAttr = new SpinalAttribute(attr, nodeElement[attr].get());
-            element.push(spinalAttr);
-         }
-
-         spinalAttr.mod_attr('value', nodeElement[attr].get());
-      }
-
-      function _convertSpinalAttributeListToObj(element: spinal.Lst<SpinalAttribute>): { [key: string]: SpinalAttribute } {
-         const obj: { [key: string]: SpinalAttribute } = {};
-
-         for (let i = 0; i < element.length; i++) {
-            const attrName = element[i].label.get();
-            obj[attrName] = element[i];
-         }
-         return obj;
-      }
-   }
-
-   private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalNode; organ: SpinalNode, context: SpinalContext }> {
-
-      const promises = [discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()];
-      const [graph, context, organ] = await Promise.all(promises);
-
-      // const organ = {
-      //    contextName: context.getName().get(),
-      //    contextType: context.getType().get(),
-      //    networkType: organNode.getType().get(),
-      //    networkName: organNode.getName().get()
-      // };
-
-      return { graph, organ, context };
-   }
-
-   private async _getOrCreateNetworkNode(context: SpinalContext, organ: SpinalNode, networkInfo: any): Promise<SpinalNode> {
-
-      const children = await organ.getChildrenInContext(context);
-
-      for (const child of children) {
-         if (child.getName().get() === networkInfo.name) {
-            return child;
-         }
-      }
-
-      const name = networkInfo.name;
-      const type = SpinalBmsNetwork.nodeTypeName;
-
-      const element = new SpinalBmsNetwork(name, type);
-      const networkNode = new SpinalNode(name, type, element);
-
-      return organ.addChildInContext(networkNode, SpinalBmsNetwork.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
-   }
-
-   private async _itemExistInChild(parentNode: SpinalNode, relationName: string, childNetworkId: string | number): Promise<SpinalNode | undefined> {
-      const children = await parentNode.getChildren([relationName]);
-
-      const found = children.find(el => el.info.idNetwork.get() == childNetworkId);
-
-      return found;
-   }
-
-   private async _getChildrenAsObj(parentNode: SpinalNode, relationName: string): Promise<{ [key: string]: SpinalNode }> {
-      const children = await parentNode.getChildren([relationName]);
-      const childObj: { [key: string]: SpinalNode } = {};
-
-      for (const child of children) {
-         const networkId = child.info.idNetwork.get();
-         childObj[networkId] = child;
-      }
-      return childObj;
-   }
-
-   private loadPtrValue(ptrModel: spinal.Ptr): Promise<SpinalGraph> {
-      return new Promise((resolve) => {
-         ptrModel.load((data) => resolve(data));
-      });
-   }
+	public async createEndpointsInGroup(context: SpinalContext, device: SpinalNode, endpointGroupName: string, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]> {
+		const endpointGroup = await this._createEndpointsGroup(context, device, endpointGroupName);
+		// const groupId = endpointGroup.id.get();
+
+		const endpointsNode = await this._createEndpointByArray(context, endpointGroup, endpointArray);
+
+		if (endpointGroup.info?.idNetwork?.get() == ObjectTypes.OBJECT_BITSTRING_VALUE) {
+			await this._createBitStringSubEndpoints(context, endpointsNode);
+		}
+
+		return endpointsNode;
+	}
+
+	public async _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode> {
+		const groupNetworkId = ObjectTypes[`object_${endpointGroupName}`.toUpperCase()];
+
+		const alreadyExist = await this._itemExistInChild(deviceNode, SpinalBmsEndpointGroup.relationName, groupNetworkId);
+
+		const groupInfo: any = {
+			name: endpointGroupName,
+			id: groupNetworkId,
+			type: SpinalBmsEndpointGroup.nodeTypeName,
+			path: "",
+		};
+
+		if (alreadyExist) return this.updateNetworkElementNode(alreadyExist, groupInfo);
+
+		const endpointGroup = await this.createNetworkElementNode(groupInfo, SpinalBmsEndpointGroup.nodeTypeName);
+		return deviceNode.addChildInContext(endpointGroup, SpinalBmsEndpointGroup.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
+	}
+
+	public async _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]> {
+		const promises = endpointsNode.map(async (endpointNode) => this._createOrUpdateEndpointsByBitStringValue(context, endpointNode));
+
+		return Promise.all(promises);
+	}
+
+	public async _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode> {
+		const element = await endpointNode.getElement(true);
+		const bitText: string[] = element.bit_text.get();
+		const value: { value: number[]; bitsUsed: number } = element.currentValue.get();
+
+		const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
+		return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo).then(() => endpointNode);
+	}
+
+	public async updateBitStringEndpointValue(endpointNode: SpinalNode, newValue: { value: number[]; bitsUsed: number }, saveTimeSeries: boolean = false): Promise<SpinalNode> {
+		const children = await endpointNode.getChildren([SpinalBmsEndpoint.relationName]);
+		const childrenObj: { [key: string]: SpinalNode } = children.reduce((acc: {}, child) => ({ ...acc, [`${child.info.idNetwork.get()}`]: child }), {});
+
+		const bitText: string[] = (await endpointNode.getElement(true)).bit_text.get();
+
+		const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(newValue, bitText, endpointNode.info.get());
+		const promises = [];
+
+		for (const endpoint of convertedValueToEndpointInfo) {
+			const childFound = childrenObj[endpoint.id];
+			if (childFound) promises.push(this._updateEndpointNodeValue(childFound, endpoint.currentValue, saveTimeSeries, true));
+		}
+
+		return Promise.all(promises).then(() => endpointNode);
+	}
+
+	private _convertBitStringValueToEndpointInfo(value: { value: number[]; bitsUsed: number }, bitText: string[], parentInfo: any): InputDataEndpoint[] {
+		const bitStringArray: { id: number; value: boolean; name: string }[] = decodeBitStringValue(value, bitText);
+
+		return bitStringArray.map(
+			(bit) =>
+				({
+					id: `${parentInfo.idNetwork}_${bit.id}`,
+					typeId: parentInfo.typeId,
+					path: ` ${parentInfo.name}/${bit.name}`,
+					currentValue: bit.value,
+					present_value: bit.value,
+					name: bit.name,
+					type: SpinalBmsEndpoint.nodeTypeName,
+				} as any),
+		);
+	}
+
+	public async _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]> {
+		const endpointAlreadyCreated = await this._getChildrenAsObj(groupNode, SpinalBmsEndpoint.relationName);
+
+		const promises = endpointArray.map(async (endpointInfo) => {
+			endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
+
+			const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
+
+			if (existingEndpoint) return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
+
+			const node = await this.createNetworkElementNode(endpointInfo, SpinalBmsEndpoint.nodeTypeName);
+			return groupNode.addChildInContext(node, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
+		});
+
+		return Promise.all(promises);
+	}
+
+	private _formatEndpointCreationInfo(endpointInfo: InputDataEndpoint): any {
+		return {
+			id: endpointInfo.id || endpointInfo.instance,
+			typeId: endpointInfo.typeId,
+			path: endpointInfo.path || "",
+			currentValue: endpointInfo.currentValue || endpointInfo.present_value,
+			name: endpointInfo.name || endpointInfo.object_name,
+			type: SpinalBmsEndpoint.nodeTypeName,
+			description: endpointInfo.description,
+			max_pres_value: endpointInfo.max_pres_value,
+			min_pres_value: endpointInfo.min_pres_value,
+			unit: endpointInfo.unit || "",
+			...(endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }),
+		};
+	}
+
+	public async updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode> {
+		const element = await node.getElement(true);
+		this._updateElementInfo(element, newInfo);
+		this._modifyNodeInfo(node, element);
+		await this._createOrUpdateAttributesFromElement(node, element);
+
+		return node;
+	}
+
+	public async createNetworkElementNode(nodeInfo: InputDataTypes, type: BmsNodeType): Promise<SpinalNode> {
+		const element = this._createBmsElementFromType(nodeInfo, type);
+
+		if (!element) throw new Error(`Unsupported BMS node type: ${type}`);
+
+		return this._createBmsNodeFromElement(element);
+	}
+
+	private _updateElementInfo(element: spinal.Model, newInfo: InputDataTypes): void {
+		for (const key in newInfo) {
+			const value = newInfo[key];
+			if (element[key]) element[key].set(value);
+			else element.add_attr({ [key]: value });
+		}
+	}
+
+	private _createBmsElementFromType(nodeInfo: InputDataTypes, type: BmsNodeType): SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint | undefined {
+		nodeInfo.type = type;
+
+		switch (type) {
+			case SpinalBmsNetwork.nodeTypeName:
+				return new SpinalBmsNetwork(nodeInfo.name, type);
+
+			case SpinalBmsDevice.nodeTypeName:
+				return new SpinalBmsDevice(nodeInfo as InputDataDevice);
+
+			case SpinalBmsEndpointGroup.nodeTypeName:
+				return new SpinalBmsEndpointGroup(nodeInfo as InputDataEndpointGroup);
+
+			case SpinalBmsEndpoint.nodeTypeName:
+				return new SpinalBmsEndpoint(nodeInfo as InputDataEndpoint);
+		}
+	}
+
+	private async _createBmsNodeFromElement(element: SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint): Promise<SpinalNode> {
+		const name = element.name.get();
+		const type = element.type.get();
+
+		const node = new SpinalNode(name, type, element);
+
+		this._modifyNodeInfo(node, element);
+		await this._createOrUpdateAttributesFromElement(node, element);
+
+		return node;
+	}
+
+	private _modifyNodeInfo(node: SpinalNode, element: spinal.Model): void {
+		const attribuesToMod = element._attribute_names;
+
+		for (let attr of attribuesToMod) {
+			const value = element[attr];
+			if (attr === "id") attr = "idNetwork";
+
+			if (node.info[attr]) node.info.mod_attr(attr, value);
+			else node.info.add_attr({ [attr]: value });
+		}
+	}
+
+	private async _createOrUpdateAttributesFromElement(node: SpinalNode, nodeElement: SpinalBmsNetwork | SpinalBmsDevice | SpinalBmsEndpointGroup | SpinalBmsEndpoint): Promise<void> {
+		const attributes = nodeElement._attribute_names;
+
+		const { element } = await serviceDocumentation.addCategoryAttribute(node, "default");
+		const existingAttributes = _convertSpinalAttributeListToObj(element);
+
+		for (const attr of attributes) {
+			let spinalAttr = existingAttributes[attr];
+			if (!spinalAttr) {
+				// use .get because attributeService need a string as value
+				spinalAttr = new SpinalAttribute(attr, nodeElement[attr].get());
+				element.push(spinalAttr);
+			}
+
+			spinalAttr.mod_attr("value", nodeElement[attr].get());
+		}
+
+		function _convertSpinalAttributeListToObj(element: spinal.Lst<SpinalAttribute>): { [key: string]: SpinalAttribute } {
+			const obj: { [key: string]: SpinalAttribute } = {};
+
+			for (let i = 0; i < element.length; i++) {
+				const attrName = element[i].label.get();
+				obj[attrName] = element[i];
+			}
+			return obj;
+		}
+	}
+
+	private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalNode; organ: SpinalNode; context: SpinalContext }> {
+		const promises = [discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()];
+		const [graph, context, organ] = await Promise.all(promises);
+
+		// const organ = {
+		//    contextName: context.getName().get(),
+		//    contextType: context.getType().get(),
+		//    networkType: organNode.getType().get(),
+		//    networkName: organNode.getName().get()
+		// };
+
+		return { graph, organ, context };
+	}
+
+	private async _getOrCreateNetworkNode(context: SpinalContext, organ: SpinalNode, networkInfo: any): Promise<SpinalNode> {
+		const children = await organ.getChildrenInContext(context);
+
+		for (const child of children) {
+			if (child.getName().get() === networkInfo.name) {
+				return child;
+			}
+		}
+
+		const name = networkInfo.name;
+		const type = SpinalBmsNetwork.nodeTypeName;
+
+		const element = new SpinalBmsNetwork(name, type);
+		const networkNode = new SpinalNode(name, type, element);
+
+		return organ.addChildInContext(networkNode, SpinalBmsNetwork.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
+	}
+
+	private async _itemExistInChild(parentNode: SpinalNode, relationName: string, childNetworkId: string | number): Promise<SpinalNode | undefined> {
+		const children = await parentNode.getChildren([relationName]);
+
+		const found = children.find((el) => el.info.idNetwork.get() == childNetworkId);
+
+		return found;
+	}
+
+	private async _getChildrenAsObj(parentNode: SpinalNode, relationName: string): Promise<{ [key: string]: SpinalNode }> {
+		const children = await parentNode.getChildren([relationName]);
+		const childObj: { [key: string]: SpinalNode } = {};
+
+		for (const child of children) {
+			const networkId = child.info.idNetwork.get();
+			childObj[networkId] = child;
+		}
+		return childObj;
+	}
+
+	private loadPtrValue(ptrModel: spinal.Ptr): Promise<SpinalGraph> {
+		return new Promise((resolve) => {
+			ptrModel.load((data) => resolve(data));
+		});
+	}
 }
 
-
 const SpinalNetworkUtilities = SpinalNetworkUtilitiesClass.getIntance();
-export { SpinalNetworkUtilities }
+export { SpinalNetworkUtilities };

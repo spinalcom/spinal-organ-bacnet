@@ -42,7 +42,7 @@ export declare class SpinalDevice extends EventEmitter {
     private generateNetworkEndpoints;
     private formatAndGroupEndpoints;
     updateEndpoints(interval: number): Promise<void | boolean[]>;
-    shoulSaveTimeSeries(objectId?: IObjectId): boolean;
+    shouldSaveTimeSeries(objectId?: IObjectId): boolean;
     private _getChildrenTimeSeries;
     private _getDeviceInfo;
     private _groupAndFormatItems;

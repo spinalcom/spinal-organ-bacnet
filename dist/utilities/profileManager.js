@@ -57,7 +57,7 @@ class ProfileManager extends EventEmitter {
     _waitIfProcessing() {
         return __awaiter(this, void 0, void 0, function* () {
             while (this._isProcessingQueue) {
-                yield new Promise(resolve => setTimeout(resolve, 500));
+                yield new Promise((resolve) => setTimeout(resolve, 500));
             }
         });
     }
@@ -92,7 +92,7 @@ class ProfileManager extends EventEmitter {
                 res.push({
                     interval: monitoring.IntervalTime,
                     monitoring: monitoring.Monitoring,
-                    children
+                    children,
                 });
             }
             return res;
@@ -100,8 +100,7 @@ class ProfileManager extends EventEmitter {
     }
     _getIntervalInfo(intervalNodeRef) {
         return __awaiter(this, void 0, void 0, function* () {
-            return Promise.all([this._getSharedAttributes(intervalNodeRef), this._getEndpointsObjectIds(intervalNodeRef)])
-                .then(([monitoring, children]) => {
+            return Promise.all([this._getSharedAttributes(intervalNodeRef), this._getEndpointsObjectIds(intervalNodeRef)]).then(([monitoring, children]) => {
                 return { monitoring, children };
             });
         });
@@ -131,7 +130,7 @@ class ProfileManager extends EventEmitter {
                 return { instance, savetimeseries, type: this._getBacnetObjectType(item) };
             }));
             return Promise.all(promises).then((result) => {
-                return result.filter(item => item.instance !== undefined);
+                return result.filter((item) => item.instance !== undefined);
             });
         });
     }
@@ -151,7 +150,9 @@ class ProfileManager extends EventEmitter {
         });
     }
     _getBacnetObjectType(item) {
-        const type = item.getType().get();
+        let type = item.getType().get();
+        if (type.toLowerCase() == "loopvalue")
+            type = "loop";
         const typeToKebabCase = type.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`); // convert camelCase to kebab-case
         const objectName = `object_${typeToKebabCase}`.toUpperCase(); // convert to uppercase
         return bacnetEnum_1.BacnetEnum.ObjectTypes[objectName]; // convert type to bacnet object type enum

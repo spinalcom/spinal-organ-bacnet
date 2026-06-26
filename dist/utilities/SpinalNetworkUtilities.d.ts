@@ -5,7 +5,7 @@ import { SpinalDevice } from "../modules/SpinalDevice";
 import { IDataDiscover } from "../Interfaces/IDataDiscover";
 import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
 declare const bmsTypeNames: readonly [string, string, string, string];
-type BmsNodeType = typeof bmsTypeNames[number];
+type BmsNodeType = (typeof bmsTypeNames)[number];
 type InputDataTypes = ({
     name: string;
     type: string;
@@ -34,6 +34,10 @@ declare class SpinalNetworkUtilitiesClass {
     _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode>;
     _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]>;
     _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode>;
+    updateBitStringEndpointValue(endpointNode: SpinalNode, newValue: {
+        value: number[];
+        bitsUsed: number;
+    }, saveTimeSeries?: boolean): Promise<SpinalNode>;
     private _convertBitStringValueToEndpointInfo;
     _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
     private _formatEndpointCreationInfo;

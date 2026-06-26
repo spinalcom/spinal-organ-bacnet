@@ -105,16 +105,15 @@ class SpinalNetworkUtilitiesClass {
                 const endpointKey = `${child.type}_${child.id}`;
                 const endpointNode = endpointsObj[endpointKey];
                 if (endpointNode) {
-                    const saveTimeSeries = spinalDevice.shoulSaveTimeSeries({ instance: child.id, type: child.type });
+                    const saveTimeSeries = spinalDevice.shouldSaveTimeSeries({ instance: child.id, type: child.type });
                     promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
                 }
-                ;
             }
             return Promise.all(promises);
         });
     }
     _updateEndpointNodeValue(endpointNode_1, newValue_1) {
-        return __awaiter(this, arguments, void 0, function* (endpointNode, newValue, saveTimeSeries = false) {
+        return __awaiter(this, arguments, void 0, function* (endpointNode, newValue, saveTimeSeries = false, itsBitStringChild = false) {
             const element = yield endpointNode.getElement(true);
             if (!element)
                 return false;
@@ -125,9 +124,13 @@ class SpinalNetworkUtilitiesClass {
             if (saveTimeSeries && (typeof newValue === "number" || typeof newValue === "boolean")) {
                 spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(endpointNode);
                 const timeSeriesService = this.getTimeSeriesInstance();
-                return timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
+                yield timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
             }
-            return false;
+            const { typeId } = endpointNode.info.get();
+            if (typeId === GlobalVariables_1.ObjectTypes.OBJECT_BITSTRING_VALUE && !itsBitStringChild) {
+                yield this.updateBitStringEndpointValue(endpointNode, newValue);
+            }
+            return true;
         });
     }
     _getAllEndpointsInGraph(deviceNode) {
@@ -137,7 +140,7 @@ class SpinalNetworkUtilitiesClass {
                 const endpointsObj = {};
                 const typeId = group.info.idNetwork.get();
                 const children = yield group.getChildren([spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName]);
-                children.forEach((child) => endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child);
+                children.forEach((child) => (endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child));
                 return endpointsObj;
             }));
             return Promise.all(promises).then((result) => {
@@ -185,13 +188,27 @@ class SpinalNetworkUtilitiesClass {
             const bitText = element.bit_text.get();
             const value = element.currentValue.get();
             const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
-            return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo)
-                .then(() => endpointNode);
+            return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo).then(() => endpointNode);
+        });
+    }
+    updateBitStringEndpointValue(endpointNode_1, newValue_1) {
+        return __awaiter(this, arguments, void 0, function* (endpointNode, newValue, saveTimeSeries = false) {
+            const children = yield endpointNode.getChildren([spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName]);
+            const childrenObj = children.reduce((acc, child) => (Object.assign(Object.assign({}, acc), { [`${child.info.idNetwork.get()}`]: child })), {});
+            const bitText = (yield endpointNode.getElement(true)).bit_text.get();
+            const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(newValue, bitText, endpointNode.info.get());
+            const promises = [];
+            for (const endpoint of convertedValueToEndpointInfo) {
+                const childFound = childrenObj[endpoint.id];
+                if (childFound)
+                    promises.push(this._updateEndpointNodeValue(childFound, endpoint.currentValue, saveTimeSeries, true));
+            }
+            return Promise.all(promises).then(() => endpointNode);
         });
     }
     _convertBitStringValueToEndpointInfo(value, bitText, parentInfo) {
         const bitStringArray = (0, Functions_1.decodeBitStringValue)(value, bitText);
-        return bitStringArray.map(bit => ({
+        return bitStringArray.map((bit) => ({
             id: `${parentInfo.idNetwork}_${bit.id}`,
             typeId: parentInfo.typeId,
             path: ` ${parentInfo.name}/${bit.name}`,
@@ -271,8 +288,8 @@ class SpinalNetworkUtilitiesClass {
         const attribuesToMod = element._attribute_names;
         for (let attr of attribuesToMod) {
             const value = element[attr];
-            if (attr === 'id')
-                attr = 'idNetwork';
+            if (attr === "id")
+                attr = "idNetwork";
             if (node.info[attr])
                 node.info.mod_attr(attr, value);
             else
@@ -287,11 +304,11 @@ class SpinalNetworkUtilitiesClass {
             for (const attr of attributes) {
                 let spinalAttr = existingAttributes[attr];
                 if (!spinalAttr) {
-                    // use .get because attributeService need a string as value 
+                    // use .get because attributeService need a string as value
                     spinalAttr = new spinal_models_documentation_1.SpinalAttribute(attr, nodeElement[attr].get());
                     element.push(spinalAttr);
                 }
-                spinalAttr.mod_attr('value', nodeElement[attr].get());
+                spinalAttr.mod_attr("value", nodeElement[attr].get());
             }
             function _convertSpinalAttributeListToObj(element) {
                 const obj = {};
@@ -334,7 +351,7 @@ class SpinalNetworkUtilitiesClass {
     _itemExistInChild(parentNode, relationName, childNetworkId) {
         return __awaiter(this, void 0, void 0, function* () {
             const children = yield parentNode.getChildren([relationName]);
-            const found = children.find(el => el.info.idNetwork.get() == childNetworkId);
+            const found = children.find((el) => el.info.idNetwork.get() == childNetworkId);
             return found;
         });
     }

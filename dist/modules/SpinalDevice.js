@@ -106,22 +106,27 @@ class SpinalDevice extends events_1.EventEmitter {
         });
     }
     _restartDevice() {
+        if (!this._listenerModel)
+            return;
         this._listenerModel.monitored.set(false);
         // restart the device after 1 second to let time to the system to remove old data
         setTimeout(() => {
-            this._listenerModel.monitored.set(true);
+            if (this._listenerModel)
+                this._listenerModel.monitored.set(true);
         }, 1000);
     }
     /** use this function only if device is not created yet */
     init() {
         if (!this.device)
             throw new Error("Device info is not defined");
-        return this._getDeviceInfo(this.device).then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
+        return this._getDeviceInfo(this.device)
+            .then((deviceInfo) => __awaiter(this, void 0, void 0, function* () {
             // this.info = deviceInfo;
             this.device = deviceInfo;
             this.emit("initialized", this);
             return true;
-        })).catch((err) => {
+        }))
+            .catch((err) => {
             this.emit("error", err);
             return false;
         });
@@ -183,7 +188,10 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     getProfileDataByInterval(interval) {
         const data = this._profileData[interval] || [];
-        const allChildren = data.map(el => el.children).flat();
+        const allChildren = data.reduce((acc, el) => {
+            acc.push(...(el.children || []));
+            return acc;
+        }, []);
         return allChildren.reduce((acc, curr) => {
             if (typeof curr === "undefined")
                 return acc;
@@ -295,9 +303,11 @@ class SpinalDevice extends events_1.EventEmitter {
                 console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
                 return [];
             }
-            const endpointToCreateFormatted = endpointsToCreate.map(el => ({ type: el.type, instance: el.instance }));
+            const endpointToCreateFormatted = endpointsToCreate.map((el) => ({ type: el.type, instance: el.instance }));
             const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getObjectDetail(this.device, endpointToCreateFormatted);
-            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item) { return item.type; });
+            const childrenGroups = lodash.groupBy(lodash.flattenDeep(objectListDetails), function (item) {
+                return item.type;
+            });
             return childrenGroups;
         });
     }
@@ -324,21 +334,24 @@ class SpinalDevice extends events_1.EventEmitter {
             }
         });
     }
-    shoulSaveTimeSeries(objectId) {
-        var _a, _b;
-        if (!objectId)
+    shouldSaveTimeSeries(objectId) {
+        var _a, _b, _c, _d;
+        if (!objectId || typeof objectId.savetimeseries === "undefined")
             return ((_b = (_a = this._listenerModel) === null || _a === void 0 ? void 0 : _a.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.get()) || false;
         const itemsMonitored = this.getAllItemsMonitored();
-        const found = itemsMonitored.find(el => el.instance == objectId.instance && el.type == objectId.type);
+        const found = itemsMonitored.find((el) => el.instance == objectId.instance && el.type == objectId.type);
+        if (!found)
+            return ((_d = (_c = this._listenerModel) === null || _c === void 0 ? void 0 : _c.saveTimeSeries) === null || _d === void 0 ? void 0 : _d.get()) || false;
         return this._getChildrenTimeSeries(found);
     }
     //////////////////////////////////////////////////////////////////////////////
     ////                      PRIVATES                                        ////
     //////////////////////////////////////////////////////////////////////////////
     _getChildrenTimeSeries(objectId) {
-        if (!objectId.savetimeseries)
-            return this.shoulSaveTimeSeries(); // getGlobalVariable;
-        const timeSeries = objectId.savetimeseries.get();
+        var _a, _b;
+        if (!(objectId === null || objectId === void 0 ? void 0 : objectId.savetimeseries))
+            return ((_b = (_a = this._listenerModel) === null || _a === void 0 ? void 0 : _a.saveTimeSeries) === null || _b === void 0 ? void 0 : _b.get()) || false;
+        const timeSeries = objectId === null || objectId === void 0 ? void 0 : objectId.savetimeseries.get();
         if (typeof timeSeries == "boolean")
             return timeSeries;
         return timeSeries.toString().toLowerCase() == "true";
@@ -362,7 +375,7 @@ class SpinalDevice extends events_1.EventEmitter {
                     description: yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
                     segmentation: device.segmentation || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
                     vendorId: device.vendorId || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                    maxApdu: device.maxApdu || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED))
+                    maxApdu: device.maxApdu || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)),
                 };
             }
             catch (error) {
@@ -375,18 +388,12 @@ class SpinalDevice extends events_1.EventEmitter {
         });
     }
     _groupAndFormatItems(objectListDetails) {
-        const itemsGrouped = lodash.groupBy(objectListDetails, function (item) { return item.type; });
+        const itemsGrouped = lodash.groupBy(objectListDetails, function (item) {
+            return item.type;
+        });
         const listes = Array.from(Object.keys(itemsGrouped)).map((key) => [key, itemsGrouped[key]]);
         return listes;
     }
-    // private _groupByType(itemList: any) {
-    //    const res = []
-    //    const obj = lodash.groupBy(itemList, (a: any) => a.type);
-    //    for (const [key, value] of Object.entries(obj)) {
-    //       res.push({ id: parseInt(key), children: obj[key] })
-    //    }
-    //    return res;
-    // }
     _getDataValue(address, sadr, objectId, PropertyId) {
         return __awaiter(this, void 0, void 0, function* () {
             const formated = yield BacnetUtilities_1.BacnetUtilities._getPropertyValue(address, sadr, objectId, PropertyId);
@@ -435,21 +442,12 @@ class SpinalDevice extends events_1.EventEmitter {
     _getDeviceStructureFromGraph(listenerModel) {
         return __awaiter(this, void 0, void 0, function* () {
             const treeList = [listenerModel.graph, listenerModel.context, listenerModel.network, listenerModel.organ, listenerModel.bmsDevice, listenerModel.profile];
-            const promises = treeList.map(ptr => (0, Functions_1.loadPtrValue)(ptr));
+            const promises = treeList.map((ptr) => (0, Functions_1.loadPtrValue)(ptr));
             return Promise.all(promises).then(([graph, context, network, organ, bmsDevice, profile]) => {
                 return { graph, context, network, organ, bmsDevice, profile };
             });
         });
     }
-    // private async _initNetworkService(graph: SpinalGraph, context: SpinalContext, organ: SpinalNode) {
-    //    const networkInfo = {
-    //       contextName: context.getName().get(),
-    //       contextType: context.getType().get(),
-    //       networkType: organ.getType().get(),
-    //       networkName: organ.getName().get()
-    //    };
-    //    await this._networkService.init(graph, networkInfo);
-    // }
     _classifyChildrenByInterval(intervals) {
         const res = {};
         for (const intervalData of intervals) {
@@ -465,7 +463,7 @@ class SpinalDevice extends events_1.EventEmitter {
 }
 exports.SpinalDevice = SpinalDevice;
 /////////////////////////////////////////////////////////////////
-//  create a queue to get all bacnet values of a device and create items in graph, 
+//  create a queue to get all bacnet values of a device and create items in graph,
 // this is to avoid multiple calls at the same time which can cause performance issues and bacnet timeouts
 /////////////////////////////////////////////////////////////////
 const allBacnetValueQueue = new spinal_connector_service_1.SpinalQueue();
