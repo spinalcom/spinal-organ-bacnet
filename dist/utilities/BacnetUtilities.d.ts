@@ -5,6 +5,7 @@ declare class BacnetUtilitiesClass {
     private static instance;
     private _client;
     private _ipcClient;
+    private _clientId;
     private constructor();
     private clientState;
     static getInstance(): BacnetUtilitiesClass;

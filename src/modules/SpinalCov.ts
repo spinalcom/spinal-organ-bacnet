@@ -6,134 +6,128 @@ import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 import EventEmitter from "events";
 
 export type EventPayload = {
-    error?: { message: string };
-    key?: string;
-    data?: any;
-    eventName: string;
+	error?: { message: string };
+	key?: string;
+	data?: any;
+	eventName: string;
+	_clientId?: string;
+	timestamp?: number;
 };
 
 class SpinalCov extends EventEmitter {
-    private static _instance: SpinalCov;
+	private static _instance: SpinalCov;
 
-    private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(10000); // 5s delay before start item treatment, no auto start
-    private itemsToStopQueue: SpinalQueue<ICovData> = new SpinalQueue();
+	private itemToWatchQueue: SpinalQueue<ICovData> = new SpinalQueue(10000); // 5s delay before start item treatment, no auto start
+	private itemsToStopQueue: SpinalQueue<ICovData> = new SpinalQueue();
 
-    // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
-    private _lastCovNotification: number | null = null;
-    private itemMonitored: Map<string, ICovData> = new Map();
+	// private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions
+	private _lastCovNotification: number | null = null;
+	private itemMonitored: Map<string, ICovData> = new Map();
 
-    private constructor() {
-        super();
+	private constructor() {
+		super();
 
-        this._listenEvents(); // start listening to messages from cov process
+		this._listenEvents(); // start listening to messages from cov process
 
-        this.itemToWatchQueue.on("start", () => {
-            const list = this.itemToWatchQueue.toArray();
-            this.itemToWatchQueue.clear(); // clear queue to avoid duplicate processing
-            this.processToDataTreatment(list, COV_EVENTS_NAMES.subscribe);
-        });
+		this.itemToWatchQueue.on("start", () => {
+			const list = this.itemToWatchQueue.toArray();
+			this.itemToWatchQueue.clear(); // clear queue to avoid duplicate processing
+			this.processToDataTreatment(list, COV_EVENTS_NAMES.subscribe);
+		});
 
-        this.itemsToStopQueue.on("start", () => {
-            const list = this.itemsToStopQueue.toArray();
-            this.itemsToStopQueue.clear(); // clear queue to avoid duplicate processing
-            this.processToDataTreatment(list, COV_EVENTS_NAMES.unsubscribe);
-        });
+		this.itemsToStopQueue.on("start", () => {
+			const list = this.itemsToStopQueue.toArray();
+			this.itemsToStopQueue.clear(); // clear queue to avoid duplicate processing
+			this.processToDataTreatment(list, COV_EVENTS_NAMES.unsubscribe);
+		});
+	}
 
-    }
+	static getInstance(): SpinalCov {
+		if (!this._instance) this._instance = new SpinalCov();
+		return this._instance;
+	}
 
+	public updateLastCovNotificationTime() {
+		this._lastCovNotification = Date.now();
+	}
 
-    static getInstance(): SpinalCov {
-        if (!this._instance) this._instance = new SpinalCov();
-        return this._instance;
-    }
+	public startCovProcessing() {
+		console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
+		this.itemToWatchQueue.start();
+	}
 
-    public updateLastCovNotificationTime() {
-        this._lastCovNotification = Date.now();
-    }
+	public stopAllCovSubscriptions() {
+		const allItems = Array.from(this.itemMonitored.values());
+		this.addToStopCovQueue(allItems as ICovData[]);
+		return allItems;
+	}
 
-    public startCovProcessing() {
-        console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
-        this.itemToWatchQueue.start();
-    }
+	public restartAllCovSubscriptions() {
+		console.log("[COV] - Restarting all COV subscriptions after client reset");
+		const allItems = Array.from(this.itemMonitored.values());
+		this.addToCovQueue(allItems as ICovData[]);
 
-    public stopAllCovSubscriptions() {
-        const allItems = Array.from(this.itemMonitored.values());
-        this.addToStopCovQueue(allItems as ICovData[]);
-        return allItems;
-    }
+		setTimeout(() => {
+			this.startCovProcessing();
+		}, 4000);
+	}
 
-    public restartAllCovSubscriptions() {
-        console.log("[COV] - Restarting all COV subscriptions after client reset");
-        const allItems = Array.from(this.itemMonitored.values());
-        this.addToCovQueue(allItems as ICovData[]);
+	public async addToCovQueue(data: ICovData | ICovData[]): Promise<void> {
+		if (!Array.isArray(data)) data = [data];
 
-        setTimeout(() => {
-            this.startCovProcessing();
-        }, 4000);
-    }
+		for (const obj of data) {
+			this.itemToWatchQueue.addToQueue(obj);
+		}
+	}
 
-    public async addToCovQueue(data: ICovData | ICovData[]): Promise<void> {
-        if (!Array.isArray(data)) data = [data];
+	public addToStopCovQueue(data: ICovData | ICovData[]) {
+		if (!Array.isArray(data)) data = [data];
+		for (const obj of data) {
+			this.itemsToStopQueue.addToQueue(obj);
+		}
+	}
 
-        for (const obj of data) {
-            this.itemToWatchQueue.addToQueue(obj);
-        }
-    }
+	public async processToDataTreatment(list: ICovData[], eventName: (typeof COV_EVENTS_NAMES)[keyof typeof COV_EVENTS_NAMES]) {
+		const formatted: ICovSubscribeReq[] = [];
 
-    public addToStopCovQueue(data: ICovData | ICovData[]) {
-        if (!Array.isArray(data)) data = [data];
-        for (const obj of data) {
-            this.itemsToStopQueue.addToQueue(obj);
-        }
-    }
+		for (const { spinalDevice, children } of list) {
+			const ip = spinalDevice?.device?.address;
+			if (!ip) continue; // skip if no ip
 
-    public async processToDataTreatment(list: ICovData[], eventName: typeof COV_EVENTS_NAMES[keyof typeof COV_EVENTS_NAMES]) {
+			if (eventName === COV_EVENTS_NAMES.subscribe) this.itemMonitored.set(ip, { spinalDevice, children }); // Store the device
+			else if (eventName === COV_EVENTS_NAMES.unsubscribe && this.itemMonitored.has(ip)) {
+				console.log(`[COV] - Unsubscribing from device ${ip}`);
+				this.itemMonitored.delete(ip); // Remove the device
+			}
 
-        const formatted: ICovSubscribeReq[] = [];
+			formatted.push(...this.formatChildren(ip, children));
+		}
 
-        for (const { spinalDevice, children } of list) {
-            const ip = spinalDevice?.device?.address;
-            if (!ip) continue; // skip if no ip
+		BacnetUtilities.sendCovRequest({ eventName, data: formatted });
+		// sendEvent({ eventName, data: formatted });
+	}
 
-            if (eventName === COV_EVENTS_NAMES.subscribe)
-                this.itemMonitored.set(ip, { spinalDevice, children }); // Store the device
+	private _checkCovStatus() {
+		setInterval(() => {
+			if (this.itemMonitored.size === 0) return; // no subscription, skip check
 
-            else if (eventName === COV_EVENTS_NAMES.unsubscribe && this.itemMonitored.has(ip)) {
-                console.log(`[COV] - Unsubscribing from device ${ip}`);
-                this.itemMonitored.delete(ip); // Remove the device
-            }
+			const sinceNow = this._lastCovNotification ? Date.now() - this._lastCovNotification : -1;
+			const alertTime = 60 * 1000; // 1 minute without COV notification;
 
-            formatted.push(...this.formatChildren(ip, children));
-        }
+			const tooLong = sinceNow > alertTime; // more than 1 minute
 
-        BacnetUtilities.sendCovRequest({ eventName, data: formatted });
-        // sendEvent({ eventName, data: formatted });
-    }
+			if (tooLong) {
+				console.log(`[COV] - No COV notification received for more than ${alertTime / 1000}s , restarting all subscriptions`);
+				this.restartAllCovSubscriptions();
+			}
+		}, 60 * 1000);
+	}
 
+	private formatChildren(ip: string, children: ICovData["children"]): ICovSubscribeReq[] {
+		return children.map((child) => ({ ip, object: { instance: child.instance, type: child.type } }));
+	}
 
-    private _checkCovStatus() {
-
-        setInterval(() => {
-            if (this.itemMonitored.size === 0) return; // no subscription, skip check
-
-            const sinceNow = this._lastCovNotification ? (Date.now() - this._lastCovNotification) : -1;
-            const alertTime = 60 * 1000; // 1 minute without COV notification;
-
-            const tooLong = sinceNow > alertTime; // more than 1 minute
-
-            if (tooLong) {
-                console.log(`[COV] - No COV notification received for more than ${alertTime / 1000}s , restarting all subscriptions`);
-                this.restartAllCovSubscriptions();
-            }
-
-        }, 60 * 1000);
-    }
-
-    private formatChildren(ip: string, children: ICovData["children"]): ICovSubscribeReq[] {
-        return children.map((child) => ({ ip, object: { instance: child.instance, type: child.type } }));
-    }
-
-    /*
+	/*
     private createForkedProcess(): ChildProcess {
 
         const path = require.resolve("./cov");
@@ -165,54 +159,44 @@ class SpinalCov extends EventEmitter {
         return forked;
     }
     */
-    public async _updateDeviceValue(address: string, request: any) {
-        const currentValue = request.values.find((v: any) => v.property?.id === PropertyIds.PROP_PRESENT_VALUE);
-        if (!currentValue) return;
+	public async _updateDeviceValue(address: string, request: any) {
+		const currentValue = request.values.find((v: any) => v.property?.id === PropertyIds.PROP_PRESENT_VALUE);
+		if (!currentValue) return;
 
-        const value = BacnetUtilities._getObjValue(currentValue.value); // extract value
+		const value = BacnetUtilities._getObjValue(currentValue.value); // extract value
 
-        const object = request.monitoredObjectId;
-        const monitoredData = this.itemMonitored.get(address);
+		const object = request.monitoredObjectId;
+		const monitoredData = this.itemMonitored.get(address);
 
-        if (!monitoredData) return;
+		if (!monitoredData) return;
 
-        const { spinalDevice } = monitoredData;
-        const key = `${object.type}_${object.instance}`;
+		const { spinalDevice } = monitoredData;
+		const key = `${object.type}_${object.instance}`;
 
+		const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
 
-        const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
+		console.log(`[COV] - Updating item (${JSON.stringify(object)}) from device ${address} with value ${value}`);
 
+		const node = spinalDevice.getBmsDeviceNode();
 
-        console.log(`[COV] - Updating item (${JSON.stringify(object)}) from device ${address} with value ${value}`);
+		if (node) return SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);
+	}
 
-        const node = spinalDevice.getBmsDeviceNode();
+	private _listenEvents() {
+		this.on(COV_EVENTS_NAMES.subscribed, async (data: any) => {
+			console.log("[COV] - Subscribed to", data?.key);
+		});
 
-        if (node) return SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, children);
-    }
+		this.on(COV_EVENTS_NAMES.error, async (data: any) => {
+			console.error(`[COV] - Failed to subscribe to ${data?.key} due to", "${data?.error?.message}"`);
+		});
 
-    private _listenEvents() {
-
-        this.on(COV_EVENTS_NAMES.subscribed, async (data: any) => {
-            console.log("[COV] - Subscribed to", data?.key);
-        });
-
-        this.on(COV_EVENTS_NAMES.error, async (data: any) => {
-            console.error(`[COV] - Failed to subscribe to ${data?.key} due to", "${data?.error?.message}"`);
-        });
-
-        this.on(COV_EVENTS_NAMES.changed, async ({ data }: any) => {
-            // console.log("[COV] - Change event received from", data?.address);
-            // SpinalCov.getInstance().updateLastCovNotificationTime();
-            await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
-
-        });
-
-    }
-
-
-
-
+		this.on(COV_EVENTS_NAMES.changed, async ({ data }: any) => {
+			// console.log("[COV] - Change event received from", data?.address);
+			// SpinalCov.getInstance().updateLastCovNotificationTime();
+			await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
+		});
+	}
 }
 
-
-export { SpinalCov }
+export { SpinalCov };

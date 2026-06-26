@@ -33,6 +33,7 @@ class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
 	private _client: bacnet = null;
 	private _ipcClient: any = null;
+	private _clientId: string = process.env.ORGAN_NAME || "spinal-organ-bacnet";
 
 	private constructor() {}
 
@@ -62,7 +63,7 @@ class BacnetUtilitiesClass {
 	private _connectToServer() {
 		return new Promise((resolve, reject) => {
 			const serverServiceName = SERVICE_NAME;
-			const clientServiceName = process.env.ORGAN_NAME || "spinal-organ-bacnet";
+			const clientServiceName = this._clientId;
 
 			ipc.config.id = clientServiceName; // Set the IPC client ID to the organ name or a default value
 			ipc.config.retry = 5000; // Retry every 5 seconds if connection to server is lost
@@ -93,6 +94,9 @@ class BacnetUtilitiesClass {
 	}
 
 	public sendCovRequest(data: EventPayload) {
+		data._clientId = this._clientId;
+		data.timestamp = Date.now();
+
 		if (this._ipcClient) this._ipcClient.emit(COV_EVENT_NAME, data);
 	}
 
@@ -173,6 +177,8 @@ class BacnetUtilitiesClass {
 				name: functionName,
 				id: uuid(),
 				parameters: parameters,
+				_clientId: this._clientId,
+				timestamp: Date.now(),
 			};
 
 			this._ipcClient.emit(MESSAGE_EVENT_NAME, params);

@@ -23,7 +23,7 @@ class SpinalCov extends events_1.default {
         super();
         this.itemToWatchQueue = new spinal_connector_service_1.SpinalQueue(10000); // 5s delay before start item treatment, no auto start
         this.itemsToStopQueue = new spinal_connector_service_1.SpinalQueue();
-        // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions 
+        // private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions
         this._lastCovNotification = null;
         this.itemMonitored = new Map();
         this._listenEvents(); // start listening to messages from cov process
@@ -103,7 +103,7 @@ class SpinalCov extends events_1.default {
         setInterval(() => {
             if (this.itemMonitored.size === 0)
                 return; // no subscription, skip check
-            const sinceNow = this._lastCovNotification ? (Date.now() - this._lastCovNotification) : -1;
+            const sinceNow = this._lastCovNotification ? Date.now() - this._lastCovNotification : -1;
             const alertTime = 60 * 1000; // 1 minute without COV notification;
             const tooLong = sinceNow > alertTime; // more than 1 minute
             if (tooLong) {

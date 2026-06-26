@@ -8,6 +8,8 @@ export type EventPayload = {
     key?: string;
     data?: any;
     eventName: string;
+    _clientId?: string;
+    timestamp?: number;
 };
 declare class SpinalCov extends EventEmitter {
     private static _instance;
@@ -23,7 +25,7 @@ declare class SpinalCov extends EventEmitter {
     restartAllCovSubscriptions(): void;
     addToCovQueue(data: ICovData | ICovData[]): Promise<void>;
     addToStopCovQueue(data: ICovData | ICovData[]): void;
-    processToDataTreatment(list: ICovData[], eventName: typeof COV_EVENTS_NAMES[keyof typeof COV_EVENTS_NAMES]): Promise<void>;
+    processToDataTreatment(list: ICovData[], eventName: (typeof COV_EVENTS_NAMES)[keyof typeof COV_EVENTS_NAMES]): Promise<void>;
     private _checkCovStatus;
     private formatChildren;
     _updateDeviceValue(address: string, request: any): Promise<boolean[]>;
