@@ -311,8 +311,7 @@ class SpinalNetworkUtilitiesClass {
 
    private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalGraph; organ: SpinalNode, context: SpinalContext }> {
 
-      const promises = [discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()];
-      const [graph, context, organ] = await Promise.all(promises);
+      const [graph, context, organ] = await Promise.all([discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()]);
 
       // const organ = {
       //    contextName: context.getName().get(),
@@ -321,7 +320,7 @@ class SpinalNetworkUtilitiesClass {
       //    networkName: organNode.getName().get()
       // };
 
-      return { graph, organ, context };
+      return { graph: graph as SpinalGraph, organ, context };
    }
 
    private async _getOrCreateNetworkNode(context: SpinalContext, organ: SpinalNode, networkInfo: any): Promise<SpinalNode> {

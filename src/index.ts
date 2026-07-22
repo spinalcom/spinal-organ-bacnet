@@ -66,7 +66,7 @@ spinalConnectorService.initialize(connect, organInfo).then(async ({ alreadyExist
    const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
    console.log(message);
 
-   bindAllModels(node);
+   bindAllModels(node as SpinalOrganConfigModel);
 
 }).catch((err) => {
    console.error("Error", err);

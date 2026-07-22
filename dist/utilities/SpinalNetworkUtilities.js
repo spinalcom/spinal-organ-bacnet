@@ -280,15 +280,14 @@ class SpinalNetworkUtilitiesClass {
     }
     _getSpinalDiscoverModel(discoverModel) {
         return __awaiter(this, void 0, void 0, function* () {
-            const promises = [discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()];
-            const [graph, context, organ] = yield Promise.all(promises);
+            const [graph, context, organ] = yield Promise.all([discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()]);
             // const organ = {
             //    contextName: context.getName().get(),
             //    contextType: context.getType().get(),
             //    networkType: organNode.getType().get(),
             //    networkName: organNode.getName().get()
             // };
-            return { graph, organ, context };
+            return { graph: graph, organ, context };
         });
     }
     _getOrCreateNetworkNode(context, organ, networkInfo) {

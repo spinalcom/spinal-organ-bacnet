@@ -116,7 +116,7 @@ class SpinalPilot {
     }
     writeProperty(req) {
         return __awaiter(this, void 0, void 0, function* () {
-            const types = this.getDataTypes(req.objectId.type);
+            const types = this.getDataTypes(Number(req.objectId.type));
             let success = false;
             while (types.length > 0 && !success) {
                 const type = types.shift();
@@ -182,8 +182,8 @@ class SpinalPilot {
     }
     _getBacnetPriority(req) {
         // if priority is defined in REQ
-        if (req.priority && !isNaN(req.priority))
-            return parseInt(req.priority);
+        if (req.priority && !isNaN(Number(req.priority)))
+            return parseInt(`${req.priority}`);
         // else if priority is defined in .env
         if (process.env.BACNET_PRIORITY && !isNaN(process.env.BACNET_PRIORITY))
             return parseInt(process.env.BACNET_PRIORITY);

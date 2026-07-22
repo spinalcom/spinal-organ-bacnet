@@ -29,6 +29,11 @@ import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalV
 
 import BacnetUtilities from "../utilities/BacnetUtilities";
 
+// the write priority is optional and not declared in IRequest
+interface IPilotRequest extends IRequest {
+   priority?: number | string;
+}
+
 class SpinalPilot {
    private queue: SpinalQueue<SpinalPilotModel> = new SpinalQueue();
    private isProcessing: boolean = false;
@@ -100,7 +105,7 @@ class SpinalPilot {
 
    }
 
-   private async writeProperties(requests: IRequest[] = []) {
+   private async writeProperties(requests: IPilotRequest[] = []) {
       for (let index = 0; index < requests.length; index++) {
          const req = requests[index];
          try {
@@ -112,8 +117,8 @@ class SpinalPilot {
       }
    }
 
-   private async writeProperty(req: IRequest) {
-      const types = this.getDataTypes(req.objectId.type);
+   private async writeProperty(req: IPilotRequest) {
+      const types = this.getDataTypes(Number(req.objectId.type));
       let success = false;
 
       while (types.length > 0 && !success) {
@@ -135,7 +140,7 @@ class SpinalPilot {
    }
 
 
-   private useDataType(req: IRequest, dataType: number) {
+   private useDataType(req: IPilotRequest, dataType: number) {
       return new Promise(async (resolve, reject) => {
          const client = await BacnetUtilities.getClient();
          const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
@@ -189,10 +194,10 @@ class SpinalPilot {
       ];
    }
 
-   private _getBacnetPriority(req: IRequest): number {
+   private _getBacnetPriority(req: IPilotRequest): number {
       // if priority is defined in REQ
-      if (req.priority && !isNaN(req.priority))
-         return parseInt(req.priority);
+      if (req.priority && !isNaN(Number(req.priority)))
+         return parseInt(`${req.priority}`);
 
       // else if priority is defined in .env
       if (process.env.BACNET_PRIORITY && !isNaN(process.env.BACNET_PRIORITY as any))
