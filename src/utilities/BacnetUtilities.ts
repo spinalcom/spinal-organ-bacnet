@@ -29,6 +29,7 @@ import { EventPayload, SpinalCov } from "../modules/SpinalCov";
 import { v4 as uuid } from "uuid";
 import ipc from "node-ipc";
 import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, BACNET_COV_EVENT_NAME } from "spinal-bacnet-service";
+
 class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
 	private _client: bacnet = null;

@@ -91,7 +91,6 @@ export default class ProfileManager extends EventEmitter {
 	private async _getProfileContext(profileNode: SpinalNode): Promise<SpinalContext> {
 		const parents = await profileNode.getParents("hasParts");
 		const parent = parents[0];
-
 		const contexts = await parent.getParents("hasDevice");
 		return contexts[0];
 	}
