@@ -1,19 +1,19 @@
 /*
  * Copyright 2022 SpinalCom - www.spinalcom.com
- * 
+ *
  * This file is part of SpinalCore.
- * 
+ *
  * Please read all of the following terms and conditions
  * of the Free Software license Agreement ("Agreement")
  * carefully.
- * 
+ *
  * This Agreement is a legally binding contract between
  * the Licensee (as defined below) and SpinalCom that
  * sets forth the terms and conditions that govern your
  * use of the Program. By installing and/or using the
  * Program, you agree to abide by all the terms and
  * conditions stated or referenced herein.
- * 
+ *
  * If you do not agree to abide by these terms and
  * conditions, do not demonstrate your acceptance and do
  * not install or use the Program.
@@ -29,189 +29,185 @@ import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalV
 
 import BacnetUtilities from "../utilities/BacnetUtilities";
 
-class SpinalPilot {
-   private queue: SpinalQueue<SpinalPilotModel> = new SpinalQueue();
-   private isProcessing: boolean = false;
-   private static instance: SpinalPilot;
-
-   private constructor() { }
-
-
-   public static getInstance(): SpinalPilot {
-      if (!this.instance) {
-         this.instance = new SpinalPilot();
-         this.instance.init();
-      }
-      return this.instance;
-   }
-
-   private init() {
-      this.queue.on("start", () => {
-         console.log("start pilot...");
-         this.pilot();
-      })
-   }
-
-   public async addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void> {
-      this.queue.addToQueue(spinalPilotModel);
-   }
-
-
-   private async pilot(): Promise<void> {
-      if (this.isProcessing) return;
-
-      this.isProcessing = true;
-
-      try {
-         while (!this.queue.isEmpty()) {
-            const pilot = this.queue.dequeue();
-
-            if (!pilot) {
-               continue;
-            }
-
-            await this._handlePilot(pilot);
-         }
-      } finally {
-         this.isProcessing = false;
-      }
-   }
-
-   private async _handlePilot(pilot: SpinalPilotModel): Promise<void> {
-      const actualState = pilot.state.get();
-
-      // if the pilot is already treated, we remove it from the graph and exit
-      if (actualState === PILOT_STATES.error || actualState === PILOT_STATES.success) {
-         console.log("pilot already treated with state:", actualState);
-         await pilot.removeFromGraph();
-         return;
-      }
-
-
-      try {
-         pilot.changeState(PILOT_STATES.processing);
-         // await this.writeProperties(pilot.requests.get());
-
-         const request = pilot.requests.get();
-         await BacnetUtilities.sendPilotRequest(request[0]);
-         console.log("pilot success");
-         pilot.changeState(PILOT_STATES.success);
-      } catch (error: any) {
-         console.error(`pilot failed due to: "${error.message}"`);
-         pilot.changeState(PILOT_STATES.error);
-      } finally {
-         await pilot.removeFromGraph();
-      }
-
-   }
-
-   // private async writeProperties(requests: IRequest[] = []) {
-   //    for (let index = 0; index < requests.length; index++) {
-   //       const req = requests[index];
-   //       try {
-   //          await this.writeProperty(req);
-   //       } catch (error) {
-   //          throw error;
-   //       }
-
-   //    }
-   // }
-
-   // private async writeProperty(req: IRequest) {
-   //    const types = this.getDataTypes(req.objectId.type);
-   //    let success = false;
-
-   //    while (types.length > 0 && !success) {
-   //       const type = types.shift();
-   //       try {
-   //          if (!type) throw new Error("error");
-
-   //          await this.useDataType(req, type);
-   //          success = true;
-   //       } catch (error) {
-   //          // throw error;
-   //       }
-   //    }
-
-   //    if (!success) {
-   //       throw new Error("error");
-   //    }
-
-   // }
-
-   // private useDataType(req: IRequest, dataType: number) {
-   //    return new Promise(async (resolve, reject) => {
-   //       const client = await BacnetUtilities.getClient();
-   //       const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
-
-
-   //       const priority = this._getBacnetPriority(req);
-
-   //       if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
-
-   //       client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err: Error, value: any) => {
-   //          if (err) {
-   //             reject(err);
-   //             return;
-   //          }
-
-   //          resolve(value);
-   //       })
-   //    });
-   // }
-
-   // private getDataTypes(type: number | string): number[] {
-   //    const analogTypes = new Set([
-   //       ObjectTypes.OBJECT_ANALOG_INPUT,
-   //       ObjectTypes.OBJECT_ANALOG_OUTPUT,
-   //       ObjectTypes.OBJECT_ANALOG_VALUE,
-   //       ObjectTypes.OBJECT_MULTI_STATE_INPUT,
-   //       ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
-   //       ObjectTypes.OBJECT_MULTI_STATE_VALUE
-   //    ]);
-
-   //    const binaryTypes = new Set([
-   //       ObjectTypes.OBJECT_BINARY_INPUT,
-   //       ObjectTypes.OBJECT_BINARY_OUTPUT,
-   //       ObjectTypes.OBJECT_BINARY_VALUE,
-   //       ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
-   //    ]);
-
-   //    if (analogTypes.has(type)) {
-   //       return [
-   //          APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
-   //          APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
-   //       ];
-   //    }
-
-   //    if (binaryTypes.has(type)) return [APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
-
-   //    return [
-   //       APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
-   //       APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
-   //       APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
-   //    ];
-   // }
-
-   // private _getBacnetPriority(req: any | IRequest): number {
-   //    // if priority is defined in REQ
-   //    if (req.priority && !isNaN(parseInt(req.priority)))
-   //       return parseInt(req.priority);
-
-   //    // else if priority is defined in .env
-   //    if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
-   //       return parseInt(process.env.BACNET_PRIORITY)
-
-   //    // else use low priority
-   //    return 16;
-   // }
+// the write priority is optional and not declared in IRequest
+interface IPilotRequest extends IRequest {
+	priority?: number | string;
 }
 
+class SpinalPilot {
+	private queue: SpinalQueue<SpinalPilotModel> = new SpinalQueue();
+	private isProcessing: boolean = false;
+	private static instance: SpinalPilot;
+
+	private constructor() {}
+
+	public static getInstance(): SpinalPilot {
+		if (!this.instance) {
+			this.instance = new SpinalPilot();
+			this.instance.init();
+		}
+		return this.instance;
+	}
+
+	private init() {
+		this.queue.on("start", () => {
+			console.log("start pilot...");
+			this.pilot();
+		});
+	}
+
+	public async addToPilotList(spinalPilotModel: SpinalPilotModel): Promise<void> {
+		this.queue.addToQueue(spinalPilotModel);
+	}
+
+	private async pilot(): Promise<void> {
+		if (this.isProcessing) return;
+
+		this.isProcessing = true;
+
+		try {
+			while (!this.queue.isEmpty()) {
+				const pilot = this.queue.dequeue();
+
+				if (!pilot) {
+					continue;
+				}
+
+				await this._handlePilot(pilot);
+			}
+		} finally {
+			this.isProcessing = false;
+		}
+	}
+
+	private async _handlePilot(pilot: SpinalPilotModel): Promise<void> {
+		const actualState = pilot.state.get();
+
+		// if the pilot is already treated, we remove it from the graph and exit
+		if (actualState === PILOT_STATES.error || actualState === PILOT_STATES.success) {
+			console.log("pilot already treated with state:", actualState);
+			await pilot.removeFromGraph();
+			return;
+		}
+
+		try {
+			pilot.changeState(PILOT_STATES.processing);
+			// await this.writeProperties(pilot.requests.get());
+
+			const request = pilot.requests.get();
+			await BacnetUtilities.sendPilotRequest(request[0]);
+			console.log("pilot success");
+			pilot.changeState(PILOT_STATES.success);
+		} catch (error: any) {
+			console.error(`pilot failed due to: "${error.message}"`);
+			pilot.changeState(PILOT_STATES.error);
+		} finally {
+			await pilot.removeFromGraph();
+		}
+	}
+
+	// private async writeProperties(requests: IRequest[] = []) {
+	//    for (let index = 0; index < requests.length; index++) {
+	//       const req = requests[index];
+	//       try {
+	//          await this.writeProperty(req);
+	//       } catch (error) {
+	//          throw error;
+	//       }
+
+	//    }
+	// }
+
+	// private async writeProperty(req: IRequest) {
+	//    const types = this.getDataTypes(req.objectId.type);
+	//    let success = false;
+
+	//    while (types.length > 0 && !success) {
+	//       const type = types.shift();
+	//       try {
+	//          if (!type) throw new Error("error");
+
+	//          await this.useDataType(req, type);
+	//          success = true;
+	//       } catch (error) {
+	//          // throw error;
+	//       }
+	//    }
+
+	//    if (!success) {
+	//       throw new Error("error");
+	//    }
+
+	// }
+
+	// private useDataType(req: IRequest, dataType: number) {
+	//    return new Promise(async (resolve, reject) => {
+	//       const client = await BacnetUtilities.getClient();
+	//       const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
+
+	//       const priority = this._getBacnetPriority(req);
+
+	//       if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
+
+	//       client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err: Error, value: any) => {
+	//          if (err) {
+	//             reject(err);
+	//             return;
+	//          }
+
+	//          resolve(value);
+	//       })
+	//    });
+	// }
+
+	// private getDataTypes(type: number | string): number[] {
+	//    const analogTypes = new Set([
+	//       ObjectTypes.OBJECT_ANALOG_INPUT,
+	//       ObjectTypes.OBJECT_ANALOG_OUTPUT,
+	//       ObjectTypes.OBJECT_ANALOG_VALUE,
+	//       ObjectTypes.OBJECT_MULTI_STATE_INPUT,
+	//       ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
+	//       ObjectTypes.OBJECT_MULTI_STATE_VALUE
+	//    ]);
+
+	//    const binaryTypes = new Set([
+	//       ObjectTypes.OBJECT_BINARY_INPUT,
+	//       ObjectTypes.OBJECT_BINARY_OUTPUT,
+	//       ObjectTypes.OBJECT_BINARY_VALUE,
+	//       ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
+	//    ]);
+
+	//    if (analogTypes.has(type)) {
+	//       return [
+	//          APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
+	//          APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
+	//       ];
+	//    }
+
+	//    if (binaryTypes.has(type)) return [APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
+
+	//    return [
+	//       APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
+	//       APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
+	//       APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
+	//    ];
+	// }
+
+	// private _getBacnetPriority(req: any | IRequest): number {
+	//    // if priority is defined in REQ
+	//    if (req.priority && !isNaN(parseInt(req.priority)))
+	//       return parseInt(req.priority);
+
+	//    // else if priority is defined in .env
+	//    if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
+	//       return parseInt(process.env.BACNET_PRIORITY)
+
+	//    // else use low priority
+	//    return 16;
+	// }
+}
 
 const spinalPilot = SpinalPilot.getInstance();
 
-
 export default spinalPilot;
-export {
-   spinalPilot
-}
+export { spinalPilot };
