@@ -287,11 +287,15 @@ class SpinalNetworkUtilitiesClass {
     _modifyNodeInfo(node, element) {
         const attribuesToMod = element._attribute_names;
         for (let attr of attribuesToMod) {
-            const value = element[attr];
+            let value = element[attr];
             if (attr === "id")
-                attr = "idNetwork";
+                attr = "idNetwork"; // Rename "id" attribute to "idNetwork" for the node info
+            // If the attribute is "type" and its value is "device", replace it with the SpinalBmsDevice node type name.
+            // it ensures that the node info correctly reflects the specific type for devices.
+            if (attr === "type" && value == "device")
+                value = spinal_model_bmsnetwork_1.SpinalBmsDevice.nodeTypeName;
             if (node.info[attr])
-                node.info.mod_attr(attr, value);
+                node.info[attr].set(value);
             else
                 node.info.add_attr({ [attr]: value });
         }
@@ -303,12 +307,15 @@ class SpinalNetworkUtilitiesClass {
             const existingAttributes = _convertSpinalAttributeListToObj(element);
             for (const attr of attributes) {
                 let spinalAttr = existingAttributes[attr];
+                let value = nodeElement[attr].get();
                 if (!spinalAttr) {
                     // use .get because attributeService need a string as value
-                    spinalAttr = new spinal_models_documentation_1.SpinalAttribute(attr, nodeElement[attr].get());
+                    spinalAttr = new spinal_models_documentation_1.SpinalAttribute(attr, value);
                     element.push(spinalAttr);
+                    existingAttributes[attr] = spinalAttr;
+                    continue;
                 }
-                spinalAttr.mod_attr("value", nodeElement[attr].get());
+                spinalAttr.value.set(value);
             }
             function _convertSpinalAttributeListToObj(element) {
                 const obj = {};
