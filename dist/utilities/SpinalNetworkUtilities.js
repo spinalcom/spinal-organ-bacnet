@@ -109,7 +109,19 @@ class SpinalNetworkUtilitiesClass {
                     promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
                 }
             }
-            return Promise.all(promises);
+            return Promise.allSettled(promises).then((results) => {
+                const result = [];
+                for (let i = 0; i < results.length; i++) {
+                    const res = results[i];
+                    if (res.status === "fulfilled")
+                        result.push(res.value);
+                    else {
+                        console.log(`[${spinalDevice.Name}] - Failed to update endpoint ${children[i].id}`);
+                        result.push(false);
+                    }
+                }
+                return result;
+            });
         });
     }
     _updateEndpointNodeValue(endpointNode_1, newValue_1) {
@@ -143,8 +155,12 @@ class SpinalNetworkUtilitiesClass {
                 children.forEach((child) => (endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child));
                 return endpointsObj;
             }));
-            return Promise.all(promises).then((result) => {
-                return result.reduce((acc, curr) => (Object.assign(Object.assign({}, acc), curr)), {});
+            return Promise.allSettled(promises).then((results) => {
+                return results.reduce((acc, result) => {
+                    if (result.status === "fulfilled")
+                        return Object.assign(Object.assign({}, acc), result.value);
+                    return acc;
+                }, {});
             });
         });
     }
@@ -179,7 +195,9 @@ class SpinalNetworkUtilitiesClass {
     _createBitStringSubEndpoints(context, endpointsNode) {
         return __awaiter(this, void 0, void 0, function* () {
             const promises = endpointsNode.map((endpointNode) => __awaiter(this, void 0, void 0, function* () { return this._createOrUpdateEndpointsByBitStringValue(context, endpointNode); }));
-            return Promise.all(promises);
+            return Promise.allSettled(promises).then((results) => {
+                return results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+            });
         });
     }
     _createOrUpdateEndpointsByBitStringValue(context, endpointNode) {
@@ -203,7 +221,9 @@ class SpinalNetworkUtilitiesClass {
                 if (childFound)
                     promises.push(this._updateEndpointNodeValue(childFound, endpoint.currentValue, saveTimeSeries, true));
             }
-            return Promise.all(promises).then(() => endpointNode);
+            return Promise.allSettled(promises).then((results) => {
+                return endpointNode;
+            });
         });
     }
     _convertBitStringValueToEndpointInfo(value, bitText, parentInfo) {
@@ -229,7 +249,19 @@ class SpinalNetworkUtilitiesClass {
                 const node = yield this.createNetworkElementNode(endpointInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName);
                 return groupNode.addChildInContext(node, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
             }));
-            return Promise.all(promises);
+            return Promise.allSettled(promises).then((results) => {
+                const result = [];
+                let index = 0;
+                for (const res of results) {
+                    if (res.status === "fulfilled")
+                        result.push(res.value);
+                    else {
+                        endpointArray[index] && console.error(`Failed to create/update endpoint: ${endpointArray[index].name}`, res.reason);
+                    }
+                    index++;
+                }
+                return result;
+            });
         });
     }
     _formatEndpointCreationInfo(endpointInfo) {
@@ -255,10 +287,7 @@ class SpinalNetworkUtilitiesClass {
     _updateElementInfo(element, newInfo) {
         for (const key in newInfo) {
             const value = newInfo[key];
-            if (element[key])
-                element[key].set(value);
-            else
-                element.add_attr({ [key]: value });
+            this._checkIfValueIsValidAndUpdate(element, key, value, element.name.get());
         }
     }
     _createBmsElementFromType(nodeInfo, type) {
@@ -287,17 +316,14 @@ class SpinalNetworkUtilitiesClass {
     _modifyNodeInfo(node, element) {
         const attribuesToMod = element._attribute_names;
         for (let attr of attribuesToMod) {
-            let value = element[attr];
+            let newValue = element[attr];
             if (attr === "id")
                 attr = "idNetwork"; // Rename "id" attribute to "idNetwork" for the node info
             // If the attribute is "type" and its value is "device", replace it with the SpinalBmsDevice node type name.
             // it ensures that the node info correctly reflects the specific type for devices.
-            if (attr === "type" && value == "device")
-                value = spinal_model_bmsnetwork_1.SpinalBmsDevice.nodeTypeName;
-            if (node.info[attr])
-                node.info[attr].set(value);
-            else
-                node.info.add_attr({ [attr]: value });
+            if (attr === "type" && newValue == "device")
+                newValue = spinal_model_bmsnetwork_1.SpinalBmsDevice.nodeTypeName;
+            this._checkIfValueIsValidAndUpdate(node.info, attr, newValue, node.getName().get());
         }
     }
     _createOrUpdateAttributesFromElement(node, nodeElement) {
@@ -376,6 +402,25 @@ class SpinalNetworkUtilitiesClass {
     loadPtrValue(ptrModel) {
         return new Promise((resolve) => {
             ptrModel.load((data) => resolve(data));
+        });
+    }
+    _checkIfValueIsValidAndUpdate(model_1, attr_1, newValue_1) {
+        return __awaiter(this, arguments, void 0, function* (model, attr, newValue, deviceName = "") {
+            try {
+                if (attr == "name" && newValue === "")
+                    return;
+                if (newValue === model[attr])
+                    return;
+                if (newValue === undefined || newValue === null)
+                    return;
+                if (model[attr])
+                    model.mod_attr(attr, newValue);
+                // else model.add_attr({ [attr]: newValue });
+            }
+            catch (error) {
+                // console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
+                console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
+            }
         });
     }
 }

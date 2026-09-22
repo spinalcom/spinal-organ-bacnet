@@ -53,6 +53,7 @@ declare class SpinalNetworkUtilitiesClass {
     private _itemExistInChild;
     private _getChildrenAsObj;
     private loadPtrValue;
+    private _checkIfValueIsValidAndUpdate;
 }
 declare const SpinalNetworkUtilities: SpinalNetworkUtilitiesClass;
 export { SpinalNetworkUtilities };
