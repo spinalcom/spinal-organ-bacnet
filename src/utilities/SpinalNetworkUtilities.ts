@@ -33,6 +33,7 @@ import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
 import { ObjectTypes } from "./GlobalVariables";
 import { SpinalGraphService } from "spinal-env-viewer-graph-service";
 import { decodeBitStringValue } from "./Functions";
+import { Model } from "spinal-core-connectorjs";
 
 const bmsTypeNames = [SpinalBmsNetwork.nodeTypeName, SpinalBmsDevice.nodeTypeName, SpinalBmsEndpointGroup.nodeTypeName, SpinalBmsEndpoint.nodeTypeName] as const;
 type BmsNodeType = (typeof bmsTypeNames)[number];
@@ -115,7 +116,19 @@ class SpinalNetworkUtilitiesClass {
 			}
 		}
 
-		return Promise.all(promises);
+		return Promise.allSettled(promises).then((results) => {
+			const result: boolean[] = [];
+
+			for (let i = 0; i < results.length; i++) {
+				const res = results[i];
+				if (res.status === "fulfilled") result.push(res.value);
+				else {
+					console.log(`[${spinalDevice.Name}] - Failed to update endpoint ${children[i].id}`);
+					result.push(false);
+				}
+			}
+			return result;
+		});
 	}
 
 	private async _updateEndpointNodeValue(endpointNode: SpinalNode, newValue: any, saveTimeSeries = false, itsBitStringChild = false): Promise<boolean> {
@@ -151,8 +164,11 @@ class SpinalNetworkUtilitiesClass {
 			return endpointsObj;
 		});
 
-		return Promise.all(promises).then((result) => {
-			return result.reduce((acc: {}, curr) => ({ ...acc, ...curr }), {});
+		return Promise.allSettled(promises).then((results) => {
+			return results.reduce((acc: {}, result) => {
+				if (result.status === "fulfilled") return { ...acc, ...result.value };
+				return acc;
+			}, {});
 		});
 	}
 
@@ -190,7 +206,9 @@ class SpinalNetworkUtilitiesClass {
 	public async _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]> {
 		const promises = endpointsNode.map(async (endpointNode) => this._createOrUpdateEndpointsByBitStringValue(context, endpointNode));
 
-		return Promise.all(promises);
+		return Promise.allSettled(promises).then((results) => {
+			return results.filter((result): result is PromiseFulfilledResult<SpinalNode> => result.status === "fulfilled").map((result) => result.value);
+		});
 	}
 
 	public async _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode> {
@@ -216,7 +234,9 @@ class SpinalNetworkUtilitiesClass {
 			if (childFound) promises.push(this._updateEndpointNodeValue(childFound, endpoint.currentValue, saveTimeSeries, true));
 		}
 
-		return Promise.all(promises).then(() => endpointNode);
+		return Promise.allSettled(promises).then((results) => {
+			return endpointNode;
+		});
 	}
 
 	private _convertBitStringValueToEndpointInfo(value: { value: number[]; bitsUsed: number }, bitText: string[], parentInfo: any): InputDataEndpoint[] {
@@ -250,7 +270,18 @@ class SpinalNetworkUtilitiesClass {
 			return groupNode.addChildInContext(node, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
 		});
 
-		return Promise.all(promises);
+		return Promise.allSettled(promises).then((results) => {
+			const result: SpinalNode[] = [];
+			let index = 0;
+			for (const res of results) {
+				if (res.status === "fulfilled") result.push(res.value);
+				else {
+					endpointArray[index] && console.error(`Failed to create/update endpoint: ${endpointArray[index].name}`, res.reason);
+				}
+				index++;
+			}
+			return result;
+		});
 	}
 
 	private _formatEndpointCreationInfo(endpointInfo: InputDataEndpoint): any {
@@ -289,8 +320,7 @@ class SpinalNetworkUtilitiesClass {
 	private _updateElementInfo(element: spinal.Model, newInfo: InputDataTypes): void {
 		for (const key in newInfo) {
 			const value = newInfo[key];
-			if (element[key]) element[key].set(value);
-			else element.add_attr({ [key]: value });
+			this._checkIfValueIsValidAndUpdate(element, key, value, element.name.get());
 		}
 	}
 
@@ -328,16 +358,15 @@ class SpinalNetworkUtilitiesClass {
 		const attribuesToMod = element._attribute_names;
 
 		for (let attr of attribuesToMod) {
-			let value = element[attr];
+			let newValue = element[attr];
 
 			if (attr === "id") attr = "idNetwork"; // Rename "id" attribute to "idNetwork" for the node info
 
 			// If the attribute is "type" and its value is "device", replace it with the SpinalBmsDevice node type name.
 			// it ensures that the node info correctly reflects the specific type for devices.
-			if (attr === "type" && value == "device") value = SpinalBmsDevice.nodeTypeName;
+			if (attr === "type" && newValue == "device") newValue = SpinalBmsDevice.nodeTypeName;
 
-			if (node.info[attr]) node.info[attr].set(value);
-			else node.info.add_attr({ [attr]: value });
+			this._checkIfValueIsValidAndUpdate(node.info, attr, newValue, node.getName().get());
 		}
 	}
 
@@ -428,6 +457,20 @@ class SpinalNetworkUtilitiesClass {
 		return new Promise((resolve) => {
 			ptrModel.load((data) => resolve(data));
 		});
+	}
+
+	private async _checkIfValueIsValidAndUpdate(model: Model, attr: string, newValue: any, deviceName: string = ""): Promise<void> {
+		try {
+			if (attr == "name" && newValue === "") return;
+
+			if (newValue === model[attr]) return;
+			if (newValue === undefined || newValue === null) return;
+			if (model[attr]) model.mod_attr(attr, newValue);
+			// else model.add_attr({ [attr]: newValue });
+		} catch (error: any) {
+			// console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
+			console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
+		}
 	}
 }
 
