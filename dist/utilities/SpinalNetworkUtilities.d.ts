@@ -26,6 +26,7 @@ declare class SpinalNetworkUtilitiesClass {
         type: string | number;
         currentValue: any;
     }[]): Promise<boolean[]>;
+    private _printEndpointsReponse;
     private _updateEndpointNodeValue;
     _getAllEndpointsInGraph(deviceNode: SpinalNode): Promise<{
         [key: string]: SpinalNode;

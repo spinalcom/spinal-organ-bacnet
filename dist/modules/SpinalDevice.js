@@ -278,8 +278,12 @@ class SpinalDevice extends events_1.EventEmitter {
                     return [];
                 }
                 const childrenGroups = yield this.formatAndGroupEndpoints(deviceName, endpointsToCreate);
+                if (Object.keys(childrenGroups).length === 0) {
+                    console.error(`[${deviceName}] - no endpoints found, device might not respond`);
+                    return [];
+                }
                 const result = yield this.generateNetworkEndpoints(childrenGroups);
-                console.log(`[${deviceName}] - endpoints creation completed`);
+                console.log(`[${deviceName}] - ${result.flat().length} endpoints created`);
                 return result.flat();
             }
             catch (error) {
@@ -320,7 +324,7 @@ class SpinalDevice extends events_1.EventEmitter {
             const children = this.getProfileDataByInterval(interval);
             const deviceName = this.device.name;
             try {
-                console.log(`[${deviceName}] ===> updating endpoints for interval ${interval}`);
+                console.log(`[${deviceName}] ===> updating endpoints for interval [${interval}]`);
                 const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children);
                 if (!objectListDetails || objectListDetails.length === 0)
                     throw new Error("Failed to retreive endpoints on device");

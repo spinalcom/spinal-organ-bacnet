@@ -264,10 +264,14 @@ export class SpinalDevice extends EventEmitter {
 			}
 
 			const childrenGroups = await this.formatAndGroupEndpoints(deviceName!, endpointsToCreate);
+			if (Object.keys(childrenGroups).length === 0) {
+				console.error(`[${deviceName}] - no endpoints found, device might not respond`);
+				return [];
+			}
 
 			const result = await this.generateNetworkEndpoints(childrenGroups);
 
-			console.log(`[${deviceName}] - endpoints creation completed`);
+			console.log(`[${deviceName}] - ${result.flat().length} endpoints created`);
 			return result.flat();
 		} catch (error) {
 			console.error(`[${this.device?.name}] - check and create endpoints failed due to "${(error as Error).message}"`);
@@ -310,7 +314,7 @@ export class SpinalDevice extends EventEmitter {
 		const deviceName = this.device.name;
 
 		try {
-			console.log(`[${deviceName}] ===> updating endpoints for interval ${interval}`);
+			console.log(`[${deviceName}] ===> updating endpoints for interval [${interval}]`);
 			const objectListDetails = await BacnetUtilities._getChildrenNewValue(this.device, children);
 			if (!objectListDetails || objectListDetails.length === 0) throw new Error("Failed to retreive endpoints on device");
 

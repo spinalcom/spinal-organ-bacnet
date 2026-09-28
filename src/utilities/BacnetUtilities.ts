@@ -34,7 +34,7 @@ class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
 	private _client: bacnet = null;
 	private _ipcClient: any = null;
-	private _clientId: string = process.env.ORGAN_NAME || "spinal-organ-bacnet";
+	private _clientId: string = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
 
 	private constructor() {}
 

@@ -79,7 +79,7 @@ class BacnetUtilitiesClass {
     constructor() {
         this._client = null;
         this._ipcClient = null;
-        this._clientId = process.env.ORGAN_NAME || "spinal-organ-bacnet";
+        this._clientId = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
         this.clientState = {
             consecutiveFailures: 0,
         };

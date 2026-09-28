@@ -108,20 +108,33 @@ class SpinalNetworkUtilitiesClass {
                     const saveTimeSeries = spinalDevice.shouldSaveTimeSeries({ instance: child.id, type: child.type });
                     promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
                 }
-            }
-            return Promise.allSettled(promises).then((results) => {
-                const result = [];
-                for (let i = 0; i < results.length; i++) {
-                    const res = results[i];
-                    if (res.status === "fulfilled")
-                        result.push(res.value);
-                    else {
-                        console.log(`[${spinalDevice.Name}] - Failed to update endpoint ${children[i].id}`);
-                        result.push(false);
-                    }
+                else {
+                    console.error(`[${spinalDevice.Name}] - Endpoint ${child.id} of type ${child.type} not found in graph`);
                 }
-                return result;
-            });
+            }
+            return this._printEndpointsReponse(promises, children, endpointsObj, spinalDevice);
+        });
+    }
+    _printEndpointsReponse(promises, children, endpointsObj, spinalDevice) {
+        return Promise.allSettled(promises).then((results) => {
+            const result = [];
+            for (let i = 0; i < results.length; i++) {
+                const key = `${children[i].type}_${children[i].id}`;
+                const endpointNode = endpointsObj[key];
+                if (!endpointNode)
+                    continue;
+                const isFulfilled = results[i].status === "fulfilled";
+                const endpointName = endpointNode.getName().get();
+                if (isFulfilled) {
+                    console.log(`[${spinalDevice.Name}] - "${endpointName}" updated successfully`);
+                    result.push(true);
+                }
+                else {
+                    console.error(`[${spinalDevice.Name}] - Failed "${endpointName}" updated successfully`);
+                    result.push(false);
+                }
+            }
+            return result;
         });
     }
     _updateEndpointNodeValue(endpointNode_1, newValue_1) {
