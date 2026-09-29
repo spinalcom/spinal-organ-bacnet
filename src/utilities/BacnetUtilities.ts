@@ -34,7 +34,8 @@ class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
 	private _client: bacnet = null;
 	private _ipcClient: any = null;
-	private _clientId: string = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
+	private _clientId: string = "";
+	private _serverServiceName: string = "";
 
 	private constructor() {}
 
@@ -47,35 +48,80 @@ class BacnetUtilitiesClass {
 		return this.instance;
 	}
 
-	public async initAndConnect() {
-		this._ipcClient = await this._connectToServer();
+	public async initAndConnect(clientServiceName: string, serverServiceName: string, port: number) {
+		this._clientId = clientServiceName;
+		this._serverServiceName = serverServiceName;
+
+		this._ipcClient = await this._connectToServer(port);
 
 		this._ipcClient.on("disconnect", async () => {
-			this._ipcClient = await this._connectToServer();
+			this._ipcClient = await this._connectToServer(port);
 		});
 
-		console.log("connected to bacnet service");
+		console.log("connected to bacnet service using port", port);
 
 		this._ipcClient.on(BACNET_COV_EVENT_NAME, (result: any) => {
 			SpinalCov.getInstance().emit(result.eventName, result);
 		});
 	}
 
-	private _connectToServer() {
+	private _connectToServer(port: number) {
 		return new Promise((resolve, reject) => {
-			const serverServiceName = SERVICE_NAME;
+			const serverServiceName = this._serverServiceName || SERVICE_NAME;
 			const clientServiceName = this._clientId;
 
 			ipc.config.id = clientServiceName; // Set the IPC client ID to the organ name or a default value
 			ipc.config.retry = 5000; // Retry every 5 seconds if connection to server is lost
 			ipc.config.silent = true; // Disable IPC debug logs
 
-			const bacnetServicePort = process.env.BACNET_SERVICE_PORT?.trim();
-			const ipcServerPort = bacnetServicePort ? parseInt(bacnetServicePort) : 47810;
+			const ipcServerPort = port;
+			let settled = false;
+			let lastError: any = null;
+
+			const settleReject = (error: unknown) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(connectionTimeout);
+				reject(error instanceof Error ? error : new Error(String(error)));
+			};
+
+			const settleResolve = (client: any) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(connectionTimeout);
+				this._ipcClient = client;
+				resolve(client);
+			};
+
+			const connectionTimeout = setTimeout(() => {
+				const reason = lastError?.message ? ` Last error: ${lastError.message}` : "";
+				settleReject(new Error(`Failed to connect to IPC server '${serverServiceName}' on port ${ipcServerPort}: timeout.${reason}`));
+			}, 15000);
 
 			ipc.connectToNet(serverServiceName, "127.0.0.1", ipcServerPort, () => {
-				this._ipcClient = ipc.of[serverServiceName];
-				resolve(ipc.of[serverServiceName]);
+				if (settled) return;
+
+				const client = ipc.of[serverServiceName] as any;
+				if (!client) {
+					settleReject(new Error(`IPC client '${serverServiceName}' is unavailable after connection`));
+					return;
+				}
+
+				const onConnect = () => {
+					if (typeof client.off === "function") client.off("error", onError);
+					settleResolve(client);
+				};
+
+				const onError = (error: any) => {
+					lastError = error;
+				};
+
+				client.on("connect", onConnect);
+				client.on("error", onError);
+
+				if (client.socket?.readyState === "open") {
+					onConnect();
+				}
 			});
 		});
 	}

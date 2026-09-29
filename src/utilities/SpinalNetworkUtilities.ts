@@ -136,7 +136,7 @@ class SpinalNetworkUtilitiesClass {
 					console.log(`[${spinalDevice.Name}] - "${endpointName}" updated successfully`);
 					result.push(true);
 				} else {
-					console.error(`[${spinalDevice.Name}] - Failed "${endpointName}" updated successfully`);
+					console.error(`[${spinalDevice.Name}] - Failed to update "${endpointName}"`);
 					result.push(false);
 				}
 			}
@@ -474,16 +474,30 @@ class SpinalNetworkUtilitiesClass {
 
 	private async _checkIfValueIsValidAndUpdate(model: Model, attr: string, newValue: any, deviceName: string = ""): Promise<void> {
 		try {
-			if (attr == "name" && newValue === "") return;
+			if (newValue === undefined || newValue === null) return;
+
+			const attrToNotUpdateIfEmpty = ["name", "type", "idNetwork", "currentValue"];
+
+			if (attrToNotUpdateIfEmpty.includes(attr) && newValue.toString().trim() === "") return;
 
 			if (newValue === model[attr]) return;
-			if (newValue === undefined || newValue === null) return;
 			if (model[attr]) model.mod_attr(attr, newValue);
 			// else model.add_attr({ [attr]: newValue });
 		} catch (error: any) {
 			// console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
 			console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
 		}
+	}
+
+	private async _endpointCanBeCreate(endpointData: InputDataEndpoint): Promise<boolean> {
+		if (!endpointData) return false;
+
+		if (!endpointData.name || endpointData.name.toString().trim() === "") return false;
+		if (!endpointData.type || endpointData.type.toString().trim() === "") return false;
+
+		if (typeof endpointData.currentValue === "undefined" || endpointData.currentValue === undefined) return false;
+
+		return true;
 	}
 }
 

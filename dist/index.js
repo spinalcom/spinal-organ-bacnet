@@ -92,6 +92,7 @@ const spinalConnectorService = spinal_connector_service_1.SpinalConnectorService
 spinalConnectorService
     .initialize(connect, organInfo)
     .then((_a) => __awaiter(void 0, [_a], void 0, function* ({ alreadyExists, node: organModel }) {
+    var _b, _c, _d;
     yield organModel.initializeModelsList(); // initialize the list of models in the organ
     if (alreadyExists) {
         const { valid, message } = yield organModel.checkOrganDataValidity();
@@ -103,8 +104,16 @@ spinalConnectorService
             yield (0, clearOrgan_1.clearOrgan)(organModel);
         }
     }
-    yield (0, spinal_bacnet_service_1.launchBacnetService)(); // launch the bacnet service
-    yield BacnetUtilities_1.default.initAndConnect(); // initialize and connect to the bacnet server
+    const bacnetServicePort = ((_b = process.env.BACNET_SERVICE_PORT) === null || _b === void 0 ? void 0 : _b.trim()) || "47810";
+    const launchItOwnService = ((_c = process.env.LAUNCH_OWN_BACNET_SERVICE) === null || _c === void 0 ? void 0 : _c.trim()) == "1" || ((_d = process.env.LAUNCH_OWN_BACNET_SERVICE) === null || _d === void 0 ? void 0 : _d.trim()) == "true";
+    let serverServiceName = spinal_bacnet_service_1.SERVICE_NAME;
+    if (launchItOwnService) {
+        serverServiceName = `spinal-bacnet-service_${Date.now()}`;
+        console.log(`Launching own BACnet service with name: ${serverServiceName}`);
+        yield (0, spinal_bacnet_service_1.launchBacnetService)(Number(bacnetServicePort), serverServiceName);
+    } // launch the bacnet servicee
+    const clientServiceName = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
+    yield BacnetUtilities_1.default.initAndConnect(clientServiceName, serverServiceName, Number(bacnetServicePort)); // initialize and connect to the bacnet server
     yield spinal_lib_organ_monitoring_1.default.init(connect, name, host, protocol, port); // API health
     const pm2_instance = yield (0, Functions_1.GetPm2Instance)(name);
     const pm2_id = pm2_instance ? pm2_instance.pm_id : null;

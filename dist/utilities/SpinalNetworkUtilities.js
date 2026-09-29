@@ -130,7 +130,7 @@ class SpinalNetworkUtilitiesClass {
                     result.push(true);
                 }
                 else {
-                    console.error(`[${spinalDevice.Name}] - Failed "${endpointName}" updated successfully`);
+                    console.error(`[${spinalDevice.Name}] - Failed to update "${endpointName}"`);
                     result.push(false);
                 }
             }
@@ -420,11 +420,12 @@ class SpinalNetworkUtilitiesClass {
     _checkIfValueIsValidAndUpdate(model_1, attr_1, newValue_1) {
         return __awaiter(this, arguments, void 0, function* (model, attr, newValue, deviceName = "") {
             try {
-                if (attr == "name" && newValue === "")
+                if (newValue === undefined || newValue === null)
+                    return;
+                const attrToNotUpdateIfEmpty = ["name", "type", "idNetwork", "currentValue"];
+                if (attrToNotUpdateIfEmpty.includes(attr) && newValue.toString().trim() === "")
                     return;
                 if (newValue === model[attr])
-                    return;
-                if (newValue === undefined || newValue === null)
                     return;
                 if (model[attr])
                     model.mod_attr(attr, newValue);
@@ -434,6 +435,19 @@ class SpinalNetworkUtilitiesClass {
                 // console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
                 console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
             }
+        });
+    }
+    _endpointCanBeCreate(endpointData) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!endpointData)
+                return false;
+            if (!endpointData.name || endpointData.name.toString().trim() === "")
+                return false;
+            if (!endpointData.type || endpointData.type.toString().trim() === "")
+                return false;
+            if (typeof endpointData.currentValue === "undefined" || endpointData.currentValue === undefined)
+                return false;
+            return true;
         });
     }
 }

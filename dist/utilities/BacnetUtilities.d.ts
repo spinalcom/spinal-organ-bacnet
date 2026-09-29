@@ -6,10 +6,11 @@ declare class BacnetUtilitiesClass {
     private _client;
     private _ipcClient;
     private _clientId;
+    private _serverServiceName;
     private constructor();
     private clientState;
     static getInstance(): BacnetUtilitiesClass;
-    initAndConnect(): Promise<void>;
+    initAndConnect(clientServiceName: string, serverServiceName: string, port: number): Promise<void>;
     private _connectToServer;
     createNewBacnetClient(): bacnet;
     getClient(): Promise<bacnet>;

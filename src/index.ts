@@ -32,7 +32,7 @@ import { GetPm2Instance, bindAllModels, restartProcessById } from "./utilities/F
 import ConfigFile from "spinal-lib-organ-monitoring";
 import * as nodePath from "path";
 import BacnetUtilities from "./utilities/BacnetUtilities";
-import { launchBacnetService } from "spinal-bacnet-service";
+import { launchBacnetService, SERVICE_NAME } from "spinal-bacnet-service";
 import { clearOrgan } from "./utilities/clearOrgan";
 
 const config = require("../config.js");
@@ -67,9 +67,19 @@ spinalConnectorService
 			}
 		}
 
-		await launchBacnetService(); // launch the bacnet service
+		const bacnetServicePort = process.env.BACNET_SERVICE_PORT?.trim() || "47810";
+		const launchItOwnService = process.env.LAUNCH_OWN_BACNET_SERVICE?.trim() == "1" || process.env.LAUNCH_OWN_BACNET_SERVICE?.trim() == "true";
 
-		await BacnetUtilities.initAndConnect(); // initialize and connect to the bacnet server
+		let serverServiceName = SERVICE_NAME;
+
+		if (launchItOwnService) {
+			serverServiceName = `spinal-bacnet-service_${Date.now()}`;
+			console.log(`Launching own BACnet service with name: ${serverServiceName}`);
+			await launchBacnetService(Number(bacnetServicePort), serverServiceName);
+		} // launch the bacnet servicee
+
+		const clientServiceName = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
+		await BacnetUtilities.initAndConnect(clientServiceName, serverServiceName, Number(bacnetServicePort)); // initialize and connect to the bacnet server
 		await ConfigFile.init(connect, name, host, protocol, port); // API health
 
 		const pm2_instance = await GetPm2Instance(name);
