@@ -28,7 +28,7 @@ import { IDevice, IObjectId } from "../Interfaces";
 import { EventPayload, SpinalCov } from "../modules/SpinalCov";
 import { v4 as uuid } from "uuid";
 import ipc from "node-ipc";
-import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, BACNET_COV_EVENT_NAME } from "spinal-bacnet-service";
+import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, BACNET_COV_EVENT_NAME, CLIENT_RESET_EVENT } from "spinal-bacnet-service";
 
 class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
@@ -159,6 +159,10 @@ class BacnetUtilitiesClass {
 		return this._sendDataToBacnetServer("getItemListByFragment", [device, objectId]);
 	}
 
+	public async resetClient() {
+		return this._sendDataToBacnetServer(CLIENT_RESET_EVENT, []);
+	}
+
 	////////////////////////////////////////////////////////////////
 	////                  GET OBJECT DETAIL                       //
 	////////////////////////////////////////////////////////////////
@@ -218,7 +222,7 @@ class BacnetUtilitiesClass {
 		return;
 	}
 
-	private _sendDataToBacnetServer(functionName: string, parameters: any[]): Promise<any> {
+	private _sendDataToBacnetServer(functionName: string, parameters: any[] = []): Promise<any> {
 		return new Promise((resolve, reject) => {
 			const params = {
 				name: functionName,

@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { SpinalDiscoverModel } from 'spinal-model-bacnet';
+import { SpinalDiscoverModel } from "spinal-model-bacnet";
 declare class Discover extends EventEmitter {
     private _discoverQueue;
     private _isProcess;

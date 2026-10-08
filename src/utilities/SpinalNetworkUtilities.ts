@@ -482,7 +482,7 @@ class SpinalNetworkUtilitiesClass {
 
 			if (newValue === model[attr]) return;
 			if (model[attr]) model.mod_attr(attr, newValue);
-			// else model.add_attr({ [attr]: newValue });
+			else model.add_attr({ [attr]: newValue });
 		} catch (error: any) {
 			// console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
 			console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);

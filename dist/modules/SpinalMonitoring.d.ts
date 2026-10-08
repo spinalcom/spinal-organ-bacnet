@@ -8,6 +8,7 @@ declare class SpinalMonitoring {
     private devices;
     private _itemToAddToMap;
     private _endpointsCreationQueue;
+    private _deviceFailedToUpdate;
     private static instance;
     private constructor();
     static getInstance(): SpinalMonitoring;

@@ -37,6 +37,7 @@ const priority_queue_1 = require("@datastructures-js/priority-queue");
 const SpinalCov_1 = require("./SpinalCov");
 const spinal_connector_service_1 = require("spinal-connector-service");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
+const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
 class SpinalMonitoring {
     constructor() {
         this.queue = new spinal_connector_service_1.SpinalQueue();
@@ -47,6 +48,7 @@ class SpinalMonitoring {
         this.devices = {};
         this._itemToAddToMap = new spinal_connector_service_1.SpinalQueue();
         this._endpointsCreationQueue = new spinal_connector_service_1.SpinalQueue();
+        this._deviceFailedToUpdate = 0; // counter for the number of devices that failed to update
     }
     static getInstance() {
         if (!this.instance) {
@@ -207,7 +209,8 @@ class SpinalMonitoring {
             console.log(`${deviceName} is monitored, it will be initialized`);
             // get All data monitor inside the profile
             const intervals = yield device.getProfileData();
-            const children = intervals.map((interval) => interval.children)
+            const children = intervals
+                .map((interval) => interval.children)
                 .flat()
                 .filter((child) => typeof child !== "undefined" && child !== null);
             yield this._addToEndpointCreationQueue(device, children); // add to endpoint creation queue
@@ -219,7 +222,7 @@ class SpinalMonitoring {
             // separate cov items from poll items
             const [covItems, pollItems] = intervals.reduce((acc, interval) => {
                 var _a, _b, _c, _d;
-                if ((((_a = interval.interval) === null || _a === void 0 ? void 0 : _a.toString().toLowerCase()) === 'cov' || ((_b = interval.interval) === null || _b === void 0 ? void 0 : _b.toString().toLowerCase()) === 'nan') && ((_c = interval.children) === null || _c === void 0 ? void 0 : _c.length)) {
+                if ((((_a = interval.interval) === null || _a === void 0 ? void 0 : _a.toString().toLowerCase()) === "cov" || ((_b = interval.interval) === null || _b === void 0 ? void 0 : _b.toString().toLowerCase()) === "nan") && ((_c = interval.children) === null || _c === void 0 ? void 0 : _c.length)) {
                     acc[0].push(...interval.children);
                 }
                 else if ((_d = interval.children) === null || _d === void 0 ? void 0 : _d.length) {
@@ -260,7 +263,7 @@ class SpinalMonitoring {
     }
     _addToIntervalQueue(id, intervals) {
         for (const { interval } of intervals) {
-            if (typeof interval !== 'undefined' && interval !== null && !isNaN(Number(interval))) {
+            if (typeof interval !== "undefined" && interval !== null && !isNaN(Number(interval))) {
                 this._itemToAddToMap.addToQueue({ id, interval });
             }
         }
@@ -285,15 +288,15 @@ class SpinalMonitoring {
             values.push({ id });
             // values = [...new Set(values.map(JSON.stringify))].map(JSON.parse)
             //TODO : Améliorer la détection des duplica
-            values = values.filter((obj, index, self) => index === self.findIndex(o => o.id === obj.id));
+            values = values.filter((obj, index, self) => index === self.findIndex((o) => o.id === obj.id));
             this.intervalTimesMap.set(intervalAsNumber, values);
             this._addToPriorityQueue(intervalAsNumber, priority);
         }
     }
     _addToPriorityQueue(interval, priority) {
-        const priorities = this.priorityQueue.toArray().map(el => el.element);
+        const priorities = this.priorityQueue.toArray().map((el) => el.element);
         // if the same id with the same interval already exist in the priority queue, do not add it again
-        if (!priorities.some(el => el.interval === interval))
+        if (!priorities.some((el) => el.interval === interval))
             this.priorityQueue.enqueue({ interval, priority }, priority);
     }
     removeFromMonitoringMaps(deviceId) {
@@ -304,7 +307,7 @@ class SpinalMonitoring {
             if (!value)
                 continue;
             const valueCopy = !Array.isArray(value) ? [value] : value;
-            const valueFiltered = valueCopy.filter(el => el.id !== deviceId);
+            const valueFiltered = valueCopy.filter((el) => el.id !== deviceId);
             if (valueFiltered.length === 0)
                 this.intervalTimesMap.delete(interval);
             else
@@ -314,6 +317,8 @@ class SpinalMonitoring {
     launchUpdating(deviceToUpdate, interval, date) {
         return __awaiter(this, void 0, void 0, function* () {
             const deviceCopy = [...deviceToUpdate];
+            const deviceSorted = [...deviceToUpdate];
+            let index = 0;
             while (deviceCopy.length > 0) {
                 const item = deviceCopy.shift();
                 if (!item)
@@ -321,13 +326,30 @@ class SpinalMonitoring {
                 const { id } = item;
                 try {
                     const device = this.devices[id];
-                    if (device)
-                        yield (device === null || device === void 0 ? void 0 : device.updateEndpoints(interval));
+                    if (device) {
+                        const updated = yield (device === null || device === void 0 ? void 0 : device.updateEndpoints(interval));
+                        if (updated)
+                            this._deviceFailedToUpdate = 0;
+                        else {
+                            this._deviceFailedToUpdate++;
+                            // Move the failed device to the end of the sorted list
+                            // this ensures that successful devices are processed first
+                            const [indexedItem] = deviceSorted.splice(index, 1);
+                            if (indexedItem)
+                                deviceSorted.push(indexedItem);
+                        }
+                    }
                 }
                 catch (error) {
                     console.error(error);
                 }
+                index++;
             }
+            // If all devices failed to update, reset may be necessary for the Bacnet client
+            if (this._deviceFailedToUpdate >= deviceToUpdate.length) {
+                yield BacnetUtilities_1.BacnetUtilities.resetClient();
+            }
+            this.intervalTimesMap.set(interval, deviceSorted); // reset device list for this interval
             const new_priority = Date.now() + interval;
             this._addToPriorityQueue(interval, new_priority);
             // this.intervalTimesMap.set(new_priority, deviceToUpdate);
@@ -336,7 +358,7 @@ class SpinalMonitoring {
     _addToEndpointCreationQueue(spinalDevice, children) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                // Traiter la creation des endpoinrs dans une Queue, 
+                // Traiter la creation des endpoinrs dans une Queue,
                 // pour eviter l'envoie de plusieurs requête bacnet
                 this._endpointsCreationQueue.addToQueue({ spinalDevice, children });
             }

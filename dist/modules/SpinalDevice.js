@@ -319,7 +319,7 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.device) {
                 console.log("device is not defined, cannot update endpoints");
-                return;
+                return false;
             }
             const children = this.getProfileDataByInterval(interval);
             const deviceName = this.device.name;
@@ -331,10 +331,12 @@ class SpinalDevice extends events_1.EventEmitter {
                 if (!this._bmsDevice || !this._network)
                     throw new Error("BMS Device or network is not defined, cannot update endpoints");
                 const spinalDevice = this;
-                return SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, objectListDetails);
+                yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, objectListDetails);
+                return true;
             }
             catch (error) {
                 console.error(`[${deviceName}] - Error updating endpoints for device due to "${error.message}"`);
+                return false;
             }
         });
     }

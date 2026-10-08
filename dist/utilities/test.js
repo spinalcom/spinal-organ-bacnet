@@ -39,7 +39,7 @@ const client = new bacnet({
     port: 47808, // Your local port (can be any unused UDP port)
 });
 // Target device information
-const targetIp = '192.168.162.113';
+const targetIp = "192.168.162.113";
 const targetPort = 47808;
 const deviceInstance = 168; // Replace with actual device instance if known
 // Build the target address
@@ -48,7 +48,7 @@ const targetAddress = `${targetIp}:${targetPort}`;
 client.readProperty(targetAddress, { type: 0, instance: deviceInstance }, 77, (err, value) => {
     var _a, _b;
     if (err) {
-        console.error('Error reading property:', err.message);
+        console.error("Error reading property:", err.message);
         return;
     }
     console.log(JSON.stringify(value, null, 2));

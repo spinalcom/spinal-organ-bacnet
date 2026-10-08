@@ -37,6 +37,7 @@ import { SpinalQueue } from "spinal-connector-service";
 import { loadPtrValue } from "../utilities/Functions";
 import ProfileManager, { IProfileData } from "../utilities/profileManager";
 import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
+import { DEVICE_UPDATE_FAILED, DEVICE_UPDATE_SUCCESS } from "../utilities/eventNames";
 
 export class SpinalDevice extends EventEmitter {
 	public device: IDevice | undefined;
@@ -303,10 +304,10 @@ export class SpinalDevice extends EventEmitter {
 		return childrenGroups;
 	}
 
-	public async updateEndpoints(interval: number): Promise<void | boolean[]> {
+	public async updateEndpoints(interval: number): Promise<boolean> {
 		if (!this.device) {
 			console.log("device is not defined, cannot update endpoints");
-			return;
+			return false;
 		}
 
 		const children = this.getProfileDataByInterval(interval);
@@ -321,9 +322,12 @@ export class SpinalDevice extends EventEmitter {
 			if (!this._bmsDevice || !this._network) throw new Error("BMS Device or network is not defined, cannot update endpoints");
 
 			const spinalDevice = this;
-			return SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, objectListDetails);
+			await SpinalNetworkUtilities.updateEndpointInGraph(spinalDevice, objectListDetails);
+
+			return true;
 		} catch (error) {
 			console.error(`[${deviceName}] - Error updating endpoints for device due to "${(error as Error).message}"`);
+			return false;
 		}
 	}
 

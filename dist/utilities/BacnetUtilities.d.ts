@@ -17,6 +17,7 @@ declare class BacnetUtilitiesClass {
     sendCovRequest(data: EventPayload): void;
     _getDeviceObjectList(device: IDevice, SENSOR_TYPES: Array<number>, getListUsingFragment?: boolean): Promise<IObjectId[]>;
     getItemListByFragment(device: IDevice, objectId: IObjectId): Promise<IObjectId[]>;
+    resetClient(): Promise<any>;
     _getObjectDetail(device: IDevice, objects: Array<IObjectId>): Promise<{
         [key: string]: string | boolean | number;
     }[]>;

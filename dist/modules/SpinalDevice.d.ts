@@ -41,7 +41,7 @@ export declare class SpinalDevice extends EventEmitter {
     checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNode[]>;
     private generateNetworkEndpoints;
     private formatAndGroupEndpoints;
-    updateEndpoints(interval: number): Promise<void | boolean[]>;
+    updateEndpoints(interval: number): Promise<boolean>;
     shouldSaveTimeSeries(objectId?: IObjectId): boolean;
     private _getChildrenTimeSeries;
     private _getDeviceInfo;

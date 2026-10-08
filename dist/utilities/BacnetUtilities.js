@@ -188,6 +188,11 @@ class BacnetUtilitiesClass {
             return this._sendDataToBacnetServer("getItemListByFragment", [device, objectId]);
         });
     }
+    resetClient() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this._sendDataToBacnetServer(spinal_bacnet_service_1.CLIENT_RESET_EVENT, []);
+        });
+    }
     ////////////////////////////////////////////////////////////////
     ////                  GET OBJECT DETAIL                       //
     ////////////////////////////////////////////////////////////////
@@ -249,7 +254,7 @@ class BacnetUtilitiesClass {
             return property.toLocaleLowerCase().replace("object_", "");
         return;
     }
-    _sendDataToBacnetServer(functionName, parameters) {
+    _sendDataToBacnetServer(functionName, parameters = []) {
         return new Promise((resolve, reject) => {
             const params = {
                 name: functionName,

@@ -109,8 +109,8 @@ spinalConnectorService
     let serverServiceName = spinal_bacnet_service_1.SERVICE_NAME;
     if (launchItOwnService) {
         serverServiceName = `spinal-bacnet-service_${Date.now()}`;
-        console.log(`Launching own BACnet service with name: ${serverServiceName}`);
         yield (0, spinal_bacnet_service_1.launchBacnetService)(Number(bacnetServicePort), serverServiceName);
+        console.log(`Own BACnet service launched with name ${serverServiceName}`);
     } // launch the bacnet servicee
     const clientServiceName = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
     yield BacnetUtilities_1.default.initAndConnect(clientServiceName, serverServiceName, Number(bacnetServicePort)); // initialize and connect to the bacnet server

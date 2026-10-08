@@ -122,7 +122,7 @@ class SpinalDiscover {
                         clearTimeout(timeOutId);
                     }
                 });
-                const cleanup = () => this.client.removeListener('iAm', iAmHandler);
+                const cleanup = () => this.client.removeListener("iAm", iAmHandler);
                 // Register start event BEFORE sending whoIs to avoid race condition
                 queue.once("start", () => {
                     if (!useBroadcast)
@@ -138,7 +138,7 @@ class SpinalDiscover {
                     cleanup();
                     reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
                 }, this.CONNECTION_TIME_OUT);
-                this.client.on('iAm', iAmHandler);
+                this.client.on("iAm", iAmHandler);
                 this._sendWhoIsRequests(useBroadcast);
             });
         });
@@ -163,7 +163,7 @@ class SpinalDiscover {
         var _a, _b;
         if (useBroadcast) {
             console.log("discover using broadcast");
-            this.client.whoIs({ dest: { net: '65535', adr: [''] } });
+            this.client.whoIs({ dest: { net: "65535", adr: [""] } });
         }
         else {
             console.log("discover using unicast");
@@ -171,7 +171,7 @@ class SpinalDiscover {
             for (const { address } of ips) {
                 this.client.whoIs({
                     address,
-                    dest: { net: '65535', adr: [''] }
+                    dest: { net: "65535", adr: [""] },
                 });
             }
         }
@@ -187,7 +187,7 @@ class SpinalDiscover {
             if (!deviceDiscovered[key] && !ipsFound.includes(address)) {
                 missingDevices.push({
                     address,
-                    deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID
+                    deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID,
                 });
             }
         }
