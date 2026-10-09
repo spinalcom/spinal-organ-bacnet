@@ -30,7 +30,7 @@ export declare class SpinalDevice extends EventEmitter {
     getProfileDataByInterval(interval: number | string): IObjectId[];
     getAllItemsMonitored(): IObjectId[];
     /**  add item to covList */
-    pushToCovList(children: IObjectId[] | IObjectId): IObjectId[];
+    pushToCovList(children?: IObjectId[] | IObjectId): IObjectId[];
     /** clear covList */
     clearCovList(): void;
     createDeviceNodeInGraph(context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode>;

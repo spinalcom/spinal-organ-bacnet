@@ -171,9 +171,14 @@ class SpinalNetworkUtilitiesClass {
 
 		const promises = endpointGroups.map(async (group) => {
 			const endpointsObj: { [key: string]: SpinalNode } = {};
-			const typeId = group.info.idNetwork.get();
+			const typeId = group.info?.idNetwork?.get();
+
 			const children = await group.getChildren([SpinalBmsEndpoint.relationName]);
-			children.forEach((child) => (endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child));
+			children.forEach((child) => {
+				const idNetwork = child.info?.idNetwork?.get();
+				if (typeof idNetwork !== "undefined" && idNetwork !== null) endpointsObj[`${typeId}_${idNetwork}`] = child;
+			});
+
 			return endpointsObj;
 		});
 
@@ -235,7 +240,12 @@ class SpinalNetworkUtilitiesClass {
 
 	public async updateBitStringEndpointValue(endpointNode: SpinalNode, newValue: { value: number[]; bitsUsed: number }, saveTimeSeries: boolean = false): Promise<SpinalNode> {
 		const children = await endpointNode.getChildren([SpinalBmsEndpoint.relationName]);
-		const childrenObj: { [key: string]: SpinalNode } = children.reduce((acc: {}, child) => ({ ...acc, [`${child.info.idNetwork.get()}`]: child }), {});
+		const childrenObj: { [key: string]: SpinalNode } = children.reduce((acc: {}, child) => {
+			const idNetwork = child.info?.idNetwork?.get();
+			if (typeof idNetwork === "undefined" || idNetwork === null) return acc;
+
+			return { ...acc, [idNetwork]: child };
+		}, {});
 
 		const bitText: string[] = (await endpointNode.getElement(true)).bit_text.get();
 
@@ -450,7 +460,7 @@ class SpinalNetworkUtilitiesClass {
 	private async _itemExistInChild(parentNode: SpinalNode, relationName: string, childNetworkId: string | number): Promise<SpinalNode | undefined> {
 		const children = await parentNode.getChildren([relationName]);
 
-		const found = children.find((el) => el.info.idNetwork.get() == childNetworkId);
+		const found = children.find((el) => el.info?.idNetwork?.get() == childNetworkId);
 
 		return found;
 	}
@@ -460,8 +470,8 @@ class SpinalNetworkUtilitiesClass {
 		const childObj: { [key: string]: SpinalNode } = {};
 
 		for (const child of children) {
-			const networkId = child.info.idNetwork.get();
-			childObj[networkId] = child;
+			const networkId = child.info?.idNetwork?.get();
+			if (typeof networkId !== "undefined" && networkId !== null) childObj[networkId] = child;
 		}
 		return childObj;
 	}

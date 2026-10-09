@@ -256,7 +256,6 @@ class SpinalMonitoring {
     }
     _addToCovQueue(spinalDevice, children) {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("Add to COV : ", spinalDevice.Name);
             const covData = spinalDevice.pushToCovList(children);
             SpinalCov_1.SpinalCov.getInstance().addToCovQueue({ spinalDevice, children: covData });
         });

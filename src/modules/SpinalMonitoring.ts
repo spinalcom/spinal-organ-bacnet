@@ -285,7 +285,6 @@ class SpinalMonitoring {
 	}
 
 	private async _addToCovQueue(spinalDevice: SpinalDevice, children: IObjectId[]) {
-		console.log("Add to COV : ", spinalDevice.Name);
 		const covData = spinalDevice.pushToCovList(children);
 		SpinalCov.getInstance().addToCovQueue({ spinalDevice, children: covData });
 	}

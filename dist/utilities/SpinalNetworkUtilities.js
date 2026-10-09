@@ -162,10 +162,16 @@ class SpinalNetworkUtilitiesClass {
         return __awaiter(this, void 0, void 0, function* () {
             const endpointGroups = yield deviceNode.getChildren([spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName]);
             const promises = endpointGroups.map((group) => __awaiter(this, void 0, void 0, function* () {
+                var _a, _b;
                 const endpointsObj = {};
-                const typeId = group.info.idNetwork.get();
+                const typeId = (_b = (_a = group.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
                 const children = yield group.getChildren([spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName]);
-                children.forEach((child) => (endpointsObj[`${typeId}_${child.info.idNetwork.get()}`] = child));
+                children.forEach((child) => {
+                    var _a, _b;
+                    const idNetwork = (_b = (_a = child.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
+                    if (typeof idNetwork !== "undefined" && idNetwork !== null)
+                        endpointsObj[`${typeId}_${idNetwork}`] = child;
+                });
                 return endpointsObj;
             }));
             return Promise.allSettled(promises).then((results) => {
@@ -225,7 +231,13 @@ class SpinalNetworkUtilitiesClass {
     updateBitStringEndpointValue(endpointNode_1, newValue_1) {
         return __awaiter(this, arguments, void 0, function* (endpointNode, newValue, saveTimeSeries = false) {
             const children = yield endpointNode.getChildren([spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName]);
-            const childrenObj = children.reduce((acc, child) => (Object.assign(Object.assign({}, acc), { [`${child.info.idNetwork.get()}`]: child })), {});
+            const childrenObj = children.reduce((acc, child) => {
+                var _a, _b;
+                const idNetwork = (_b = (_a = child.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
+                if (typeof idNetwork === "undefined" || idNetwork === null)
+                    return acc;
+                return Object.assign(Object.assign({}, acc), { [idNetwork]: child });
+            }, {});
             const bitText = (yield endpointNode.getElement(true)).bit_text.get();
             const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(newValue, bitText, endpointNode.info.get());
             const promises = [];
@@ -397,17 +409,19 @@ class SpinalNetworkUtilitiesClass {
     _itemExistInChild(parentNode, relationName, childNetworkId) {
         return __awaiter(this, void 0, void 0, function* () {
             const children = yield parentNode.getChildren([relationName]);
-            const found = children.find((el) => el.info.idNetwork.get() == childNetworkId);
+            const found = children.find((el) => { var _a, _b; return ((_b = (_a = el.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get()) == childNetworkId; });
             return found;
         });
     }
     _getChildrenAsObj(parentNode, relationName) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             const children = yield parentNode.getChildren([relationName]);
             const childObj = {};
             for (const child of children) {
-                const networkId = child.info.idNetwork.get();
-                childObj[networkId] = child;
+                const networkId = (_b = (_a = child.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
+                if (typeof networkId !== "undefined" && networkId !== null)
+                    childObj[networkId] = child;
             }
             return childObj;
         });

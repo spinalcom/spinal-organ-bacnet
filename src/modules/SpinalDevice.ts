@@ -191,12 +191,14 @@ export class SpinalDevice extends EventEmitter {
 	}
 
 	/**  add item to covList */
-	public pushToCovList(children: IObjectId[] | IObjectId): IObjectId[] {
+	public pushToCovList(children: IObjectId[] | IObjectId = []): IObjectId[] {
 		if (!Array.isArray(children)) children = [children];
 		// const networkService = this.getNetworkService();
 
 		// const covData: ICovData = { spinalModel: this._listenerModel, spinalDevice: this, children, network: this._network };
 		// const covData: ICovData = { spinalDevice: this };
+		if (children.length === 0) return this.covData;
+
 		console.log("Childrens' number ", children.length, " has been added to COV ", this.Name);
 		this.covData.push(...children);
 
