@@ -22,7 +22,7 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import * as bacnet from "bacstack";
+import bacnet from "bacstack";
 import { PropertyNames, ObjectTypesCode } from "./GlobalVariables";
 import { IDevice, IObjectId } from "../Interfaces";
 import { EventPayload, SpinalCov } from "../modules/SpinalCov";

@@ -1,4 +1,4 @@
-import * as bacnet from "bacstack";
+import bacnet from "bacstack";
 import { IDevice, IObjectId } from "../Interfaces";
 import { EventPayload } from "../modules/SpinalCov";
 declare class BacnetUtilitiesClass {
