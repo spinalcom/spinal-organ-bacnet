@@ -1,58 +1,99 @@
 # spinal-organ-bacnet
 
-## BACNET Connector
+BACnet connector for the SpinalCom ecosystem (BOS). This organ provides:
 
-The purpose of this organ is to connect a client using [BACnet](lib/bacstack/README.md) protocol with the BOS (Building Operating System) thus allowing device discovery , data extraction and device monitoring
+-   BACnet device discovery,
+-   property and value reading,
+-   supervision and monitoring,
+-   control through BACnet-related services.
 
-## Getting started
+This project relies on the local BACnet library [lib/bacstack](lib/bacstack/README.md).
 
-### Requirements
-Running this connector requires private information in a config.json5 file. Ask for permission to get access.
-```
-spinalConnector : {
-    userId: "XXX", // user id - process.env.SPINAL_USER_ID
-    name: "XXXXX",
-    password : "XXXXX",
-    protocol : "XXXX",
-    host: "XXXXX", // can be an ip address - process.env.SPINALHUB_IP  
-    port: "XXXX",
-    path: "XXXXXXXXXXXXXX",
-}
-```
+## Prerequisites
 
-This connector also requires the viewer plugin 'spinal-env-viewer-plugin-bacnet-manager'
+-   Node.js 18+ recommended
+-   npm
+-   access to a SpinalCom Hub
+-   BACnet-compatible viewer plugin (e.g. `spinal-env-viewer-plugin-bacnet-manager`)
 
+## Installation
 
-To build the project, run 
-
-```
-npm run build
+```bash
+npm install
 ```
 
-For development, run with
+## Configuration
+
+Configuration is done through environment variables (not via `config.json5` in the current codebase).
+
+Required variables:
+
+-   `ORGAN_NAME`: organ name
+-   `USER_ID`: Hub user ID
+-   `PASSWORD`: Hub password
+-   `PROTOCOL`: Hub connection protocol (`http` or `https`)
+-   `HOST`: Hub address
+-   `PORT`: Hub port
+-   `ORGAN_FOLDER_PATH`: path to the organ folder in the graph
+
+Optional variables:
+
+-   `LAUNCH_OWN_BACNET_SERVICE`: `1`/`true` to launch a local BACnet service
+-   `BACNET_SERVICE_PORT`: BACnet service port (default: `47810`)
+-   `CLEAR_ORGAN_IF_NOT_COMPATIBLE`: `1`/`true` to reset the organ when data is incompatible
+
+Example:
+
+```bash
+export ORGAN_NAME="spinal-organ-bacnet"
+export USER_ID="my_user"
+export PASSWORD="my_password"
+export PROTOCOL="https"
+export HOST="my-spinal-hub.domain.tld"
+export PORT="443"
+export ORGAN_FOLDER_PATH="/organs"
+
+export LAUNCH_OWN_BACNET_SERVICE="true"
+export BACNET_SERVICE_PORT="47810"
 ```
+
+## Scripts
+
+-   `npm run build`: compile TypeScript to `dist/`
+-   `npm run start`: build then start the organ (`node dist/index.js`)
+-   `npm run pm2`: build then start with PM2 using [ecosystem.config.js](ecosystem.config.js)
+
+## Run
+
+### Local start
+
+```bash
 npm run start
 ```
 
-You can also add this organ in the .app.json file to run it with pm2 process manager
+### Start with PM2
 
-On the integration platform ( Studio ) you can create a network and try the features.
-The data will be organized as follow :
-- Graph
-  - Network
-    - NetworkVirtual
-      - Device 1
-        - Device 1 child_1 - groupendpoint
-          - Device 1 child_2_1 - endpoint
+```bash
+npm run pm2
+```
 
-        OR / AND
+## Main structure
 
-        - Device 1 child_2 - endpoint
-      - ...
+-   [src/index.ts](src/index.ts): entry point, Hub connection, service initialization
+-   [src/config.ts](src/config.ts): environment variable validation and loading
+-   [src/modules/](src/modules/): business logic (discover, devices, monitoring, COV, pilot)
+-   [src/utilities/](src/utilities/): BACnet/Spinal utility functions
+-   [lib/bacstack/](lib/bacstack/): embedded BACnet implementation
 
+## Data organization (simplified view)
 
+-   Graph
+-   Network
+-   NetworkVirtual
+-   Device
+-   GroupEndpoint / Endpoint
 
+## Notes
 
-
-
-
+-   The [index.js](index.js) file loads compiled artifacts from `dist/`.
+-   If you modify TypeScript code in `src/`, run at least `npm run build` again.

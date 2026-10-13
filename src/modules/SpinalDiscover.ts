@@ -22,7 +22,7 @@
  * <http://resources.spinalcom.com/licenses.pdf>.
  */
 
-import * as bacnet from "bacstack";
+import bacnet from "bacstack";
 import { EventEmitter } from "events";
 import { SpinalQueue } from "spinal-connector-service";
 import { SpinalGraphService, SpinalNode, SpinalNodeRef } from "spinal-env-viewer-graph-service";
@@ -34,7 +34,7 @@ import { STATES } from "spinal-connector-service";
 import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 import { PropertyIds } from "../utilities/GlobalVariables";
 import BacnetUtilities from "../utilities/BacnetUtilities";
-const config = require("../../config.js");
+import { getConfig } from "../config";
 
 class SpinalDiscover {
 	private bindSateProcess: any;
@@ -285,7 +285,7 @@ class SpinalDiscover {
 
 	private async _getDevicesSelected(discoverModel: SpinalDiscoverModel): Promise<SpinalQueue<spinal.Model>> {
 		const queue: SpinalQueue<spinal.Model> = new SpinalQueue();
-		const { protocol, host, port } = config.spinalConnector;
+		const { protocol, host, port } = getConfig()?.spinalConnector;
 		const url = `${protocol}://${host}:${port}`;
 		console.log(url);
 		const list = await discoverModel.getTreeToCreate(url);

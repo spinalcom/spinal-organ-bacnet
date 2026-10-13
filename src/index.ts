@@ -35,16 +35,20 @@ import BacnetUtilities from "./utilities/BacnetUtilities";
 import { launchBacnetService, SERVICE_NAME } from "spinal-bacnet-service";
 import { clearOrgan } from "./utilities/clearOrgan";
 
-const config = require("../config.js");
+import { getConfig } from "./config";
 
-const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
+// const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
+
+//// Load environment variables for the organ configuration
+const { protocol, host, port, userId, password, path, name } = getConfig()?.spinalConnector;
+
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinalCore.connect(url);
 
 const organInfo = {
-	name,
+	name: name,
 	type: BACNET_ORGAN_TYPE,
-	path: nodePath.normalize(`${path}/${name}`),
+	path: nodePath.normalize(`${path as string}/${name}`),
 	model: new SpinalOrganConfigModel(name, BACNET_ORGAN_TYPE),
 };
 
@@ -80,7 +84,7 @@ spinalConnectorService
 
 		const clientServiceName = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
 		await BacnetUtilities.initAndConnect(clientServiceName, serverServiceName, Number(bacnetServicePort)); // initialize and connect to the bacnet server
-		await ConfigFile.init(connect, name, host, protocol, port); // API health
+		await ConfigFile.init(connect, name, host, protocol, Number(port)); // API health
 
 		const pm2_instance = await GetPm2Instance(name);
 		const pm2_id = pm2_instance ? (pm2_instance as any).pm_id : null;

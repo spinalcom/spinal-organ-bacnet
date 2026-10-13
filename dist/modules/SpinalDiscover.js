@@ -44,7 +44,7 @@ const spinal_connector_service_2 = require("spinal-connector-service");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
-const config = require("../../config.js");
+const config_1 = __importDefault(require("../config"));
 class SpinalDiscover {
     constructor(model) {
         var _a, _b;
@@ -268,7 +268,7 @@ class SpinalDiscover {
     _getDevicesSelected(discoverModel) {
         return __awaiter(this, void 0, void 0, function* () {
             const queue = new spinal_connector_service_1.SpinalQueue();
-            const { protocol, host, port } = config.spinalConnector;
+            const { protocol, host, port } = config_1.default.spinalConnector;
             const url = `${protocol}://${host}:${port}`;
             console.log(url);
             const list = yield discoverModel.getTreeToCreate(url);

@@ -78,8 +78,8 @@ const nodePath = __importStar(require("path"));
 const BacnetUtilities_1 = __importDefault(require("./utilities/BacnetUtilities"));
 const spinal_bacnet_service_1 = require("spinal-bacnet-service");
 const clearOrgan_1 = require("./utilities/clearOrgan");
-const config = require("../config.js");
-const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
+const config_1 = __importDefault(require("./config"));
+const { protocol, host, port, userId, password, path, name } = config_1.default.spinalConnector;
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
 const organInfo = {
@@ -114,7 +114,7 @@ spinalConnectorService
     } // launch the bacnet servicee
     const clientServiceName = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
     yield BacnetUtilities_1.default.initAndConnect(clientServiceName, serverServiceName, Number(bacnetServicePort)); // initialize and connect to the bacnet server
-    yield spinal_lib_organ_monitoring_1.default.init(connect, name, host, protocol, port); // API health
+    yield spinal_lib_organ_monitoring_1.default.init(connect, name, host, protocol, Number(port)); // API health
     const pm2_instance = yield (0, Functions_1.GetPm2Instance)(name);
     const pm2_id = pm2_instance ? pm2_instance.pm_id : null;
     // if it is running by pm2, bind the restart function to restart the process
