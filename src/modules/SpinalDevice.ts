@@ -257,8 +257,14 @@ export class SpinalDevice extends EventEmitter {
 	/** Check and create endpoints if they do not exist */
 	public async checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNode[]> {
 		try {
-			// const networkService = this.getNetworkService();
 			const deviceName = this.device?.name;
+
+			if (this._skipInitialization()) {
+				console.log(`[${deviceName}] - skipping endpoints initialization as per environment settings`);
+				return [];
+			}
+
+			// const networkService = this.getNetworkService();
 			console.log(`[${deviceName}] - check and create endpoints, if not exist`);
 
 			if (!this._context || !this._bmsDevice) {
@@ -280,6 +286,11 @@ export class SpinalDevice extends EventEmitter {
 			console.error(`[${this.device?.name}] - check and create endpoints failed due to "${(error as Error).message}"`);
 			return [];
 		}
+	}
+
+	private _skipInitialization() {
+		const skip = process.env.SKIP_ENDPOINTS_INITIALIZATION || "";
+		return skip === "true" || skip === "1";
 	}
 
 	private async generateNetworkEndpoints(childrenGroups: any) {

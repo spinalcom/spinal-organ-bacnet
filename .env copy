@@ -11,3 +11,6 @@ CLEAR_ORGAN_IF_NOT_COMPATIBLE="1"
 
 BACNET_SERVICE_PORT="47810" # default 47810
 LAUNCH_OWN_BACNET_SERVICE="1" # 1 to enable or 0 to disable
+
+
+SKIP_ENDPOINTS_INITIALIZATION="0"  # don't init endpoints create if set to 1 or true

@@ -272,8 +272,12 @@ class SpinalDevice extends events_1.EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             var _a, _b;
             try {
-                // const networkService = this.getNetworkService();
                 const deviceName = (_a = this.device) === null || _a === void 0 ? void 0 : _a.name;
+                if (this._skipInitialization()) {
+                    console.log(`[${deviceName}] - skipping endpoints initialization as per environment settings`);
+                    return [];
+                }
+                // const networkService = this.getNetworkService();
                 console.log(`[${deviceName}] - check and create endpoints, if not exist`);
                 if (!this._context || !this._bmsDevice) {
                     console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
@@ -293,6 +297,10 @@ class SpinalDevice extends events_1.EventEmitter {
                 return [];
             }
         });
+    }
+    _skipInitialization() {
+        const skip = process.env.SKIP_ENDPOINTS_INITIALIZATION || "";
+        return skip === "true" || skip === "1";
     }
     generateNetworkEndpoints(childrenGroups) {
         return __awaiter(this, void 0, void 0, function* () {

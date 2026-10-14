@@ -67,6 +67,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 require("json5/lib/register");
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
@@ -78,12 +79,14 @@ const nodePath = __importStar(require("path"));
 const BacnetUtilities_1 = __importDefault(require("./utilities/BacnetUtilities"));
 const spinal_bacnet_service_1 = require("spinal-bacnet-service");
 const clearOrgan_1 = require("./utilities/clearOrgan");
-const config_1 = __importDefault(require("./config"));
-const { protocol, host, port, userId, password, path, name } = config_1.default.spinalConnector;
+const config_1 = require("./config");
+// const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
+//// Load environment variables for the organ configuration
+const { protocol, host, port, userId, password, path, name } = (_a = (0, config_1.getConfig)()) === null || _a === void 0 ? void 0 : _a.spinalConnector;
 const url = `${protocol}://${userId}:${password}@${host}:${port}/`;
 const connect = spinal_core_connectorjs_type_1.spinalCore.connect(url);
 const organInfo = {
-    name,
+    name: name,
     type: spinal_model_bacnet_1.BACNET_ORGAN_TYPE,
     path: nodePath.normalize(`${path}/${name}`),
     model: new spinal_model_bacnet_1.SpinalOrganConfigModel(name, spinal_model_bacnet_1.BACNET_ORGAN_TYPE),

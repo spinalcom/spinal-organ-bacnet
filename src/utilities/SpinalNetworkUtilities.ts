@@ -215,7 +215,9 @@ class SpinalNetworkUtilitiesClass {
 			path: "",
 		};
 
-		if (alreadyExist) return this.updateNetworkElementNode(alreadyExist, groupInfo);
+		if (alreadyExist) {
+			return this.updateNetworkElementNode(alreadyExist, groupInfo);
+		}
 
 		const endpointGroup = await this.createNetworkElementNode(groupInfo, SpinalBmsEndpointGroup.nodeTypeName);
 		return deviceNode.addChildInContext(endpointGroup, SpinalBmsEndpointGroup.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
@@ -287,7 +289,9 @@ class SpinalNetworkUtilitiesClass {
 
 			const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
 
-			if (existingEndpoint) return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
+			if (existingEndpoint) {
+				return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
+			}
 
 			const node = await this.createNetworkElementNode(endpointInfo, SpinalBmsEndpoint.nodeTypeName);
 			return groupNode.addChildInContext(node, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);

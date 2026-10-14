@@ -205,8 +205,9 @@ class SpinalNetworkUtilitiesClass {
                 type: spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName,
                 path: "",
             };
-            if (alreadyExist)
+            if (alreadyExist) {
                 return this.updateNetworkElementNode(alreadyExist, groupInfo);
+            }
             const endpointGroup = yield this.createNetworkElementNode(groupInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName);
             return deviceNode.addChildInContext(endpointGroup, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
         });
@@ -269,8 +270,9 @@ class SpinalNetworkUtilitiesClass {
             const promises = endpointArray.map((endpointInfo) => __awaiter(this, void 0, void 0, function* () {
                 endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
                 const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
-                if (existingEndpoint)
+                if (existingEndpoint) {
                     return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
+                }
                 const node = yield this.createNetworkElementNode(endpointInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName);
                 return groupNode.addChildInContext(node, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
             }));

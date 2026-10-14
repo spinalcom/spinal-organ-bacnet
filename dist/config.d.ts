@@ -1,4 +1,4 @@
-declare const config: {
+interface IConfig {
     spinalConnector: {
         name: string;
         userId: string;
@@ -8,6 +8,7 @@ declare const config: {
         port: string;
         path: string;
     };
-};
-export default config;
-export { config };
+}
+declare function getConfig(): IConfig;
+export default getConfig;
+export { getConfig };
