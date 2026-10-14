@@ -287,6 +287,12 @@ class SpinalNetworkUtilitiesClass {
 		const promises = endpointArray.map(async (endpointInfo) => {
 			endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
 
+			const endpointInfoIsValid = this._checkIfInfoIsValid(endpointInfo);
+
+			if (!endpointInfoIsValid.valid) {
+				throw new Error(`A required endpoint information is not valid: ${endpointInfoIsValid.message}`);
+			}
+
 			const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
 
 			if (existingEndpoint) {
@@ -320,8 +326,8 @@ class SpinalNetworkUtilitiesClass {
 			name: endpointInfo.name || endpointInfo.object_name,
 			type: SpinalBmsEndpoint.nodeTypeName,
 			description: endpointInfo.description,
-			max_pres_value: endpointInfo.max_pres_value,
-			min_pres_value: endpointInfo.min_pres_value,
+			max_pres_value: endpointInfo.max_pres_value ?? "",
+			min_pres_value: endpointInfo.min_pres_value ?? "",
 			unit: endpointInfo.unit || "",
 			...(endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }),
 		};
@@ -472,12 +478,30 @@ class SpinalNetworkUtilitiesClass {
 	private async _getChildrenAsObj(parentNode: SpinalNode, relationName: string): Promise<{ [key: string]: SpinalNode }> {
 		const children = await parentNode.getChildren([relationName]);
 		const childObj: { [key: string]: SpinalNode } = {};
+		const promises: Promise<void>[] = [];
 
 		for (const child of children) {
+			if (this._existingNodeIsInvalid(child)) {
+				// remove invalid child node
+				promises.push(parentNode.removeChild(child, relationName, SPINAL_RELATION_PTR_LST_TYPE));
+				continue;
+			}
+
 			const networkId = child.info?.idNetwork?.get();
 			if (typeof networkId !== "undefined" && networkId !== null) childObj[networkId] = child;
 		}
-		return childObj;
+
+		return Promise.allSettled(promises)
+			.then(() => childObj)
+			.catch((error) => childObj);
+	}
+
+	private _existingNodeIsInvalid(child: SpinalNode<any>) {
+		if (!child.info?.idNetwork || child.info?.idNetwork?.get().toString().trim() == "") return true;
+		if (!child.info?.name || child.info?.name?.get().toString().trim() == "") return true;
+		if (!child.info?.typeId || child.info?.typeId?.get().toString().trim() == "") return true;
+
+		return false;
 	}
 
 	private loadPtrValue(ptrModel: spinal.Ptr): Promise<SpinalGraph> {
@@ -492,11 +516,11 @@ class SpinalNetworkUtilitiesClass {
 
 			const attrToNotUpdateIfEmpty = ["name", "type", "idNetwork", "currentValue"];
 
-			if (attrToNotUpdateIfEmpty.includes(attr) && newValue.toString().trim() === "") return;
+			if (attrToNotUpdateIfEmpty.includes(attr) && (newValue.toString().trim() === "" || typeof newValue === "undefined" || newValue === null)) return;
 
 			if (newValue === model[attr]) return;
 			if (model[attr]) model.mod_attr(attr, newValue);
-			else model.add_attr({ [attr]: newValue });
+			if (!model[attr]) model.add_attr({ [attr]: newValue });
 		} catch (error: any) {
 			// console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
 			console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
@@ -512,6 +536,23 @@ class SpinalNetworkUtilitiesClass {
 		if (typeof endpointData.currentValue === "undefined" || endpointData.currentValue === undefined) return false;
 
 		return true;
+	}
+
+	private _checkIfInfoIsValid(endpointInfo: InputDataEndpoint): { valid: boolean; message?: string } {
+		if (!endpointInfo) return { valid: false, message: "Endpoint info is missing" };
+
+		if (!endpointInfo.name || endpointInfo.name.toString().trim() === "") return { valid: false, message: "Endpoint name is missing or empty" };
+
+		if (!endpointInfo.type || endpointInfo.type.toString().trim() === "") return { valid: false, message: "Endpoint type is missing or empty" };
+
+		if (endpointInfo.id === undefined || endpointInfo.id === null || endpointInfo.id.toString().trim() === "") return { valid: false, message: "Endpoint id is missing" };
+
+		if (endpointInfo.typeId === undefined || endpointInfo.typeId === null || endpointInfo.typeId.toString().trim() === "") return { valid: false, message: "Endpoint typeId is missing" };
+
+		// if (typeof endpointInfo.currentValue === "undefined" || endpointInfo.currentValue === undefined)
+		// 	return { valid: false, message: "Endpoint current value is missing" };
+
+		return { valid: true };
 	}
 }
 

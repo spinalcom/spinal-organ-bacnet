@@ -269,6 +269,10 @@ class SpinalNetworkUtilitiesClass {
             const endpointAlreadyCreated = yield this._getChildrenAsObj(groupNode, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
             const promises = endpointArray.map((endpointInfo) => __awaiter(this, void 0, void 0, function* () {
                 endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
+                const endpointInfoIsValid = this._checkIfInfoIsValid(endpointInfo);
+                if (!endpointInfoIsValid.valid) {
+                    throw new Error(`A required endpoint information is not valid: ${endpointInfoIsValid.message}`);
+                }
                 const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
                 if (existingEndpoint) {
                     return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
@@ -292,7 +296,8 @@ class SpinalNetworkUtilitiesClass {
         });
     }
     _formatEndpointCreationInfo(endpointInfo) {
-        return Object.assign({ id: endpointInfo.id || endpointInfo.instance, typeId: endpointInfo.typeId, path: endpointInfo.path || "", currentValue: endpointInfo.currentValue || endpointInfo.present_value, name: endpointInfo.name || endpointInfo.object_name, type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName, description: endpointInfo.description, max_pres_value: endpointInfo.max_pres_value, min_pres_value: endpointInfo.min_pres_value, unit: endpointInfo.unit || "" }, (endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }));
+        var _a, _b;
+        return Object.assign({ id: endpointInfo.id || endpointInfo.instance, typeId: endpointInfo.typeId, path: endpointInfo.path || "", currentValue: endpointInfo.currentValue || endpointInfo.present_value, name: endpointInfo.name || endpointInfo.object_name, type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName, description: endpointInfo.description, max_pres_value: (_a = endpointInfo.max_pres_value) !== null && _a !== void 0 ? _a : "", min_pres_value: (_b = endpointInfo.min_pres_value) !== null && _b !== void 0 ? _b : "", unit: endpointInfo.unit || "" }, (endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }));
     }
     updateNetworkElementNode(node, newInfo) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -420,13 +425,31 @@ class SpinalNetworkUtilitiesClass {
             var _a, _b;
             const children = yield parentNode.getChildren([relationName]);
             const childObj = {};
+            const promises = [];
             for (const child of children) {
+                if (this._existingNodeIsInvalid(child)) {
+                    // remove invalid child node
+                    promises.push(parentNode.removeChild(child, relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE));
+                    continue;
+                }
                 const networkId = (_b = (_a = child.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
                 if (typeof networkId !== "undefined" && networkId !== null)
                     childObj[networkId] = child;
             }
-            return childObj;
+            return Promise.allSettled(promises)
+                .then(() => childObj)
+                .catch((error) => childObj);
         });
+    }
+    _existingNodeIsInvalid(child) {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j;
+        if (!((_a = child.info) === null || _a === void 0 ? void 0 : _a.idNetwork) || ((_c = (_b = child.info) === null || _b === void 0 ? void 0 : _b.idNetwork) === null || _c === void 0 ? void 0 : _c.get().toString().trim()) == "")
+            return true;
+        if (!((_d = child.info) === null || _d === void 0 ? void 0 : _d.name) || ((_f = (_e = child.info) === null || _e === void 0 ? void 0 : _e.name) === null || _f === void 0 ? void 0 : _f.get().toString().trim()) == "")
+            return true;
+        if (!((_g = child.info) === null || _g === void 0 ? void 0 : _g.typeId) || ((_j = (_h = child.info) === null || _h === void 0 ? void 0 : _h.typeId) === null || _j === void 0 ? void 0 : _j.get().toString().trim()) == "")
+            return true;
+        return false;
     }
     loadPtrValue(ptrModel) {
         return new Promise((resolve) => {
@@ -439,13 +462,13 @@ class SpinalNetworkUtilitiesClass {
                 if (newValue === undefined || newValue === null)
                     return;
                 const attrToNotUpdateIfEmpty = ["name", "type", "idNetwork", "currentValue"];
-                if (attrToNotUpdateIfEmpty.includes(attr) && newValue.toString().trim() === "")
+                if (attrToNotUpdateIfEmpty.includes(attr) && (newValue.toString().trim() === "" || typeof newValue === "undefined" || newValue === null))
                     return;
                 if (newValue === model[attr])
                     return;
                 if (model[attr])
                     model.mod_attr(attr, newValue);
-                else
+                if (!model[attr])
                     model.add_attr({ [attr]: newValue });
             }
             catch (error) {
@@ -466,6 +489,21 @@ class SpinalNetworkUtilitiesClass {
                 return false;
             return true;
         });
+    }
+    _checkIfInfoIsValid(endpointInfo) {
+        if (!endpointInfo)
+            return { valid: false, message: "Endpoint info is missing" };
+        if (!endpointInfo.name || endpointInfo.name.toString().trim() === "")
+            return { valid: false, message: "Endpoint name is missing or empty" };
+        if (!endpointInfo.type || endpointInfo.type.toString().trim() === "")
+            return { valid: false, message: "Endpoint type is missing or empty" };
+        if (endpointInfo.id === undefined || endpointInfo.id === null || endpointInfo.id.toString().trim() === "")
+            return { valid: false, message: "Endpoint id is missing" };
+        if (endpointInfo.typeId === undefined || endpointInfo.typeId === null || endpointInfo.typeId.toString().trim() === "")
+            return { valid: false, message: "Endpoint typeId is missing" };
+        // if (typeof endpointInfo.currentValue === "undefined" || endpointInfo.currentValue === undefined)
+        // 	return { valid: false, message: "Endpoint current value is missing" };
+        return { valid: true };
     }
 }
 const SpinalNetworkUtilities = SpinalNetworkUtilitiesClass.getIntance();
