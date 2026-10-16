@@ -7,10 +7,13 @@ PORT="8080"
 ORGAN_FOLDER_PATH="/__users__/admin/organs"
 BACNET_PRIORITY="16"
 
-CLEAR_ORGAN_IF_NOT_COMPATIBLE="1"
 
+CLEAR_ORGAN_IF_NOT_COMPATIBLE="1" # Clear organ data if not compatible with this version
+
+#Bacnet Services
 BACNET_SERVICE_PORT="47810" # default 47810
 LAUNCH_OWN_BACNET_SERVICE="1" # 1 to enable or 0 to disable
+LOG_BACNET_SERVICE="0" #log bacnet service if 1 or true
 
 
 SKIP_ENDPOINTS_INITIALIZATION="0"  # don't init endpoints create if set to 1 or true
