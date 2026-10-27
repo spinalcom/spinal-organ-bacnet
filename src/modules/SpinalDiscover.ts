@@ -272,7 +272,13 @@ class SpinalDiscover {
 
 				const deviceAlreadyExist = devicesObj[deviceId];
 
-				const spinalDevice = this.devices.get(deviceId);
+				let spinalDevice = this.devices.get(deviceId);
+				if (!spinalDevice) {
+					spinalDevice = new SpinalDevice(device as any);
+					await spinalDevice.init();
+					this.devices.set(deviceId, spinalDevice);
+				}
+
 				if (spinalDevice) await spinalDevice.createDeviceNodeInGraph(context, network, deviceAlreadyExist);
 
 				// if (deviceAlreadyExist) continue;

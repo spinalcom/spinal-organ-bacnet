@@ -458,7 +458,7 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getDeviceInfo(device) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b, _c;
+            var _a, _b, _c, _d, _e;
             const deviceAddress = device.address;
             if (!deviceAddress)
                 throw new Error("Device address is not defined");
@@ -469,14 +469,14 @@ class SpinalDevice extends events_1.EventEmitter {
                     id: deviceId,
                     SADR: device.SADR,
                     deviceId,
-                    name: yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME),
+                    name: (_a = device.name) !== null && _a !== void 0 ? _a : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_OBJECT_NAME)),
                     address: deviceAddress,
                     typeId: objectId.type,
                     type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
-                    description: yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
-                    segmentation: (_a = device.segmentation) !== null && _a !== void 0 ? _a : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
-                    vendorId: (_b = device.vendorId) !== null && _b !== void 0 ? _b : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                    maxApdu: (_c = device.maxApdu) !== null && _c !== void 0 ? _c : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)),
+                    description: (_b = device.description) !== null && _b !== void 0 ? _b : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION)),
+                    segmentation: (_c = device.segmentation) !== null && _c !== void 0 ? _c : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
+                    vendorId: (_d = device.vendorId) !== null && _d !== void 0 ? _d : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
+                    maxApdu: (_e = device.maxApdu) !== null && _e !== void 0 ? _e : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)),
                 };
             }
             catch (error) {

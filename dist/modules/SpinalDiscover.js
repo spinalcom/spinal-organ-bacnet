@@ -39,6 +39,7 @@ exports.spinalDiscover = void 0;
 const events_1 = require("events");
 const spinal_connector_service_1 = require("spinal-connector-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
+const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_connector_service_2 = require("spinal-connector-service");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
@@ -241,7 +242,12 @@ class SpinalDiscover {
                         continue;
                     const deviceId = device.deviceId;
                     const deviceAlreadyExist = devicesObj[deviceId];
-                    const spinalDevice = this.devices.get(deviceId);
+                    let spinalDevice = this.devices.get(deviceId);
+                    if (!spinalDevice) {
+                        spinalDevice = new SpinalDevice_1.SpinalDevice(device);
+                        yield spinalDevice.init();
+                        this.devices.set(deviceId, spinalDevice);
+                    }
                     if (spinalDevice)
                         yield spinalDevice.createDeviceNodeInGraph(context, network, deviceAlreadyExist);
                     // if (deviceAlreadyExist) continue;
