@@ -1,15 +1,18 @@
-import { ICovData, ICovSubscribeReq } from "../Interfaces";
+import { ICovData, ICovSubscribeReq, IObjectId } from "../Interfaces";
 import { SpinalQueue } from "spinal-connector-service";
 import BacnetUtilities from "../utilities/BacnetUtilities";
 import { COV_EVENTS_NAMES, PropertyIds } from "../utilities/GlobalVariables";
 import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 import EventEmitter from "events";
+import type { CovSubscriptionOperation } from "../indicators/DeviceCommunicationIndicators";
+import { areIndicatorsEnabled } from "../indicators/indicatorConfiguration";
 
 export type EventPayload = {
 	error?: { message: string };
 	key?: string;
 	data?: any;
 	eventName: string;
+	operation?: "subscribe" | "renewal" | "unsubscribe";
 	_clientId?: string;
 	timestamp?: number;
 };
@@ -23,6 +26,7 @@ class SpinalCov extends EventEmitter {
 	// private forkedProcess: ChildProcess | null = null; // process handling COV subscriptions
 	private _lastCovNotification: number | null = null;
 	private itemMonitored: Map<string, ICovData> = new Map();
+	private _subscriptionOwnerByKey: Map<string, ICovData["spinalDevice"]> = new Map();
 
 	private constructor() {
 		super();
@@ -52,8 +56,11 @@ class SpinalCov extends EventEmitter {
 	}
 
 	public startCovProcessing() {
-		console.log("start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
-		this.itemToWatchQueue.start();
+		const itemsToWatch = this.itemToWatchQueue.toArray();
+		if (itemsToWatch.length > 0) {
+			console.log("[startCovProcessing] start cov proccessing with", this.itemToWatchQueue.toArray().length, "items to monitor");
+			this.itemToWatchQueue.start();
+		}
 	}
 
 	public stopAllCovSubscriptions() {
@@ -63,7 +70,7 @@ class SpinalCov extends EventEmitter {
 	}
 
 	public restartAllCovSubscriptions() {
-		console.log("[COV] - Restarting all COV subscriptions after client reset");
+		console.log("[restartAllCovSubscriptions] [COV] - Restarting all COV subscriptions after client reset");
 		const allItems = Array.from(this.itemMonitored.values());
 		this.addToCovQueue(allItems as ICovData[]);
 
@@ -89,6 +96,7 @@ class SpinalCov extends EventEmitter {
 
 	public async processToDataTreatment(list: ICovData[], eventName: (typeof COV_EVENTS_NAMES)[keyof typeof COV_EVENTS_NAMES]) {
 		const formatted: ICovSubscribeReq[] = [];
+		const devicesToRefresh = new Set<ICovData["spinalDevice"]>();
 
 		for (const { spinalDevice, children } of list) {
 			const ip = spinalDevice?.device?.address;
@@ -96,13 +104,23 @@ class SpinalCov extends EventEmitter {
 
 			if (eventName === COV_EVENTS_NAMES.subscribe) this.itemMonitored.set(ip, { spinalDevice, children }); // Store the device
 			else if (eventName === COV_EVENTS_NAMES.unsubscribe && this.itemMonitored.has(ip)) {
-				console.log(`[COV] - Unsubscribing from device ${ip}`);
+				console.log(`[processToDataTreatment] [COV] - Unsubscribing from device ${ip}`);
 				this.itemMonitored.delete(ip); // Remove the device
 			}
+
+			for (const child of children) {
+				const key = this._getSubscriptionKey(ip, child);
+				if (areIndicatorsEnabled()) {
+					this._subscriptionOwnerByKey.set(key, spinalDevice);
+					spinalDevice.indicators.trackCovSubscription(key);
+				}
+			}
+			if (areIndicatorsEnabled()) devicesToRefresh.add(spinalDevice);
 
 			formatted.push(...this.formatChildren(ip, children));
 		}
 
+		for (const spinalDevice of devicesToRefresh) spinalDevice.scheduleCommunicationControlEndpointUpdate();
 		BacnetUtilities.sendCovRequest({ eventName, data: formatted });
 		// sendEvent({ eventName, data: formatted });
 	}
@@ -117,7 +135,7 @@ class SpinalCov extends EventEmitter {
 			const tooLong = sinceNow > alertTime; // more than 1 minute
 
 			if (tooLong) {
-				console.log(`[COV] - No COV notification received for more than ${alertTime / 1000}s , restarting all subscriptions`);
+				console.log(`[setIntervalCallback] [COV] - No COV notification received for more than ${alertTime / 1000}s , restarting all subscriptions`);
 				this.restartAllCovSubscriptions();
 			}
 		}, 60 * 1000);
@@ -160,22 +178,22 @@ class SpinalCov extends EventEmitter {
     }
     */
 	public async _updateDeviceValue(address: string, request: any) {
+		const monitoredData = this.itemMonitored.get(address);
+		if (!monitoredData) return;
+
 		const currentValue = request.values.find((v: any) => v.property?.id === PropertyIds.PROP_PRESENT_VALUE);
 		if (!currentValue) return;
 
 		const value = BacnetUtilities._getObjValue(currentValue.value); // extract value
 
 		const object = request.monitoredObjectId;
-		const monitoredData = this.itemMonitored.get(address);
-
-		if (!monitoredData) return;
-
 		const { spinalDevice } = monitoredData;
-		const key = `${object.type}_${object.instance}`;
+		if (areIndicatorsEnabled()) spinalDevice.indicators.recordSuccessfulExchange();
+		spinalDevice.scheduleCommunicationControlEndpointUpdate();
 
 		const children = [{ id: object.instance, currentValue: value, type: object.type }]; // format children to update
 
-		console.log(`[COV] - Updating item (${JSON.stringify(object)}) from device ${address} with value ${value}`);
+		console.log(`[_updateDeviceValue] [COV] - Updating item (${JSON.stringify(object)}) from device ${address} with value ${value}`);
 
 		const node = spinalDevice.getBmsDeviceNode();
 
@@ -184,11 +202,21 @@ class SpinalCov extends EventEmitter {
 
 	private _listenEvents() {
 		this.on(COV_EVENTS_NAMES.subscribed, async (data: any) => {
-			console.log("[COV] - Subscribed to", data?.key);
+			this._recordCovSubscriptionEvent(data, COV_EVENTS_NAMES.subscribed);
+			console.log("[onCallback] [COV] - Subscribed to", data?.key);
 		});
 
 		this.on(COV_EVENTS_NAMES.error, async (data: any) => {
-			console.error(`[COV] - Failed to subscribe to ${data?.key} due to", "${data?.error?.message}"`);
+			this._recordCovSubscriptionEvent(data, COV_EVENTS_NAMES.error);
+			console.error(`[onCallback] [COV] - Failed to subscribe to ${data?.key} due to", "${data?.error?.message}"`);
+		});
+
+		this.on(COV_EVENTS_NAMES.renewalStart, async (data: any) => {
+			this._recordCovSubscriptionEvent(data, COV_EVENTS_NAMES.renewalStart);
+		});
+
+		this.on(COV_EVENTS_NAMES.unsubscribed, async (data: any) => {
+			this._recordCovSubscriptionEvent(data, COV_EVENTS_NAMES.unsubscribed);
 		});
 
 		this.on(COV_EVENTS_NAMES.changed, async ({ data }: any) => {
@@ -196,6 +224,37 @@ class SpinalCov extends EventEmitter {
 			// SpinalCov.getInstance().updateLastCovNotificationTime();
 			await SpinalCov.getInstance()._updateDeviceValue(data.address, data.request);
 		});
+	}
+
+	private _getSubscriptionKey(ip: string, object: IObjectId): string {
+		return `${ip}_${object.type}_${object.instance}`;
+	}
+
+	private _recordCovSubscriptionEvent(data: EventPayload, eventName: string): void {
+		const key = data?.key;
+		if (!key) return;
+		if (!areIndicatorsEnabled()) {
+			if (eventName === COV_EVENTS_NAMES.unsubscribed) this._subscriptionOwnerByKey.delete(key);
+			return;
+		}
+
+		const spinalDevice = this._subscriptionOwnerByKey.get(key);
+		if (!spinalDevice) return;
+
+		const operation: CovSubscriptionOperation =
+			data.operation || (eventName === COV_EVENTS_NAMES.unsubscribed ? "unsubscribe" : eventName === COV_EVENTS_NAMES.renewalStart ? "renewal" : "subscribe");
+
+		if (eventName === COV_EVENTS_NAMES.renewalStart) {
+			spinalDevice.indicators.startCovRenewal(key);
+		} else if (eventName === COV_EVENTS_NAMES.subscribed) {
+			spinalDevice.indicators.recordCovSubscriptionSuccess(key, operation);
+		} else if (eventName === COV_EVENTS_NAMES.error) {
+			spinalDevice.indicators.recordCovSubscriptionFailure(key, operation);
+		} else if (eventName === COV_EVENTS_NAMES.unsubscribed) {
+			spinalDevice.indicators.recordCovUnsubscribed(key);
+			this._subscriptionOwnerByKey.delete(key);
+		}
+		spinalDevice.scheduleCommunicationControlEndpointUpdate();
 	}
 }
 

@@ -82,13 +82,19 @@ const spinal_connector_service_1 = require("spinal-connector-service");
 const Functions_1 = require("../utilities/Functions");
 const profileManager_1 = __importDefault(require("../utilities/profileManager"));
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
+const DeviceCommunicationIndicators_1 = require("../indicators/DeviceCommunicationIndicators");
+const indicatorConfiguration_1 = require("../indicators/indicatorConfiguration");
 class SpinalDevice extends events_1.EventEmitter {
     // private client: bacnet;
     constructor(device) {
         super();
+        this.indicators = new DeviceCommunicationIndicators_1.DeviceCommunicationIndicators();
         this.covData = [];
         // private _networkService: NetworkService;
         this._profileData = {};
+        this._communicationMetricsLogTimer = null;
+        this._communicationControlEndpointSync = Promise.resolve();
+        this._communicationControlEndpointSyncTimer = null;
         this.device = device;
         this._listenProfileEvent();
     }
@@ -98,7 +104,7 @@ class SpinalDevice extends events_1.EventEmitter {
             var _a, _b, _c;
             if (((_a = this._profile) === null || _a === void 0 ? void 0 : _a.getId().get()) !== profileId)
                 return;
-            console.log(`[PROFILE CHANGED] - ${this.Name} will restart for refreshing data...`);
+            console.log(`[onCallback] [PROFILE CHANGED] - ${this.Name} will restart for refreshing data...`);
             this._profileData = this._classifyChildrenByInterval(data);
             // if the device is currently monitored, restart it to update the monitored items with the new profile data
             if ((_c = (_b = this._listenerModel) === null || _b === void 0 ? void 0 : _b.monitored) === null || _c === void 0 ? void 0 : _c.get())
@@ -150,7 +156,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 return true;
             }
             catch (error) {
-                console.error("Error initializing existing device", error);
+                console.error("[initExistingDevice] Error initializing existing device", error);
                 return false;
             }
         });
@@ -165,6 +171,56 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     getBmsDeviceNode() {
         return this._bmsDevice;
+    }
+    getCommunicationIndicators() {
+        return this.indicators.fetchCurrentIndicators();
+    }
+    startCommunicationMetricsLogging() {
+        if (!(0, indicatorConfiguration_1.areIndicatorsEnabled)())
+            return;
+        if (this._communicationMetricsLogTimer)
+            return;
+        this.indicators.setMonitoringActive(true);
+        this._logCommunicationMetrics();
+        this._communicationMetricsLogTimer = setInterval(() => this._logCommunicationMetrics(), 60000);
+        this._communicationMetricsLogTimer.unref();
+    }
+    stopCommunicationMetricsLogging() {
+        this.indicators.setMonitoringActive(false);
+        if (!this._communicationMetricsLogTimer)
+            return;
+        clearInterval(this._communicationMetricsLogTimer);
+        this._communicationMetricsLogTimer = null;
+        this._logCommunicationMetrics();
+    }
+    updateCommunicationControlEndpoints() {
+        return __awaiter(this, arguments, void 0, function* (recordTimeSeries = true) {
+            if (!(0, indicatorConfiguration_1.areIndicatorsEnabled)())
+                return;
+            const update = this._communicationControlEndpointSync.then(() => __awaiter(this, void 0, void 0, function* () {
+                if (!this._bmsDevice)
+                    throw new Error("BMS device node is not initialized");
+                yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, this.getCommunicationIndicators(), recordTimeSeries);
+            }));
+            this._communicationControlEndpointSync = update.catch((error) => {
+                console.error(`[updateCommunicationControlEndpoints] [${this.Name}] - Failed to synchronize communication indicators:`, error);
+            });
+            yield this._communicationControlEndpointSync;
+        });
+    }
+    scheduleCommunicationControlEndpointUpdate(delay = 250) {
+        if (!(0, indicatorConfiguration_1.areIndicatorsEnabled)())
+            return;
+        if (this._communicationControlEndpointSyncTimer)
+            clearTimeout(this._communicationControlEndpointSyncTimer);
+        this._communicationControlEndpointSyncTimer = setTimeout(() => {
+            this._communicationControlEndpointSyncTimer = null;
+            void this.updateCommunicationControlEndpoints(false);
+        }, delay);
+        this._communicationControlEndpointSyncTimer.unref();
+    }
+    _logCommunicationMetrics() {
+        // console.log("[_logCommunicationMetrics] ", { device: this.Name, indicators: this.getCommunicationIndicators() });
     }
     // public getNetworkService() {
     //    const saveTimeSeries = this._listenerModel.saveTimeSeries?.get() || false;
@@ -217,7 +273,7 @@ class SpinalDevice extends events_1.EventEmitter {
         // const covData: ICovData = { spinalDevice: this };
         if (children.length === 0)
             return this.covData;
-        console.log("Childrens' number ", children.length, " has been added to COV ", this.Name);
+        console.log("[pushToCovList] Childrens' number ", children.length, " has been added to COV ", this.Name);
         this.covData.push(...children);
         return this.covData;
     }
@@ -240,31 +296,29 @@ class SpinalDevice extends events_1.EventEmitter {
             var _a;
             const deviceName = (_a = this.device) === null || _a === void 0 ? void 0 : _a.name;
             try {
-                console.log(`[${deviceName}] - getting object list`);
-                const listes = yield this.fetchAndFormatAllBacnetObjectList(spinalBacnetValueModel, deviceName);
-                console.log(`[${deviceName}] - object list retrieved`);
+                console.log(`[createDeviceItemList] - [${deviceName}] - getting object list`);
+                const objectListDetails = yield this.fetchAllBacnetObjectList(spinalBacnetValueModel, deviceName);
+                console.log(`[createDeviceItemList] - [${deviceName}] - ${objectListDetails.length} object(s) retrieved`);
+                const listes = this._groupAndFormatItems(objectListDetails);
                 spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.progress);
                 // create items in graph
-                console.log(`[${deviceName}] - creating items in graph`);
+                console.log(`[createDeviceItemList] - [${deviceName}] - creating items in graph`);
                 yield this._createEndpointGroupWithChildren(context, deviceNode, listes, spinalBacnetValueModel);
-                console.log(`[${deviceName}] - items created in graph`);
                 yield spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.success);
             }
             catch (error) {
-                console.log(`[${deviceName}] - items creation failed due to "${error.message}"`);
+                console.log(`[createDeviceItemList] [${deviceName}] - items creation failed due to "${error.message}"`);
                 yield spinalBacnetValueModel.changeState(spinal_model_bacnet_1.BACNET_VALUES_STATE.error);
                 return;
             }
         });
     }
-    fetchAndFormatAllBacnetObjectList(spinalBacnetValueModel, deviceName) {
+    fetchAllBacnetObjectList(spinalBacnetValueModel, deviceName) {
         return __awaiter(this, void 0, void 0, function* () {
             let sensors = this._getSensors(spinalBacnetValueModel);
             // FRAGMENTATION is used when bacnet device has a loop object
             let useFragment = true; // TODO: remove this line when useFragment is implemented in the UI
-            const objectListDetails = yield this._getObjectListDetails(sensors, useFragment);
-            // group and format items by type to optimize the creation in the graph
-            return this._groupAndFormatItems(objectListDetails);
+            return this._getObjectListDetails(sensors, useFragment);
         });
     }
     /** Check and create endpoints if they do not exist */
@@ -274,26 +328,26 @@ class SpinalDevice extends events_1.EventEmitter {
             try {
                 const deviceName = (_a = this.device) === null || _a === void 0 ? void 0 : _a.name;
                 if (this._skipInitialization()) {
-                    console.log(`[${deviceName}] - skipping endpoints initialization as per environment settings`);
+                    console.log(`[checkAndCreateEndpointsIfNotExist] [${deviceName}] - skipping endpoints initialization as per environment settings`);
                     return [];
                 }
                 // const networkService = this.getNetworkService();
-                console.log(`[${deviceName}] - check and create endpoints, if not exist`);
+                console.log(`[checkAndCreateEndpointsIfNotExist] [${deviceName}] - check and create endpoints, if not exist`);
                 if (!this._context || !this._bmsDevice) {
-                    console.log(`[${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
+                    console.log(`[checkAndCreateEndpointsIfNotExist] [${deviceName}] - context or bmsDevice is not initialized, cannot create endpoints`);
                     return [];
                 }
                 const childrenGroups = yield this.formatAndGroupEndpoints(deviceName, endpointsToCreate);
                 if (Object.keys(childrenGroups).length === 0) {
-                    console.error(`[${deviceName}] - no endpoints found, device might not respond`);
+                    console.error(`[checkAndCreateEndpointsIfNotExist] [${deviceName}] - no endpoints found, device might not respond`);
                     return [];
                 }
                 const result = yield this.generateNetworkEndpoints(childrenGroups);
-                console.log(`[${deviceName}] - ${result.flat().length} endpoints created`);
+                console.log(`[checkAndCreateEndpointsIfNotExist] [${deviceName}] - ${result.flat().length} endpoints created`);
                 return result.flat();
             }
             catch (error) {
-                console.error(`[${(_b = this.device) === null || _b === void 0 ? void 0 : _b.name}] - check and create endpoints failed due to "${error.message}"`);
+                console.error(`[checkAndCreateEndpointsIfNotExist] [${(_b = this.device) === null || _b === void 0 ? void 0 : _b.name}] - check and create endpoints failed due to "${error.message}"`);
                 return [];
             }
         });
@@ -314,7 +368,7 @@ class SpinalDevice extends events_1.EventEmitter {
     formatAndGroupEndpoints(deviceName, endpointsToCreate) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.device) {
-                console.log(`[${deviceName}] - device is not found, cannot create endpoints`);
+                console.log(`[formatAndGroupEndpoints] [${deviceName}] - device is not found, cannot create endpoints`);
                 return [];
             }
             const endpointToCreateFormatted = endpointsToCreate.map((el) => ({ type: el.type, instance: el.instance }));
@@ -328,14 +382,16 @@ class SpinalDevice extends events_1.EventEmitter {
     updateEndpoints(interval) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!this.device) {
-                console.log("device is not defined, cannot update endpoints");
+                console.log("[updateEndpoints] device is not defined, cannot update endpoints");
                 return false;
             }
             const children = this.getProfileDataByInterval(interval);
+            if (children.length === 0)
+                return true;
             const deviceName = this.device.name;
             try {
-                console.log(`[${deviceName}] ===> updating endpoints for interval [${interval}]`);
-                const objectListDetails = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children);
+                console.log(`[updateEndpoints] [${deviceName}] ===> updating endpoints for interval [${interval}]`);
+                const objectListDetails = yield this._readMonitoredValues(children);
                 if (!objectListDetails || objectListDetails.length === 0)
                     throw new Error("Failed to retreive endpoints on device");
                 if (!this._bmsDevice || !this._network)
@@ -345,9 +401,37 @@ class SpinalDevice extends events_1.EventEmitter {
                 return true;
             }
             catch (error) {
-                console.error(`[${deviceName}] - Error updating endpoints for device due to "${error.message}"`);
+                console.error(`[updateEndpoints] [${deviceName}] - Error updating endpoints for device due to "${error.message}"`);
                 return false;
             }
+        });
+    }
+    _readMonitoredValues(children) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!(0, indicatorConfiguration_1.areIndicatorsEnabled)())
+                return BacnetUtilities_1.BacnetUtilities._getChildrenNewValue(this.device, children);
+            let outcome;
+            try {
+                outcome = yield BacnetUtilities_1.BacnetUtilities._getChildrenNewValueWithMetrics(this.device, children);
+                if (!(outcome === null || outcome === void 0 ? void 0 : outcome.telemetry))
+                    throw new Error("BACnet service returned no communication telemetry; deploy the telemetry-enabled service");
+            }
+            catch (error) {
+                this.indicators.recordRequestFailure(children.length, error);
+                yield this.updateCommunicationControlEndpoints();
+                throw error;
+            }
+            this.indicators.recordReadCycle(outcome.telemetry);
+            yield this.updateCommunicationControlEndpoints();
+            if (outcome.error)
+                throw new Error(outcome.error);
+            const values = outcome.values;
+            const successfulPoints = outcome.telemetry.finalSuccesses;
+            const complete = successfulPoints === children.length;
+            if (!complete) {
+                console.error(`[_readMonitoredValues] [${this.Name}] - Incomplete BACnet read: ${successfulPoints} values received for ${children.length} requested points`);
+            }
+            return values;
         });
     }
     shouldSaveTimeSeries(objectId) {
@@ -374,6 +458,7 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getDeviceInfo(device) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b, _c;
             const deviceAddress = device.address;
             if (!deviceAddress)
                 throw new Error("Device address is not defined");
@@ -389,16 +474,16 @@ class SpinalDevice extends events_1.EventEmitter {
                     typeId: objectId.type,
                     type: BacnetUtilities_1.BacnetUtilities._getObjectTypeByCode(objectId.type),
                     description: yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_DESCRIPTION),
-                    segmentation: device.segmentation || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
-                    vendorId: device.vendorId || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
-                    maxApdu: device.maxApdu || (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)),
+                    segmentation: (_a = device.segmentation) !== null && _a !== void 0 ? _a : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_SEGMENTATION_SUPPORTED)),
+                    vendorId: (_b = device.vendorId) !== null && _b !== void 0 ? _b : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_VENDOR_IDENTIFIER)),
+                    maxApdu: (_c = device.maxApdu) !== null && _c !== void 0 ? _c : (yield this._getDataValue(deviceAddress, device.SADR, objectId, GlobalVariables_1.PropertyIds.PROP_MAX_APDU_LENGTH_ACCEPTED)),
                 };
             }
             catch (error) {
                 if (error.message.includes("ERR_TIMEOUT")) {
                     throw error;
                 }
-                console.error(`Error getting device info for device at address ${deviceAddress} with ID ${device.deviceId} due to "${error.message}"`);
+                console.error(`[_getDeviceInfo] Error getting device info for device at address ${deviceAddress} with ID ${device.deviceId} due to "${error.message}"`);
                 throw error;
             }
         });
@@ -436,7 +521,7 @@ class SpinalDevice extends events_1.EventEmitter {
     }
     _getDeviceId(deviceAdress, sadr, deviceId) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (deviceId && deviceId !== GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID)
+            if (typeof deviceId === "number" && deviceId !== GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID)
                 return deviceId;
             return BacnetUtilities_1.BacnetUtilities.getDeviceId(deviceAdress, sadr);
         });

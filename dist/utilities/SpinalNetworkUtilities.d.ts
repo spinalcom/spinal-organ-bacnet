@@ -4,6 +4,7 @@ import { SpinalContext, SpinalNode } from "spinal-model-graph";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import { IDataDiscover } from "../Interfaces/IDataDiscover";
 import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
+import type { DeviceCommunicationIndicatorsSnapshot } from "../indicators/DeviceCommunicationIndicators";
 declare const bmsTypeNames: readonly [string, string, string, string];
 type BmsNodeType = (typeof bmsTypeNames)[number];
 type InputDataTypes = ({
@@ -19,6 +20,7 @@ declare class SpinalNetworkUtilitiesClass {
     static getIntance(): SpinalNetworkUtilitiesClass;
     initSpinalDiscoverNetwork(spinalModel: SpinalDiscoverModel): Promise<IDataDiscover>;
     getTimeSeriesInstance(): SpinalServiceTimeseries;
+    updateCommunicationControlEndpoints(deviceNode: SpinalNode, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries?: boolean): Promise<void>;
     initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue>;
     initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<SpinalDevice>;
     updateEndpointInGraph(spinalDevice: SpinalDevice, children: {
@@ -26,21 +28,21 @@ declare class SpinalNetworkUtilitiesClass {
         type: string | number;
         currentValue: any;
     }[]): Promise<boolean[]>;
-    private _printEndpointsReponse;
+    private _handleEndpointUpdatesAndLogResponse;
     private _updateEndpointNodeValue;
     _getAllEndpointsInGraph(deviceNode: SpinalNode): Promise<{
         [key: string]: SpinalNode;
     }>;
     createEndpointsInGroup(context: SpinalContext, device: SpinalNode, endpointGroupName: string, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
     _createEndpointsGroup(context: SpinalContext, deviceNode: SpinalNode, endpointGroupName: string): Promise<SpinalNode>;
-    _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[]): Promise<SpinalNode[]>;
-    _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode): Promise<SpinalNode>;
+    _createBitStringSubEndpoints(context: SpinalContext, endpointsNode: SpinalNode[], deviceName: string): Promise<SpinalNode[]>;
+    _createOrUpdateEndpointsByBitStringValue(context: SpinalContext, endpointNode: SpinalNode, deviceName: string): Promise<SpinalNode>;
     updateBitStringEndpointValue(endpointNode: SpinalNode, newValue: {
         value: number[];
         bitsUsed: number;
     }, saveTimeSeries?: boolean): Promise<SpinalNode>;
     private _convertBitStringValueToEndpointInfo;
-    _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[]): Promise<SpinalNode[]>;
+    _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[], deviceName: string): Promise<SpinalNode[]>;
     private _formatEndpointCreationInfo;
     updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode>;
     createNetworkElementNode(nodeInfo: InputDataTypes, type: BmsNodeType): Promise<SpinalNode>;

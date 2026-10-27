@@ -29,6 +29,7 @@ import { EventPayload, SpinalCov } from "../modules/SpinalCov";
 import { v4 as uuid } from "uuid";
 import ipc from "node-ipc";
 import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, BACNET_COV_EVENT_NAME, CLIENT_RESET_EVENT } from "spinal-bacnet-service";
+import type { BacnetReadOutcome } from "../indicators/DeviceCommunicationIndicators";
 
 class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
@@ -36,6 +37,8 @@ class BacnetUtilitiesClass {
 	private _ipcClient: any = null;
 	private _clientId: string = "";
 	private _serverServiceName: string = "";
+	private _reconnectPromise: Promise<void> | null = null;
+	private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 	private constructor() {}
 
@@ -53,16 +56,47 @@ class BacnetUtilitiesClass {
 		this._serverServiceName = serverServiceName;
 
 		this._ipcClient = await this._connectToServer(port);
+		this._attachIpcClientHandlers(this._ipcClient, port);
+		console.log("[initAndConnect] connected to bacnet service using port", port);
+	}
 
-		this._ipcClient.on("disconnect", async () => {
-			this._ipcClient = await this._connectToServer(port);
+	private _attachIpcClientHandlers(client: any, port: number): void {
+		client.on("disconnect", () => {
+			if (this._ipcClient !== client) return;
+			void this._reconnectToServer(port);
 		});
 
-		console.log("connected to bacnet service using port", port);
-
-		this._ipcClient.on(BACNET_COV_EVENT_NAME, (result: any) => {
+		client.on(BACNET_COV_EVENT_NAME, (result: any) => {
 			SpinalCov.getInstance().emit(result.eventName, result);
 		});
+	}
+
+	private _reconnectToServer(port: number): Promise<void> {
+		if (this._reconnectPromise) return this._reconnectPromise;
+
+		this._reconnectPromise = this._connectToServer(port)
+			.then((client) => {
+				if (this._reconnectTimer) {
+					clearTimeout(this._reconnectTimer);
+					this._reconnectTimer = null;
+				}
+				this._attachIpcClientHandlers(client, port);
+				console.log("[thenCallback] reconnected to BACnet service using port", port);
+			})
+			.catch((error: unknown) => {
+				console.error("[catchCallback] Failed to reconnect to BACnet service", error);
+				if (!this._reconnectTimer) {
+					this._reconnectTimer = setTimeout(() => {
+						this._reconnectTimer = null;
+						void this._reconnectToServer(port);
+					}, 5000);
+				}
+			})
+			.finally(() => {
+				this._reconnectPromise = null;
+			});
+
+		return this._reconnectPromise;
 	}
 
 	private _connectToServer(port: number) {
@@ -155,6 +189,10 @@ class BacnetUtilitiesClass {
 		return this._sendDataToBacnetServer("_getDeviceObjectList", [device, SENSOR_TYPES, getListUsingFragment]);
 	}
 
+	public discoverDevices(networkInfo: any): Promise<IDevice[]> {
+		return this._sendDataToBacnetServer("discoverDevices", [networkInfo]);
+	}
+
 	public async getItemListByFragment(device: IDevice, objectId: IObjectId): Promise<IObjectId[]> {
 		return this._sendDataToBacnetServer("getItemListByFragment", [device, objectId]);
 	}
@@ -181,6 +219,10 @@ class BacnetUtilitiesClass {
 
 	public async _getChildrenNewValue(device: IDevice, children: Array<IObjectId>): Promise<Array<{ id: string | number; type: string | number; currentValue: any }> | undefined> {
 		return this._sendDataToBacnetServer("_getChildrenNewValue", [device, children]);
+	}
+
+	public async _getChildrenNewValueWithMetrics(device: IDevice, children: Array<IObjectId>): Promise<BacnetReadOutcome> {
+		return this._sendDataToBacnetServer("_getChildrenNewValueWithMetrics", [device, children]);
 	}
 
 	//////////////////////////////////////////////////////////////////////
@@ -224,6 +266,12 @@ class BacnetUtilitiesClass {
 
 	private _sendDataToBacnetServer(functionName: string, parameters: any[] = []): Promise<any> {
 		return new Promise((resolve, reject) => {
+			const client = this._ipcClient;
+			if (!client) {
+				reject(new Error("BACnet IPC client is not connected"));
+				return;
+			}
+
 			const params = {
 				name: functionName,
 				id: uuid(),
@@ -232,15 +280,22 @@ class BacnetUtilitiesClass {
 				timestamp: Date.now(),
 			};
 
-			this._ipcClient.emit(MESSAGE_EVENT_NAME, params);
-
-			this._ipcClient.once(`${RESPONSE_EVENT_NAME}_${params.id}`, (response: any) => {
+			const responseEvent = `${RESPONSE_EVENT_NAME}_${params.id}`;
+			const onResponse = (response: any) => {
 				if (response.status === "error") {
 					return reject({ message: response.error });
 				}
 
 				resolve(response.data);
-			});
+			};
+			client.once(responseEvent, onResponse);
+
+			try {
+				client.emit(MESSAGE_EVENT_NAME, params);
+			} catch (error) {
+				client.removeListener(responseEvent, onResponse);
+				reject(error);
+			}
 		});
 	}
 }

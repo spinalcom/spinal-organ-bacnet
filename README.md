@@ -41,6 +41,7 @@ Optional variables:
 -   `LAUNCH_OWN_BACNET_SERVICE`: `1`/`true` to launch a local BACnet service
 -   `BACNET_SERVICE_PORT`: BACnet service port (default: `47810`)
 -   `CLEAR_ORGAN_IF_NOT_COMPATIBLE`: `1`/`true` to reset the organ when data is incompatible
+-   `ADD_INDICATORS`: `1`/`true` to enable communication indicator controlpoints and history (disabled by default)
 
 Example:
 
@@ -94,6 +95,44 @@ npm run pm2
 -   GroupEndpoint / Endpoint
 
 ## Notes
+
+### Device communication indicators
+
+When `ADD_INDICATORS` is enabled, each `SpinalDevice` exposes a read-only snapshot through
+`device.indicators.fetchCurrentIndicators()` or
+`device.getCommunicationIndicators()`. The organ projects the indicators into
+the device graph under a dedicated `hasControlPoints` relation. The profile
+group and endpoints are created once and updated in place; ordinary BACnet
+endpoint groups and values are not changed.
+
+The graph exposes only the communication status, last successful response
+date, response time p50, success and failure rates, and successful and failed
+point counts. These metrics describe the latest read cycle: rates and counts
+use that cycle's requested BACnet points as their denominator, and response
+time is the median latency of its successful points. Counts and rates are
+replaced on every request (zero successes on a complete request failure).
+Status is `stopped` when supervision is disabled, `unknown` before the first
+read cycle, `online` after a complete read cycle, `degraded` after a partial or
+failed cycle, and `offline` after three consecutive failed cycles.
+
+With `ADD_INDICATORS` enabled, at each read cycle all available controlpoint values are inserted into their
+TimeSeries with the same timestamp. The last response date is stored as a Unix
+timestamp in milliseconds. Status history uses numeric values: `0` stopped,
+`1` unknown, `2` online, `3` degraded, and `4` offline. COV notifications
+refresh the current values without adding duplicate time-series samples.
+
+While indicators are enabled, the organ logs a metrics snapshot immediately
+and then every 60 seconds; it logs one final snapshot when monitoring stops.
+The BACnet service must expose `_getChildrenNewValueWithMetrics` for retry,
+timeout, and error-category telemetry. With indicators disabled, the organ
+uses the regular BACnet read method and does not create or update indicator
+controlpoints or their TimeSeries.
+
+COV active counts are based on successful subscription acknowledgements, and
+failed renewals are counted when the service retries subscriptions after a
+client reset. Subscriptions currently use an indefinite lifetime and the
+service has no expiry notification, so `cov.expirations` is `null` and
+`cov.expirationTrackingAvailable` is `false`.
 
 -   The [index.js](index.js) file loads compiled artifacts from `dist/`.
 -   If you modify TypeScript code in `src/`, run at least `npm run build` again.

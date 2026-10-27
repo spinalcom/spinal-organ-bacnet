@@ -8,7 +8,7 @@ declare class SpinalMonitoring {
     private devices;
     private _itemToAddToMap;
     private _endpointsCreationQueue;
-    private _deviceFailedToUpdate;
+    private _isProcessingEndpointCreation;
     private static instance;
     private constructor();
     static getInstance(): SpinalMonitoring;
@@ -35,6 +35,7 @@ declare class SpinalMonitoring {
      * @param func
      */
     private _addDeviceIntervalsToMonitoringMap;
+    private _addDeviceIntervalToMonitoringMap;
     private _addToPriorityQueue;
     private removeFromMonitoringMaps;
     private launchUpdating;

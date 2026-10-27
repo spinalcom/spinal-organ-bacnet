@@ -18,6 +18,7 @@ export declare const COV_EVENTS_NAMES: {
     readonly subscribe: "subscribe";
     readonly failed: "failed";
     readonly changed: "changed";
+    readonly renewalStart: "renewalStart";
     readonly unsubscribe: "unsubscribe";
     readonly unsubscribed: "unsubscribed";
     readonly error: "error";

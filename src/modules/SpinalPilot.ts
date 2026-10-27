@@ -23,9 +23,7 @@
  */
 
 import { SpinalQueue, PILOT_STATES } from "spinal-connector-service";
-import { SpinalPilotModel } from "spinal-model-bacnet";
-import { IRequest } from "spinal-model-bacnet";
-import { PropertyIds, ObjectTypes, APPLICATION_TAGS } from "../utilities/GlobalVariables";
+import { IRequest, SpinalPilotModel } from "spinal-model-bacnet";
 
 import BacnetUtilities from "../utilities/BacnetUtilities";
 
@@ -51,7 +49,7 @@ class SpinalPilot {
 
 	private init() {
 		this.queue.on("start", () => {
-			console.log("start pilot...");
+			console.log("[onCallback] start pilot...");
 			this.pilot();
 		});
 	}
@@ -85,126 +83,32 @@ class SpinalPilot {
 
 		// if the pilot is already treated, we remove it from the graph and exit
 		if (actualState === PILOT_STATES.error || actualState === PILOT_STATES.success) {
-			console.log("pilot already treated with state:", actualState);
+			console.log("[_handlePilot] pilot already treated with state:", actualState);
 			await pilot.removeFromGraph();
 			return;
 		}
 
 		try {
 			pilot.changeState(PILOT_STATES.processing);
-			// await this.writeProperties(pilot.requests.get());
+			const requests = pilot.requests.get() as IPilotRequest[];
+			if (!Array.isArray(requests) || requests.length === 0) {
+				throw new Error("Pilot request list is empty");
+			}
 
-			const request = pilot.requests.get();
-			await BacnetUtilities.sendPilotRequest(request[0]);
-			console.log("pilot success");
+			for (const request of requests) {
+				await BacnetUtilities.sendPilotRequest(request);
+			}
+
+			console.log("[_handlePilot] pilot success");
+
 			pilot.changeState(PILOT_STATES.success);
 		} catch (error: any) {
-			console.error(`pilot failed due to: "${error.message}"`);
+			console.error(`[_handlePilot] pilot failed due to: "${error.message}"`);
 			pilot.changeState(PILOT_STATES.error);
 		} finally {
 			await pilot.removeFromGraph();
 		}
 	}
-
-	// private async writeProperties(requests: IRequest[] = []) {
-	//    for (let index = 0; index < requests.length; index++) {
-	//       const req = requests[index];
-	//       try {
-	//          await this.writeProperty(req);
-	//       } catch (error) {
-	//          throw error;
-	//       }
-
-	//    }
-	// }
-
-	// private async writeProperty(req: IRequest) {
-	//    const types = this.getDataTypes(req.objectId.type);
-	//    let success = false;
-
-	//    while (types.length > 0 && !success) {
-	//       const type = types.shift();
-	//       try {
-	//          if (!type) throw new Error("error");
-
-	//          await this.useDataType(req, type);
-	//          success = true;
-	//       } catch (error) {
-	//          // throw error;
-	//       }
-	//    }
-
-	//    if (!success) {
-	//       throw new Error("error");
-	//    }
-
-	// }
-
-	// private useDataType(req: IRequest, dataType: number) {
-	//    return new Promise(async (resolve, reject) => {
-	//       const client = await BacnetUtilities.getClient();
-	//       const value = dataType === APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED ? (req.value ? 1 : 0) : req.value;
-
-	//       const priority = this._getBacnetPriority(req);
-
-	//       if (!req.SADR || typeof req.SADR === "object" && Object.keys(req.SADR).length === 0) req.SADR = null;
-
-	//       client.writeProperty(req.address, req.SADR, req.objectId, PropertyIds.PROP_PRESENT_VALUE, [{ type: dataType, value: value }], { priority }, (err: Error, value: any) => {
-	//          if (err) {
-	//             reject(err);
-	//             return;
-	//          }
-
-	//          resolve(value);
-	//       })
-	//    });
-	// }
-
-	// private getDataTypes(type: number | string): number[] {
-	//    const analogTypes = new Set([
-	//       ObjectTypes.OBJECT_ANALOG_INPUT,
-	//       ObjectTypes.OBJECT_ANALOG_OUTPUT,
-	//       ObjectTypes.OBJECT_ANALOG_VALUE,
-	//       ObjectTypes.OBJECT_MULTI_STATE_INPUT,
-	//       ObjectTypes.OBJECT_MULTI_STATE_OUTPUT,
-	//       ObjectTypes.OBJECT_MULTI_STATE_VALUE
-	//    ]);
-
-	//    const binaryTypes = new Set([
-	//       ObjectTypes.OBJECT_BINARY_INPUT,
-	//       ObjectTypes.OBJECT_BINARY_OUTPUT,
-	//       ObjectTypes.OBJECT_BINARY_VALUE,
-	//       ObjectTypes.OBJECT_BINARY_LIGHTING_OUTPUT
-	//    ]);
-
-	//    if (analogTypes.has(type)) {
-	//       return [
-	//          APPLICATION_TAGS.BACNET_APPLICATION_TAG_UNSIGNED_INT, APPLICATION_TAGS.BACNET_APPLICATION_TAG_SIGNED_INT,
-	//          APPLICATION_TAGS.BACNET_APPLICATION_TAG_REAL, APPLICATION_TAGS.BACNET_APPLICATION_TAG_DOUBLE
-	//       ];
-	//    }
-
-	//    if (binaryTypes.has(type)) return [APPLICATION_TAGS.BACNET_APPLICATION_TAG_ENUMERATED, APPLICATION_TAGS.BACNET_APPLICATION_TAG_BOOLEAN];
-
-	//    return [
-	//       APPLICATION_TAGS.BACNET_APPLICATION_TAG_OCTET_STRING,
-	//       APPLICATION_TAGS.BACNET_APPLICATION_TAG_CHARACTER_STRING,
-	//       APPLICATION_TAGS.BACNET_APPLICATION_TAG_BIT_STRING
-	//    ];
-	// }
-
-	// private _getBacnetPriority(req: any | IRequest): number {
-	//    // if priority is defined in REQ
-	//    if (req.priority && !isNaN(parseInt(req.priority)))
-	//       return parseInt(req.priority);
-
-	//    // else if priority is defined in .env
-	//    if (process.env.BACNET_PRIORITY && !isNaN(parseInt(process.env.BACNET_PRIORITY)))
-	//       return parseInt(process.env.BACNET_PRIORITY)
-
-	//    // else use low priority
-	//    return 16;
-	// }
 }
 
 const spinalPilot = SpinalPilot.getInstance();

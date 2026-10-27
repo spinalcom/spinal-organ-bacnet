@@ -8,3 +8,4 @@ spinal-model-bmsnetwork
 src/old
 .env
 .envs/*.env
+vpn

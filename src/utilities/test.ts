@@ -1,4 +1,4 @@
-import * as bacnet from "bacstack";
+import bacnet from "bacstack";
 
 // Create BACnet client
 const client = new bacnet({
@@ -6,20 +6,15 @@ const client = new bacnet({
 });
 
 // Target device information
-const targetIp = "192.168.162.113";
-const targetPort = 47808;
-const deviceInstance = 168; // Replace with actual device instance if known
-
-// Build the target address
-const targetAddress = `${targetIp}:${targetPort}`;
+const targetIp = "10.10.126.13";
 
 // Read the 'objectName' property of the Device object
-client.readProperty(targetAddress, { type: 0, instance: deviceInstance }, 77, (err, value) => {
+client.readProperty(targetIp, null, { type: 2, instance: 1208 }, 85, (err, value) => {
 	if (err) {
-		console.error("Error reading property:", err.message);
+		console.error("[readPropertyCallback] Error reading property:", err.message);
 		return;
 	}
 
-	console.log(JSON.stringify(value, null, 2));
+	console.log("[readPropertyCallback] ", JSON.stringify(value, null, 2));
 	const result = value?.values?.[0]?.value;
 });

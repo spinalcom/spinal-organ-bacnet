@@ -48,6 +48,8 @@ class BacnetUtilitiesClass {
         this._ipcClient = null;
         this._clientId = "";
         this._serverServiceName = "";
+        this._reconnectPromise = null;
+        this._reconnectTimer = null;
         this.clientState = {
             consecutiveFailures: 0,
         };
@@ -62,14 +64,45 @@ class BacnetUtilitiesClass {
             this._clientId = clientServiceName;
             this._serverServiceName = serverServiceName;
             this._ipcClient = yield this._connectToServer(port);
-            this._ipcClient.on("disconnect", () => __awaiter(this, void 0, void 0, function* () {
-                this._ipcClient = yield this._connectToServer(port);
-            }));
-            console.log("connected to bacnet service using port", port);
-            this._ipcClient.on(spinal_bacnet_service_1.BACNET_COV_EVENT_NAME, (result) => {
-                SpinalCov_1.SpinalCov.getInstance().emit(result.eventName, result);
-            });
+            this._attachIpcClientHandlers(this._ipcClient, port);
+            console.log("[initAndConnect] connected to bacnet service using port", port);
         });
+    }
+    _attachIpcClientHandlers(client, port) {
+        client.on("disconnect", () => {
+            if (this._ipcClient !== client)
+                return;
+            void this._reconnectToServer(port);
+        });
+        client.on(spinal_bacnet_service_1.BACNET_COV_EVENT_NAME, (result) => {
+            SpinalCov_1.SpinalCov.getInstance().emit(result.eventName, result);
+        });
+    }
+    _reconnectToServer(port) {
+        if (this._reconnectPromise)
+            return this._reconnectPromise;
+        this._reconnectPromise = this._connectToServer(port)
+            .then((client) => {
+            if (this._reconnectTimer) {
+                clearTimeout(this._reconnectTimer);
+                this._reconnectTimer = null;
+            }
+            this._attachIpcClientHandlers(client, port);
+            console.log("[thenCallback] reconnected to BACnet service using port", port);
+        })
+            .catch((error) => {
+            console.error("[catchCallback] Failed to reconnect to BACnet service", error);
+            if (!this._reconnectTimer) {
+                this._reconnectTimer = setTimeout(() => {
+                    this._reconnectTimer = null;
+                    void this._reconnectToServer(port);
+                }, 5000);
+            }
+        })
+            .finally(() => {
+            this._reconnectPromise = null;
+        });
+        return this._reconnectPromise;
     }
     _connectToServer(port) {
         return new Promise((resolve, reject) => {
@@ -150,6 +183,9 @@ class BacnetUtilitiesClass {
             return this._sendDataToBacnetServer("_getDeviceObjectList", [device, SENSOR_TYPES, getListUsingFragment]);
         });
     }
+    discoverDevices(networkInfo) {
+        return this._sendDataToBacnetServer("discoverDevices", [networkInfo]);
+    }
     getItemListByFragment(device, objectId) {
         return __awaiter(this, void 0, void 0, function* () {
             return this._sendDataToBacnetServer("getItemListByFragment", [device, objectId]);
@@ -181,6 +217,11 @@ class BacnetUtilitiesClass {
     _getChildrenNewValue(device, children) {
         return __awaiter(this, void 0, void 0, function* () {
             return this._sendDataToBacnetServer("_getChildrenNewValue", [device, children]);
+        });
+    }
+    _getChildrenNewValueWithMetrics(device, children) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this._sendDataToBacnetServer("_getChildrenNewValueWithMetrics", [device, children]);
         });
     }
     //////////////////////////////////////////////////////////////////////
@@ -223,6 +264,11 @@ class BacnetUtilitiesClass {
     }
     _sendDataToBacnetServer(functionName, parameters = []) {
         return new Promise((resolve, reject) => {
+            const client = this._ipcClient;
+            if (!client) {
+                reject(new Error("BACnet IPC client is not connected"));
+                return;
+            }
             const params = {
                 name: functionName,
                 id: (0, uuid_1.v4)(),
@@ -230,13 +276,21 @@ class BacnetUtilitiesClass {
                 _clientId: this._clientId,
                 timestamp: Date.now(),
             };
-            this._ipcClient.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, params);
-            this._ipcClient.once(`${spinal_bacnet_service_1.RESPONSE_EVENT_NAME}_${params.id}`, (response) => {
+            const responseEvent = `${spinal_bacnet_service_1.RESPONSE_EVENT_NAME}_${params.id}`;
+            const onResponse = (response) => {
                 if (response.status === "error") {
                     return reject({ message: response.error });
                 }
                 resolve(response.data);
-            });
+            };
+            client.once(responseEvent, onResponse);
+            try {
+                client.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, params);
+            }
+            catch (error) {
+                client.removeListener(responseEvent, onResponse);
+                reject(error);
+            }
         });
     }
 }

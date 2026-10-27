@@ -20,14 +20,14 @@ function clearOrgan(organModel) {
         const references = yield getAllOrganReferences(organModel);
         const promises = references.map(clearReference);
         return Promise.all(promises)
-            .then((result) => {
+            .then((result) => __awaiter(this, void 0, void 0, function* () {
             organModel.rem_attr("discover");
             organModel.rem_attr("listener");
             organModel.rem_attr("pilot");
-            organModel.initializeModelsList(); // Reinitialize the models list after clearing the organ model
+            yield organModel.initializeModelsList(); // Reinitialize the models list after clearing the organ model
             displayLog_1.default.log("Successfully cleared organ references:", result);
             return result;
-        })
+        }))
             .catch((err) => {
             displayLog_1.default.error("Failed to clear organ", err);
             process.exit(1);
@@ -38,6 +38,10 @@ function getAllOrganReferences(organModel) {
     const ptrList = organModel.references._attribute_names.map((name) => organModel.references[name]);
     const promises = ptrList.map(_loadPtr);
     return Promise.allSettled(promises).then((result) => {
+        const failures = result.filter((element) => element.status === "rejected");
+        if (failures.length > 0) {
+            throw new Error(`Failed to load ${failures.length} organ reference(s)`);
+        }
         const references = [];
         for (const element of result) {
             if (element.status === "fulfilled")
@@ -52,7 +56,7 @@ function clearReference(reference) {
         displayLog_1.default.log(`Clearing reference: ${reference.getName().get()} with ${devices.length} devices and ${endpoints.length} endpoints.`);
         // devices.forEach(clearDevice);
         // endpoints.forEach(clearEndpoint);
-        console.log(`${devices.length} devices and ${endpoints.length} endpoints cleared`);
+        console.log(`[clearReference] ${devices.length} devices and ${endpoints.length} endpoints cleared`);
     });
 }
 function getAndClearDeviceAndEndpointsFromOrgan(organNode) {

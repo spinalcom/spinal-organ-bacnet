@@ -77,7 +77,7 @@ function bindAllBacnetValues(organModel) {
     organModel.allBacnetValues.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const allBacnetValuesList = yield organModel.getBacnetValuesModelFromGraph();
         if (!allBacnetValuesList) {
-            console.error("no bacnet values model found in graph");
+            console.error("[bindCallback] no bacnet values model found in graph");
             return;
         }
         for (const spinalBacnetValueModel of allBacnetValuesList) {
@@ -89,7 +89,7 @@ function bindListenerModels(organModel, listenerAlreadyBinded) {
     organModel.listener.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const listenerList = yield organModel.getListenerModelFromGraph();
         if (!listenerList) {
-            console.error("no listener model found in graph");
+            console.error("[bindCallback] no listener model found in graph");
             return;
         }
         for (let i = 0; i < listenerList.length; i++) {
@@ -105,7 +105,7 @@ function bindPilotModels(organModel) {
     organModel.pilot.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const pilotList = yield organModel.getPilotModelFromGraph();
         if (!pilotList) {
-            console.error("no pilot model found in graph");
+            console.error("[bindCallback] no pilot model found in graph");
             return;
         }
         for (const spinalPilotModel of pilotList) {
@@ -117,7 +117,7 @@ function bindDiscoverModel(organModel, discoverAlreadyBinded) {
     organModel.discover.modification_date.bind(() => __awaiter(this, void 0, void 0, function* () {
         const discoverList = yield organModel.getDiscoverModelFromGraph();
         if (!discoverList) {
-            console.error("no discover model found in graph");
+            console.error("[bindCallback] no discover model found in graph");
             return;
         }
         for (const spinalDiscoverModel of discoverList) {

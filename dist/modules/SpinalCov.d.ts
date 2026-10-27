@@ -8,6 +8,7 @@ export type EventPayload = {
     key?: string;
     data?: any;
     eventName: string;
+    operation?: "subscribe" | "renewal" | "unsubscribe";
     _clientId?: string;
     timestamp?: number;
 };
@@ -17,6 +18,7 @@ declare class SpinalCov extends EventEmitter {
     private itemsToStopQueue;
     private _lastCovNotification;
     private itemMonitored;
+    private _subscriptionOwnerByKey;
     private constructor();
     static getInstance(): SpinalCov;
     updateLastCovNotificationTime(): void;
@@ -30,5 +32,7 @@ declare class SpinalCov extends EventEmitter {
     private formatChildren;
     _updateDeviceValue(address: string, request: any): Promise<boolean[]>;
     private _listenEvents;
+    private _getSubscriptionKey;
+    private _recordCovSubscriptionEvent;
 }
 export { SpinalCov };

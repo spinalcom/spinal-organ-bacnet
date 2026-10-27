@@ -71,7 +71,7 @@ function bindAllBacnetValues(organModel: SpinalOrganConfigModel) {
 		const allBacnetValuesList = await organModel.getBacnetValuesModelFromGraph();
 
 		if (!allBacnetValuesList) {
-			console.error("no bacnet values model found in graph");
+			console.error("[bindCallback] no bacnet values model found in graph");
 			return;
 		}
 
@@ -86,7 +86,7 @@ function bindListenerModels(organModel: SpinalOrganConfigModel, listenerAlreadyB
 		const listenerList = await organModel.getListenerModelFromGraph();
 
 		if (!listenerList) {
-			console.error("no listener model found in graph");
+			console.error("[bindCallback] no listener model found in graph");
 			return;
 		}
 
@@ -106,7 +106,7 @@ function bindPilotModels(organModel: SpinalOrganConfigModel) {
 		const pilotList = await organModel.getPilotModelFromGraph();
 
 		if (!pilotList) {
-			console.error("no pilot model found in graph");
+			console.error("[bindCallback] no pilot model found in graph");
 			return;
 		}
 
@@ -120,7 +120,7 @@ function bindDiscoverModel(organModel: SpinalOrganConfigModel, discoverAlreadyBi
 	organModel.discover.modification_date.bind(async () => {
 		const discoverList = await organModel.getDiscoverModelFromGraph();
 		if (!discoverList) {
-			console.error("no discover model found in graph");
+			console.error("[bindCallback] no discover model found in graph");
 			return;
 		}
 

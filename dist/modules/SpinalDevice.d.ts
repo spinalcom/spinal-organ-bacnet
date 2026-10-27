@@ -3,7 +3,9 @@ import { SpinalContext, SpinalNode } from "spinal-model-graph";
 import { SpinalBacnetValueModel, SpinalListenerModel } from "spinal-model-bacnet";
 import { IDevice, IObjectId } from "../Interfaces";
 import { IProfileData } from "../utilities/profileManager";
+import { DeviceCommunicationIndicators, type DeviceCommunicationIndicatorsSnapshot } from "../indicators/DeviceCommunicationIndicators";
 export declare class SpinalDevice extends EventEmitter {
+    readonly indicators: DeviceCommunicationIndicators;
     device: IDevice | undefined;
     private info;
     covData: IObjectId[];
@@ -15,6 +17,9 @@ export declare class SpinalDevice extends EventEmitter {
     private _bmsDevice;
     private _profile;
     private _profileData;
+    private _communicationMetricsLogTimer;
+    private _communicationControlEndpointSync;
+    private _communicationControlEndpointSyncTimer;
     constructor(device?: IDevice);
     private _listenProfileEvent;
     private _restartDevice;
@@ -24,6 +29,12 @@ export declare class SpinalDevice extends EventEmitter {
     get Id(): string | number;
     get Name(): string;
     getBmsDeviceNode(): SpinalNode<any>;
+    getCommunicationIndicators(): DeviceCommunicationIndicatorsSnapshot;
+    startCommunicationMetricsLogging(): void;
+    stopCommunicationMetricsLogging(): void;
+    updateCommunicationControlEndpoints(recordTimeSeries?: boolean): Promise<void>;
+    scheduleCommunicationControlEndpointUpdate(delay?: number): void;
+    private _logCommunicationMetrics;
     getListenerModel(): SpinalListenerModel;
     getProfileData(): Promise<IProfileData[]>;
     getAllIntervals(): string[];
@@ -36,13 +47,14 @@ export declare class SpinalDevice extends EventEmitter {
     createDeviceNodeInGraph(context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode>;
     /** create device item list in graph */
     createDeviceItemList(context: SpinalContext, deviceNode: SpinalNode, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void>;
-    private fetchAndFormatAllBacnetObjectList;
+    private fetchAllBacnetObjectList;
     /** Check and create endpoints if they do not exist */
     checkAndCreateEndpointsIfNotExist(endpointsToCreate: IObjectId[]): Promise<SpinalNode[]>;
     private _skipInitialization;
     private generateNetworkEndpoints;
     private formatAndGroupEndpoints;
     updateEndpoints(interval: number): Promise<boolean>;
+    private _readMonitoredValues;
     shouldSaveTimeSeries(objectId?: IObjectId): boolean;
     private _getChildrenTimeSeries;
     private _getDeviceInfo;

@@ -1,0 +1,91 @@
+export type BacnetReadErrorCategory = "bacnetError" | "reject" | "abort" | "timeout" | "localError";
+export interface BacnetReadTelemetry {
+    requestedPoints: number;
+    firstAttemptSuccesses: number;
+    finalSuccesses: number;
+    retries: number;
+    timedOutPoints: number;
+    errorsByCategory: Record<BacnetReadErrorCategory, number>;
+    successfulRequestDurationsMs: number[];
+}
+export interface BacnetReadOutcome {
+    values: Array<{
+        id: string | number;
+        type: string | number;
+        currentValue: any;
+    }> | undefined;
+    telemetry: BacnetReadTelemetry;
+    error?: string;
+}
+export type CovSubscriptionOperation = "subscribe" | "renewal" | "unsubscribe";
+export interface DeviceCommunicationIndicatorsSnapshot {
+    communicationStatus: "stopped" | "unknown" | "online" | "degraded" | "offline";
+    requestsLaunched: number;
+    firstAttemptSuccesses: number;
+    finalSuccesses: number;
+    lastReadCycleRequestedPoints: number;
+    lastReadCycleSuccessfulPoints: number;
+    lastReadCycleFailedPoints: number;
+    lastReadCycleSuccessRatePercent: number | null;
+    lastReadCycleFailureRatePercent: number | null;
+    lastReadCycleResponseTimeP50Ms: number | null;
+    timeouts: number;
+    firstAttemptSuccessRatePercent: number | null;
+    finalSuccessRatePercent: number | null;
+    responseTimeP50Ms: number | null;
+    responseTimeP95Ms: number | null;
+    timeoutRatePercent: number | null;
+    retriesTotal: number;
+    retriesAveragePerRequest: number | null;
+    consecutiveFailures: number;
+    lastSuccessfulExchangeAt: number | null;
+    secondsSinceLastSuccessfulExchange: number | null;
+    errorsByCategory: Record<BacnetReadErrorCategory, number>;
+    cov: {
+        trackedSubscriptions: number;
+        activeSubscriptions: number;
+        successfulRenewals: number;
+        failedSubscriptions: number;
+        failedRenewals: number;
+        expirations: null;
+        expirationTrackingAvailable: false;
+    };
+}
+export declare class DeviceCommunicationIndicators {
+    private _requestsLaunched;
+    private _firstAttemptSuccesses;
+    private _finalSuccesses;
+    private _lastReadCycleRequestedPoints;
+    private _lastReadCycleSuccessfulPoints;
+    private _lastReadCycleFailedPoints;
+    private _lastReadCycleSuccessRatePercent;
+    private _lastReadCycleFailureRatePercent;
+    private _lastReadCycleResponseTimeP50Ms;
+    private _timeouts;
+    private _monitoringActive;
+    private _hasReadCycleSinceMonitoringStarted;
+    private _retries;
+    private _consecutiveFailures;
+    private _lastSuccessfulExchangeAt;
+    private _successfulRequestDurationsMs;
+    private _errorsByCategory;
+    private _covSubscriptionStates;
+    private _successfulRenewals;
+    private _failedSubscriptions;
+    private _failedRenewals;
+    setMonitoringActive(active: boolean): void;
+    recordReadCycle(telemetry: BacnetReadTelemetry): void;
+    recordRequestFailure(requestedPoints: number, error: unknown): void;
+    recordSuccessfulExchange(timestamp?: number): void;
+    trackCovSubscription(key: string): void;
+    startCovRenewal(key: string): void;
+    recordCovSubscriptionSuccess(key: string, operation: CovSubscriptionOperation): void;
+    recordCovSubscriptionFailure(key: string, operation: CovSubscriptionOperation): void;
+    recordCovUnsubscribed(key: string): void;
+    fetchCurrentIndicators(now?: number): DeviceCommunicationIndicatorsSnapshot;
+    private _getCommunicationStatus;
+    static classifyError(error: unknown): BacnetReadErrorCategory;
+    private _percentage;
+    private _percentile;
+    private _getPercentile;
+}

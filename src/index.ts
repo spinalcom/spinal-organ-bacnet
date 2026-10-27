@@ -79,7 +79,7 @@ spinalConnectorService
 		if (launchItOwnService) {
 			serverServiceName = `spinal-bacnet-service_${Date.now()}`;
 			await launchBacnetService(Number(bacnetServicePort), serverServiceName);
-			console.log(`Own BACnet service launched with name ${serverServiceName}`);
+			console.log(`[thenCallback] Own BACnet service launched with name ${serverServiceName}`);
 		} // launch the bacnet servicee
 
 		const clientServiceName = process.env.ORGAN_NAME || `spinal-organ-bacnet_${Date.now()}`;
@@ -98,10 +98,10 @@ spinalConnectorService
 		}
 
 		const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
-		console.log(message);
+		console.log("[thenCallback] ", message);
 
 		bindAllModels(organModel as SpinalOrganConfigModel);
 	})
 	.catch((err) => {
-		console.error("Error", err);
+		console.error("[catchCallback] Error", err);
 	});

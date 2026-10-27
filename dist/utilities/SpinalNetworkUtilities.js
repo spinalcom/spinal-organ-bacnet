@@ -41,6 +41,7 @@ const SpinalDevice_1 = require("../modules/SpinalDevice");
 const GlobalVariables_1 = require("./GlobalVariables");
 const spinal_env_viewer_graph_service_1 = require("spinal-env-viewer-graph-service");
 const Functions_1 = require("./Functions");
+const communicationControlEndpoints_1 = require("../indicators/communicationControlEndpoints");
 const bmsTypeNames = [spinal_model_bmsnetwork_1.SpinalBmsNetwork.nodeTypeName, spinal_model_bmsnetwork_1.SpinalBmsDevice.nodeTypeName, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName];
 class SpinalNetworkUtilitiesClass {
     constructor() {
@@ -65,6 +66,70 @@ class SpinalNetworkUtilitiesClass {
         if (!this._timeSeriesService)
             this._timeSeriesService = new spinal_model_bmsnetwork_1.SpinalServiceTimeseries();
         return this._timeSeriesService;
+    }
+    updateCommunicationControlEndpoints(deviceNode_1, snapshot_1) {
+        return __awaiter(this, arguments, void 0, function* (deviceNode, snapshot, recordTimeSeries = true) {
+            var _a, _b;
+            const existingGroups = yield deviceNode.getChildren([communicationControlEndpoints_1.COMMUNICATION_CONTROL_ENDPOINT_GROUP_RELATION]);
+            let groupNode = existingGroups.find((group) => { var _a, _b; return ((_b = (_a = group.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get()) === communicationControlEndpoints_1.COMMUNICATION_CONTROL_ENDPOINT_GROUP_ID; });
+            const groupInfo = {
+                id: communicationControlEndpoints_1.COMMUNICATION_CONTROL_ENDPOINT_GROUP_ID,
+                name: communicationControlEndpoints_1.COMMUNICATION_CONTROL_ENDPOINT_GROUP_NAME,
+                type: spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName,
+                path: "",
+                indicatorProfile: communicationControlEndpoints_1.COMMUNICATION_CONTROL_ENDPOINT_PROFILE,
+            };
+            if (groupNode) {
+                yield this.updateNetworkElementNode(groupNode, groupInfo);
+            }
+            else {
+                groupNode = yield this.createNetworkElementNode(groupInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName);
+                yield deviceNode.addChild(groupNode, communicationControlEndpoints_1.COMMUNICATION_CONTROL_ENDPOINT_GROUP_RELATION, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE);
+            }
+            const existingEndpoints = yield groupNode.getChildren([spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName]);
+            const endpointsById = new Map();
+            for (const endpointNode of existingEndpoints) {
+                const id = (_b = (_a = endpointNode.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
+                if (typeof id === "string" && id.length > 0)
+                    endpointsById.set(id, endpointNode);
+            }
+            const endpointInfos = (0, communicationControlEndpoints_1.getCommunicationControlEndpoints)(snapshot);
+            const historyTimestamp = Date.now();
+            yield Promise.all(endpointInfos.map((endpointInfo) => __awaiter(this, void 0, void 0, function* () {
+                const existingEndpoint = endpointsById.get(endpointInfo.id);
+                let endpointNode = existingEndpoint;
+                if (existingEndpoint) {
+                    const element = yield existingEndpoint.getElement(true);
+                    if (!element)
+                        throw new Error(`Failed to load control endpoint "${endpointInfo.name}"`);
+                    const hasChanges = Object.entries(endpointInfo).some(([key, value]) => {
+                        const modelValue = element[key];
+                        const currentValue = modelValue && typeof modelValue.get === "function" ? modelValue.get() : modelValue;
+                        return !Object.is(currentValue, value);
+                    });
+                    if (hasChanges)
+                        yield this.updateNetworkElementNode(existingEndpoint, endpointInfo);
+                }
+                else {
+                    endpointNode = yield this.createNetworkElementNode(endpointInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName);
+                    endpointNode = yield groupNode.addChild(endpointNode, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE);
+                }
+                const value = (0, communicationControlEndpoints_1.getCommunicationControlEndpointTimeSeriesValue)(endpointInfo.id, endpointInfo.currentValue);
+                if (recordTimeSeries && typeof value === "number") {
+                    spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(endpointNode);
+                    const saved = yield this.getTimeSeriesInstance().insertFromEndpoint(endpointNode.getId().get(), value, historyTimestamp);
+                    if (!saved)
+                        throw new Error(`Failed to record time series for control endpoint "${endpointInfo.name}"`);
+                }
+            })));
+            const currentEndpointIds = new Set(endpointInfos.map((endpointInfo) => endpointInfo.id));
+            const obsoleteEndpoints = existingEndpoints.filter((endpointNode) => {
+                var _a, _b;
+                const id = (_b = (_a = endpointNode.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get();
+                return typeof id === "string" && id.startsWith("bacnet_indicator_") && !currentEndpointIds.has(id);
+            });
+            yield Promise.all(obsoleteEndpoints.map((endpointNode) => groupNode.removeChild(endpointNode, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE)));
+        });
     }
     initSpinalBacnetValueModel(spinalModel) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -100,56 +165,54 @@ class SpinalNetworkUtilitiesClass {
             if (!deviceNode)
                 throw new Error("Device node not found in graph");
             const endpointsObj = yield this._getAllEndpointsInGraph(deviceNode);
-            const promises = [];
+            const updates = [];
             for (const child of children) {
                 const endpointKey = `${child.type}_${child.id}`;
                 const endpointNode = endpointsObj[endpointKey];
                 if (endpointNode) {
                     const saveTimeSeries = spinalDevice.shouldSaveTimeSeries({ instance: child.id, type: child.type });
-                    promises.push(this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries));
+                    updates.push({
+                        endpointNode,
+                        currentValue: child.currentValue,
+                        promise: this._updateEndpointNodeValue(endpointNode, child.currentValue, saveTimeSeries),
+                    });
                 }
                 else {
-                    console.error(`[${spinalDevice.Name}] - Endpoint ${child.id} of type ${child.type} not found in graph`);
+                    console.error(`[updateEndpointInGraph] [${spinalDevice.Name}] - Endpoint ${child.id} of type ${child.type} not found in graph`);
                 }
             }
-            return this._printEndpointsReponse(promises, children, endpointsObj, spinalDevice);
+            return this._handleEndpointUpdatesAndLogResponse(updates, spinalDevice);
         });
     }
-    _printEndpointsReponse(promises, children, endpointsObj, spinalDevice) {
-        return Promise.allSettled(promises).then((results) => {
-            const result = [];
-            for (let i = 0; i < results.length; i++) {
-                const key = `${children[i].type}_${children[i].id}`;
-                const endpointNode = endpointsObj[key];
-                if (!endpointNode)
-                    continue;
-                const isFulfilled = results[i].status === "fulfilled";
+    _handleEndpointUpdatesAndLogResponse(updates, spinalDevice) {
+        return Promise.allSettled(updates.map(({ promise }) => promise)).then((results) => {
+            return results.map((result, index) => {
+                const { endpointNode, currentValue } = updates[index];
                 const endpointName = endpointNode.getName().get();
-                if (isFulfilled) {
-                    console.log(`[${spinalDevice.Name}] - "${endpointName}" updated successfully`);
-                    result.push(true);
+                if (result.status === "fulfilled") {
+                    console.log(`[mapCallback] [_handleEndpointUpdatesAndLogResponse] [${spinalDevice.Name}] - "${endpointName}" updated successfully with value: ${currentValue}`);
+                    return result.value;
                 }
-                else {
-                    console.error(`[${spinalDevice.Name}] - Failed to update "${endpointName}"`);
-                    result.push(false);
-                }
-            }
-            return result;
+                console.error(`[mapCallback] [_handleEndpointUpdatesAndLogResponse] [${spinalDevice.Name}] - Failed to update "${endpointName}"`);
+                return false;
+            });
         });
     }
     _updateEndpointNodeValue(endpointNode_1, newValue_1) {
         return __awaiter(this, arguments, void 0, function* (endpointNode, newValue, saveTimeSeries = false, itsBitStringChild = false) {
             const element = yield endpointNode.getElement(true);
-            if (!element)
+            if (!element) {
+                console.error(`[updateEndpointNodeValue] - Failed to get element for endpoint node: ${endpointNode.getName().get()}`);
                 return false;
+            }
             if (element.currentValue)
                 element.currentValue.set(newValue);
             if (endpointNode.info.currentValue)
                 endpointNode.info.currentValue.set(newValue);
-            if (saveTimeSeries && (typeof newValue === "number" || typeof newValue === "boolean")) {
+            if (saveTimeSeries && (typeof newValue === "number" || typeof newValue === "boolean" || !isNaN(newValue))) {
                 spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(endpointNode);
                 const timeSeriesService = this.getTimeSeriesInstance();
-                yield timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), newValue);
+                yield timeSeriesService.pushFromEndpoint(endpointNode.getId().get(), Number(newValue));
             }
             const { typeId } = endpointNode.info.get();
             if (typeId === GlobalVariables_1.ObjectTypes.OBJECT_BITSTRING_VALUE && !itsBitStringChild) {
@@ -185,19 +248,22 @@ class SpinalNetworkUtilitiesClass {
     }
     createEndpointsInGroup(context, device, endpointGroupName, endpointArray) {
         return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
+            var _a, _b, _c, _d;
             const endpointGroup = yield this._createEndpointsGroup(context, device, endpointGroupName);
+            const deviceName = (_b = (_a = device.info) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.get();
             // const groupId = endpointGroup.id.get();
-            const endpointsNode = yield this._createEndpointByArray(context, endpointGroup, endpointArray);
-            if (((_b = (_a = endpointGroup.info) === null || _a === void 0 ? void 0 : _a.idNetwork) === null || _b === void 0 ? void 0 : _b.get()) == GlobalVariables_1.ObjectTypes.OBJECT_BITSTRING_VALUE) {
-                yield this._createBitStringSubEndpoints(context, endpointsNode);
+            const endpointsNode = yield this._createEndpointByArray(context, endpointGroup, endpointArray, deviceName);
+            if (((_d = (_c = endpointGroup.info) === null || _c === void 0 ? void 0 : _c.idNetwork) === null || _d === void 0 ? void 0 : _d.get()) == GlobalVariables_1.ObjectTypes.OBJECT_BITSTRING_VALUE) {
+                yield this._createBitStringSubEndpoints(context, endpointsNode, deviceName);
             }
             return endpointsNode;
         });
     }
     _createEndpointsGroup(context, deviceNode, endpointGroupName) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             const groupNetworkId = GlobalVariables_1.ObjectTypes[`object_${endpointGroupName}`.toUpperCase()];
+            const deviceName = (_b = (_a = deviceNode.info) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.get();
             const alreadyExist = yield this._itemExistInChild(deviceNode, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, groupNetworkId);
             const groupInfo = {
                 name: endpointGroupName,
@@ -206,27 +272,29 @@ class SpinalNetworkUtilitiesClass {
                 path: "",
             };
             if (alreadyExist) {
+                console.log(`[_createEndpointsGroup] ${deviceName} - endpoint group "${endpointGroupName}" already exists, updating it, with info:`, groupInfo);
                 return this.updateNetworkElementNode(alreadyExist, groupInfo);
             }
+            console.log(`[_createEndpointsGroup] ${deviceName} - creating endpoint group "${endpointGroupName}" with info:`, groupInfo);
             const endpointGroup = yield this.createNetworkElementNode(groupInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.nodeTypeName);
             return deviceNode.addChildInContext(endpointGroup, spinal_model_bmsnetwork_1.SpinalBmsEndpointGroup.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
         });
     }
-    _createBitStringSubEndpoints(context, endpointsNode) {
+    _createBitStringSubEndpoints(context, endpointsNode, deviceName) {
         return __awaiter(this, void 0, void 0, function* () {
-            const promises = endpointsNode.map((endpointNode) => __awaiter(this, void 0, void 0, function* () { return this._createOrUpdateEndpointsByBitStringValue(context, endpointNode); }));
+            const promises = endpointsNode.map((endpointNode) => __awaiter(this, void 0, void 0, function* () { return this._createOrUpdateEndpointsByBitStringValue(context, endpointNode, deviceName); }));
             return Promise.allSettled(promises).then((results) => {
                 return results.filter((result) => result.status === "fulfilled").map((result) => result.value);
             });
         });
     }
-    _createOrUpdateEndpointsByBitStringValue(context, endpointNode) {
+    _createOrUpdateEndpointsByBitStringValue(context, endpointNode, deviceName) {
         return __awaiter(this, void 0, void 0, function* () {
             const element = yield endpointNode.getElement(true);
             const bitText = element.bit_text.get();
             const value = element.currentValue.get();
             const convertedValueToEndpointInfo = this._convertBitStringValueToEndpointInfo(value, bitText, endpointNode.info.get());
-            return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo).then(() => endpointNode);
+            return this._createEndpointByArray(context, endpointNode, convertedValueToEndpointInfo, deviceName).then(() => endpointNode);
         });
     }
     updateBitStringEndpointValue(endpointNode_1, newValue_1) {
@@ -264,9 +332,11 @@ class SpinalNetworkUtilitiesClass {
             type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName,
         }));
     }
-    _createEndpointByArray(context, groupNode, endpointArray) {
+    _createEndpointByArray(context, groupNode, endpointArray, deviceName) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
             const endpointAlreadyCreated = yield this._getChildrenAsObj(groupNode, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName);
+            const groupName = (_b = (_a = groupNode.info) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.get();
             const promises = endpointArray.map((endpointInfo) => __awaiter(this, void 0, void 0, function* () {
                 endpointInfo = this._formatEndpointCreationInfo(endpointInfo);
                 const endpointInfoIsValid = this._checkIfInfoIsValid(endpointInfo);
@@ -275,8 +345,10 @@ class SpinalNetworkUtilitiesClass {
                 }
                 const existingEndpoint = endpointAlreadyCreated[endpointInfo.id];
                 if (existingEndpoint) {
+                    console.log(`[mapCallback] [_createEndpointByArray] [${deviceName}] - [${groupName}] - endpoint "${endpointInfo.name}" already exists, updating it with new info`, endpointInfo);
                     return this.updateNetworkElementNode(existingEndpoint, endpointInfo);
                 }
+                console.log(`[mapCallback] [_createEndpointByArray] [${deviceName}] - [${groupName}] - creating endpoint "${endpointInfo.name}" with info`, endpointInfo);
                 const node = yield this.createNetworkElementNode(endpointInfo, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName);
                 return groupNode.addChildInContext(node, spinal_model_bmsnetwork_1.SpinalBmsEndpoint.relationName, spinal_model_graph_1.SPINAL_RELATION_PTR_LST_TYPE, context);
             }));
@@ -287,7 +359,7 @@ class SpinalNetworkUtilitiesClass {
                     if (res.status === "fulfilled")
                         result.push(res.value);
                     else {
-                        endpointArray[index] && console.error(`Failed to create/update endpoint: ${endpointArray[index].name}`, res.reason);
+                        endpointArray[index] && console.error(`[thenCallback] [_createEndpointByArray] Failed to create/update endpoint: ${endpointArray[index].name}`, res.reason);
                     }
                     index++;
                 }
@@ -296,11 +368,13 @@ class SpinalNetworkUtilitiesClass {
         });
     }
     _formatEndpointCreationInfo(endpointInfo) {
-        var _a, _b;
-        return Object.assign({ id: endpointInfo.id || endpointInfo.instance, typeId: endpointInfo.typeId, path: endpointInfo.path || "", currentValue: endpointInfo.currentValue || endpointInfo.present_value, name: endpointInfo.name || endpointInfo.object_name, type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName, description: endpointInfo.description, max_pres_value: (_a = endpointInfo.max_pres_value) !== null && _a !== void 0 ? _a : "", min_pres_value: (_b = endpointInfo.min_pres_value) !== null && _b !== void 0 ? _b : "", unit: endpointInfo.unit || "" }, (endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }));
+        var _a, _b, _c, _d;
+        return Object.assign({ id: (_a = endpointInfo.id) !== null && _a !== void 0 ? _a : endpointInfo.instance, typeId: endpointInfo.typeId, path: endpointInfo.path || "", currentValue: (_b = endpointInfo.currentValue) !== null && _b !== void 0 ? _b : endpointInfo.present_value, name: endpointInfo.name || endpointInfo.object_name, type: spinal_model_bmsnetwork_1.SpinalBmsEndpoint.nodeTypeName, description: endpointInfo.description, max_pres_value: (_c = endpointInfo.max_pres_value) !== null && _c !== void 0 ? _c : "", min_pres_value: (_d = endpointInfo.min_pres_value) !== null && _d !== void 0 ? _d : "", unit: endpointInfo.unit || "" }, (endpointInfo.bit_text && { bit_text: endpointInfo.bit_text }));
     }
     updateNetworkElementNode(node, newInfo) {
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            console.log(`[updateNetworkElementNode] Updating ${(_b = (_a = node.info) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.get()}`, newInfo);
             const element = yield node.getElement(true);
             this._updateElementInfo(element, newInfo);
             this._modifyNodeInfo(node, element);
@@ -456,26 +530,30 @@ class SpinalNetworkUtilitiesClass {
             ptrModel.load((data) => resolve(data));
         });
     }
-    _checkIfValueIsValidAndUpdate(model_1, attr_1, newValue_1) {
-        return __awaiter(this, arguments, void 0, function* (model, attr, newValue, deviceName = "") {
-            try {
-                if (newValue === undefined || newValue === null)
-                    return;
-                const attrToNotUpdateIfEmpty = ["name", "type", "idNetwork", "currentValue"];
-                if (attrToNotUpdateIfEmpty.includes(attr) && (newValue.toString().trim() === "" || typeof newValue === "undefined" || newValue === null))
-                    return;
-                if (newValue === model[attr])
-                    return;
-                if (model[attr])
-                    model.mod_attr(attr, newValue);
-                if (!model[attr])
-                    model.add_attr({ [attr]: newValue });
+    _checkIfValueIsValidAndUpdate(model, attr, newValue, deviceName = "") {
+        try {
+            if (newValue === undefined || newValue === null)
+                return;
+            const attrToNotUpdateIfEmpty = ["name", "type", "idNetwork", "currentValue"];
+            if (attrToNotUpdateIfEmpty.includes(attr) && (newValue.toString().trim() === "" || typeof newValue === "undefined" || newValue === null))
+                return;
+            if (newValue === model[attr])
+                return;
+            if (model[attr]) {
+                const v = typeof (newValue === null || newValue === void 0 ? void 0 : newValue.get) == "function" ? newValue.get() : newValue;
+                console.log(`[_checkIfValueIsValidAndUpdate] updating attribute "${attr}" with value "${v}"`);
+                model.mod_attr(attr, newValue);
             }
-            catch (error) {
-                // console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
-                console.log(`[${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
+            else if (!model[attr]) {
+                const v = typeof (newValue === null || newValue === void 0 ? void 0 : newValue.get) == "function" ? newValue.get() : newValue;
+                console.log(`[_checkIfValueIsValidAndUpdate] updating attribute "${attr}" with value "${v}"`);
+                model.add_attr({ [attr]: newValue });
             }
-        });
+        }
+        catch (error) {
+            // console.log(`[${model._server_id}] - Failed to set attribute "${attr}"   on node "${deviceName}" due to:`, error.message);
+            console.log(`[_checkIfValueIsValidAndUpdate] [${model._server_id}] - Failed to set attribute "${attr}" ${newValue}  on node "${deviceName}" due to:`, error.message);
+        }
     }
     _endpointCanBeCreate(endpointData) {
         return __awaiter(this, void 0, void 0, function* () {

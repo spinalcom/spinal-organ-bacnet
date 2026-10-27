@@ -6,7 +6,7 @@ async function renameInvalidNode(bmsContextId, profileContextId, profileId) {
 	if (!context) throw new Error("Context not found");
 
 	const intervalObj = await classifyProfileItemById(profileContextId, profileId);
-	console.log("intervalObj", intervalObj);
+	console.log("[renameInvalidNode] intervalObj", intervalObj);
 
 	const endpoints = await getEndpoints(context);
 	const nodeToRename = [];
@@ -17,7 +17,7 @@ async function renameInvalidNode(bmsContextId, profileContextId, profileId) {
 		const key = typeId + "_" + id;
 		const newName = intervalObj[key];
 		if (newName && node.getName().get() !== newName) {
-			console.log("Renaming node", key, newName);
+			console.log("[renameInvalidNode] Renaming node", key, newName);
 			nodeToRename.push({ node, newName });
 			node.info.name.set(newName);
 		}
@@ -48,16 +48,16 @@ async function renameInvalidNode(bmsContextId, profileContextId, profileId) {
 }
 
 async function getEndpoints(context) {
-	console.log("getting organs")
+	console.log("[getEndpoints] getting organs")
 	const organs = await getListChild(context, [context]);
-	console.log("getting networks")
+	console.log("[getEndpoints] getting networks")
 	const networks = await getListChild(context, organs);
 
-	console.log("getting devices")
+	console.log("[getEndpoints] getting devices")
 	const devices = await getListChild(context, networks);
-	console.log("getting groupEndpoints")
+	console.log("[getEndpoints] getting groupEndpoints")
 	const groupEndpoints = await getListChild(context, devices);
-	console.log("getting endpoints")
+	console.log("[getEndpoints] getting endpoints")
 	const endpoints = await getListChild(context, groupEndpoints);
 
 	return endpoints;
@@ -116,7 +116,7 @@ async function getIntervalTimes(profileContextId, profileId) {
 	return Promise.all(promises)
 		.then((result) => result.flat())
 		.catch((err) => {
-			console.error(err);
+			console.error("[catchCallback] ", err);
 			throw err;
 		});
 }

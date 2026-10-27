@@ -38,20 +38,29 @@ class ProfileManager extends EventEmitter {
                 return profileData;
             this._bindProfileNode(profileSpinalNode);
             this._isProcessingQueue = true;
-            const data = yield this._fetchProfileData(profileSpinalNode);
-            this._profiles.set(profileId, data);
-            this._isProcessingQueue = false;
-            return data;
+            try {
+                const data = yield this._fetchProfileData(profileSpinalNode);
+                this._profiles.set(profileId, data);
+                return data;
+            }
+            finally {
+                this._isProcessingQueue = false;
+            }
         });
     }
     _bindProfileNode(profileSpinalNode) {
         profileSpinalNode.info.directModificationDate.bind(() => __awaiter(this, void 0, void 0, function* () {
-            console.log("Profil has been updated");
-            const profileId = profileSpinalNode.getId().get();
-            const data = yield this._fetchProfileData(profileSpinalNode);
-            this._profiles.set(profileId, data);
-            console.log("data => ", data);
-            this.emit("changed", { profileId, data });
+            try {
+                console.log("[bindCallback] Profil has been updated");
+                const profileId = profileSpinalNode.getId().get();
+                const data = yield this._fetchProfileData(profileSpinalNode);
+                this._profiles.set(profileId, data);
+                console.log("[bindCallback] data => ", data);
+                this.emit("changed", { profileId, data });
+            }
+            catch (error) {
+                console.error("[bindCallback] Failed to refresh profile data", error);
+            }
         }), false);
     }
     _waitIfProcessing() {
@@ -65,8 +74,9 @@ class ProfileManager extends EventEmitter {
         return __awaiter(this, void 0, void 0, function* () {
             spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(profileNode);
             const contextNode = yield this._getProfileContext(profileNode);
-            if (contextNode)
-                spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(contextNode);
+            if (!contextNode)
+                throw new Error("Profile context not found");
+            spinal_env_viewer_graph_service_1.SpinalGraphService._addNode(contextNode);
             const profileId = profileNode.getId().get();
             const contextId = contextNode.getId().get();
             const intervalsNodes = yield spinal_env_viewer_plugin_network_tree_service_1.DeviceProfileUtilities.getIntervalNodes(profileId, contextId);

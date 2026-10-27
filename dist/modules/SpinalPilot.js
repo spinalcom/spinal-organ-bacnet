@@ -52,7 +52,7 @@ class SpinalPilot {
     }
     init() {
         this.queue.on("start", () => {
-            console.log("start pilot...");
+            console.log("[onCallback] start pilot...");
             this.pilot();
         });
     }
@@ -85,20 +85,24 @@ class SpinalPilot {
             const actualState = pilot.state.get();
             // if the pilot is already treated, we remove it from the graph and exit
             if (actualState === spinal_connector_service_1.PILOT_STATES.error || actualState === spinal_connector_service_1.PILOT_STATES.success) {
-                console.log("pilot already treated with state:", actualState);
+                console.log("[_handlePilot] pilot already treated with state:", actualState);
                 yield pilot.removeFromGraph();
                 return;
             }
             try {
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.processing);
-                // await this.writeProperties(pilot.requests.get());
-                const request = pilot.requests.get();
-                yield BacnetUtilities_1.default.sendPilotRequest(request[0]);
-                console.log("pilot success");
+                const requests = pilot.requests.get();
+                if (!Array.isArray(requests) || requests.length === 0) {
+                    throw new Error("Pilot request list is empty");
+                }
+                for (const request of requests) {
+                    yield BacnetUtilities_1.default.sendPilotRequest(request);
+                }
+                console.log("[_handlePilot] pilot success");
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.success);
             }
             catch (error) {
-                console.error(`pilot failed due to: "${error.message}"`);
+                console.error(`[_handlePilot] pilot failed due to: "${error.message}"`);
                 pilot.changeState(spinal_connector_service_1.PILOT_STATES.error);
             }
             finally {

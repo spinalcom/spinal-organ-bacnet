@@ -8,12 +8,12 @@ export async function clearOrgan(organModel: SpinalOrganConfigModel) {
 	const references = await getAllOrganReferences(organModel);
 	const promises = references.map(clearReference);
 	return Promise.all(promises)
-		.then((result) => {
+		.then(async (result) => {
 			organModel.rem_attr("discover");
 			organModel.rem_attr("listener");
 			organModel.rem_attr("pilot");
 
-			organModel.initializeModelsList(); // Reinitialize the models list after clearing the organ model
+			await organModel.initializeModelsList(); // Reinitialize the models list after clearing the organ model
 			spinalLog.log("Successfully cleared organ references:", result);
 			return result;
 		})
@@ -28,6 +28,11 @@ function getAllOrganReferences(organModel: SpinalOrganConfigModel): Promise<Spin
 	const promises = ptrList.map(_loadPtr);
 
 	return Promise.allSettled(promises).then((result) => {
+		const failures = result.filter((element) => element.status === "rejected");
+		if (failures.length > 0) {
+			throw new Error(`Failed to load ${failures.length} organ reference(s)`);
+		}
+
 		const references: SpinalNode[] = [];
 
 		for (const element of result) {
@@ -43,7 +48,7 @@ async function clearReference(reference: SpinalNode) {
 	spinalLog.log(`Clearing reference: ${reference.getName().get()} with ${devices.length} devices and ${endpoints.length} endpoints.`);
 	// devices.forEach(clearDevice);
 	// endpoints.forEach(clearEndpoint);
-	console.log(`${devices.length} devices and ${endpoints.length} endpoints cleared`);
+	console.log(`[clearReference] ${devices.length} devices and ${endpoints.length} endpoints cleared`);
 }
 
 async function getAndClearDeviceAndEndpointsFromOrgan(organNode: SpinalNode) {

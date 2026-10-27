@@ -1,19 +1,36 @@
+# Nom de l organ dans SpinalCom ; sert aussi de nom de repli au client BACnet.
 ORGAN_NAME="name"
 USER_ID="XXX"
 PASSWORD="*******"
 PROTOCOL="http"
 HOST="127.0.0.1"
 PORT="8080"
-ORGAN_FOLDER_PATH="/__users__/admin/organs"
+
+
+ORGAN_FOLDER_PATH="/__users__/admin/organs" # Chemin dans le Hub ou l organ sera cree.
+
 BACNET_PRIORITY="16"
 
 
-CLEAR_ORGAN_IF_NOT_COMPATIBLE="1" # Clear organ data if not compatible with this version
+# Avec 1/true, efface les donnees de l organ si leur format est incompatible (operation destructive).
+CLEAR_ORGAN_IF_NOT_COMPATIBLE="1"
 
-#Bacnet Services
+
+# Port du service BACnet local ; valeur par defaut : 47810.
 BACNET_SERVICE_PORT="47810" # default 47810
-LAUNCH_OWN_BACNET_SERVICE="1" # 1 to enable or 0 to disable
+
+
+# Avec 1/true, lance un service BACnet local ; sinon, se connecte au service configure.
+LAUNCH_OWN_BACNET_SERVICE="1"
+
+
+# Avec 1/true, demande au service BACnet (local) d'activer ses logs.
 LOG_BACNET_SERVICE="0" #log bacnet service if 1 or true
 
 
-SKIP_ENDPOINTS_INITIALIZATION="0"  # don't init endpoints create if set to 1 or true
+# Avec 1/true, ignore la creation initiale des endpoints dans le graphe.
+SKIP_ENDPOINTS_INITIALIZATION="0"
+
+# Avec 1/true, active le calcul et l'affichage des indicateurs des devices.
+# Toute autre valeur (ou variable absente) desactive le calcul et ces logs.
+ADD_INDICATORS="0"

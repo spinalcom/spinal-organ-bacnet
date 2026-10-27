@@ -39,10 +39,8 @@ exports.spinalDiscover = void 0;
 const events_1 = require("events");
 const spinal_connector_service_1 = require("spinal-connector-service");
 const spinal_model_bmsnetwork_1 = require("spinal-model-bmsnetwork");
-const SpinalDevice_1 = require("./SpinalDevice");
 const spinal_connector_service_2 = require("spinal-connector-service");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
-const GlobalVariables_1 = require("../utilities/GlobalVariables");
 const BacnetUtilities_1 = __importDefault(require("../utilities/BacnetUtilities"));
 const config_1 = require("../config");
 class SpinalDiscover {
@@ -55,7 +53,7 @@ class SpinalDiscover {
     }
     init() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.client = yield BacnetUtilities_1.default.getClient();
+            // this.client = await BacnetUtilities.getClient();
             this._bindState();
         });
     }
@@ -72,155 +70,167 @@ class SpinalDiscover {
             }
         });
     }
+    getNetworkInfo() {
+        var _a;
+        const tempNetwork = ((_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.get()) || {};
+        return {
+            mode: tempNetwork.useBroadcast ? "broadcast" : "unicast",
+            broadcastAddress: tempNetwork.address || "255.255.255.255",
+            port: tempNetwork.port || 47808,
+            interface: tempNetwork.interface || "",
+            apduTimeout: tempNetwork.apduTimeout || 3000,
+            ips: tempNetwork.ips || [],
+        };
+    }
     _discover() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const queue = yield this._getDevicesQueue();
-                let isFinished = false;
-                const devices = [];
-                while (!isFinished) {
-                    const item = queue.dequeue();
-                    if (typeof item !== "undefined") {
-                        const info = yield this._initSpinalDevice(item);
-                        if (info)
-                            devices.push(info);
-                        // if (info) this._addDeviceFound(info);
-                    }
-                    else {
-                        console.log("discovery finished");
-                        isFinished = true;
-                    }
-                }
-                // if no device found, set timeout mode
+                const networkInfo = this.getNetworkInfo();
+                console.log("[_discover] Starting discovery using:", networkInfo.mode);
+                const devices = yield BacnetUtilities_1.default.discoverDevices(networkInfo);
                 if (devices.length === 0) {
-                    console.log("No device found, timeout !");
+                    console.log("[_discover] No device found, timeout !");
                     this.discoverModel.changeState(spinal_connector_service_2.STATES.timeout);
                     return;
                 }
                 this.discoverModel.setTreeDiscovered(devices);
                 this.discoverModel.changeState(spinal_connector_service_2.STATES.discovered);
-                console.log("discovered !", devices.length, "device(s) found");
+                // const queue = await this._getDevicesQueue();
+                // let isFinished = false;
+                // const devices: IDevice[] = [];
+                // while (!isFinished) {
+                // 	const item = queue.dequeue();
+                // 	if (typeof item !== "undefined") {
+                // 		const info = await this._initSpinalDevice(item);
+                // 		if (info) devices.push(info);
+                // 		// if (info) this._addDeviceFound(info);
+                // 	} else {
+                // 		console.log("discovery finished");
+                // 		isFinished = true;
+                // 	}
+                // }
+                // // if no device found, set timeout mode
+                // if (devices.length === 0) {
+                // 	console.log("No device found, timeout !");
+                // 	this.discoverModel.changeState(STATES.timeout);
+                // 	return;
+                // }
+                // this.discoverModel.setTreeDiscovered(devices);
+                // this.discoverModel.changeState(STATES.discovered);
+                // console.log("discovered !", devices.length, "device(s) found");
             }
             catch (error) {
-                console.log("No device found, timeout !");
+                console.log("[_discover] No device found, timeout !");
                 this.discoverModel.changeState(spinal_connector_service_2.STATES.timeout);
             }
         });
     }
-    _getDevicesQueue() {
-        return __awaiter(this, void 0, void 0, function* () {
-            var _a, _b;
-            const queue = new spinal_connector_service_1.SpinalQueue();
-            const useBroadcast = (_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.useBroadcast) === null || _b === void 0 ? void 0 : _b.get();
-            const deviceDiscovered = {};
-            return new Promise((resolve, reject) => {
-                let timeoutCleared = false;
-                // Create a single handler for 'iAm' events to avoid multiple listeners and potential memory leaks
-                const iAmHandler = this._createIAmHandler(deviceDiscovered, queue, () => {
-                    if (!timeoutCleared) {
-                        timeoutCleared = true;
-                        clearTimeout(timeOutId);
-                    }
-                });
-                const cleanup = () => this.client.removeListener("iAm", iAmHandler);
-                // Register start event BEFORE sending whoIs to avoid race condition
-                queue.once("start", () => {
-                    if (!useBroadcast)
-                        this._addMissingIpsToQueue(queue, deviceDiscovered);
-                    cleanup();
-                    resolve(queue);
-                });
-                const timeOutId = setTimeout(() => {
-                    if (!useBroadcast) {
-                        queue.setQueue([]);
-                        return;
-                    }
-                    cleanup();
-                    reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
-                }, this.CONNECTION_TIME_OUT);
-                this.client.on("iAm", iAmHandler);
-                this._sendWhoIsRequests(useBroadcast);
-            });
-        });
-    }
-    _createIAmHandler(deviceDiscovered, queue, onFirstDevice) {
-        let firstDeviceReceived = false;
-        return (device) => {
-            console.log("device found", device);
-            if (!firstDeviceReceived) {
-                firstDeviceReceived = true;
-                onFirstDevice();
-            }
-            const { address, deviceId } = device;
-            const key = `${address}-${deviceId}`;
-            if (!deviceDiscovered[key]) {
-                deviceDiscovered[key] = device;
-                queue.addToQueue(device);
-            }
-        };
-    }
-    _sendWhoIsRequests(useBroadcast) {
-        var _a, _b;
-        if (useBroadcast) {
-            console.log("discover using broadcast");
-            this.client.whoIs({ dest: { net: "65535", adr: [""] } });
-        }
-        else {
-            console.log("discover using unicast");
-            const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
-            for (const { address } of ips) {
-                this.client.whoIs({
-                    address,
-                    dest: { net: "65535", adr: [""] },
-                });
-            }
-        }
-    }
-    _addMissingIpsToQueue(queue, deviceDiscovered) {
-        var _a, _b;
-        // console.log("queue.once unicast");
-        const missingDevices = [];
-        const ips = ((_b = (_a = this.discoverModel.network) === null || _a === void 0 ? void 0 : _a.ips) === null || _b === void 0 ? void 0 : _b.get()) || [];
-        const ipsFound = Object.values(deviceDiscovered).map((device) => device.address);
-        for (const { address, deviceId } of ips) {
-            const key = `${address}-${deviceId}`;
-            if (!deviceDiscovered[key] && !ipsFound.includes(address)) {
-                missingDevices.push({
-                    address,
-                    deviceId: deviceId || GlobalVariables_1.PropertyIds.MAX_BACNET_PROPERTY_ID,
-                });
-            }
-        }
-        // console.log("ips not found", missingDevices);
-        queue.addToQueue(missingDevices);
-    }
-    _initSpinalDevice(device) {
-        return new Promise((resolve, reject) => {
-            const spinalDevice = new SpinalDevice_1.SpinalDevice(device);
-            spinalDevice.on("initialized", (res) => {
-                const info = res.device;
-                if (!info)
-                    return resolve();
-                this.devices.set(info.deviceId, res);
-                resolve(info);
-                // Remove the initialized listener to prevent memory leaks in case of multiple devices
-                spinalDevice.removeAllListeners("initialized");
-            });
-            spinalDevice.on("error", () => {
-                console.log(device.address, "not found");
-                resolve();
-                // Remove the error listener to prevent memory leaks in case of multiple errors
-                spinalDevice.removeAllListeners("error");
-            });
-            spinalDevice.init();
-        });
-    }
-    _addDeviceFound(device) {
-        this.discoverModel.devices.push(device);
-    }
+    // private async _getDevicesQueue(): Promise<SpinalQueue<IDevice>> {
+    // 	const queue: SpinalQueue<IDevice> = new SpinalQueue();
+    // 	const useBroadcast = this.discoverModel.network?.useBroadcast?.get();
+    // 	const deviceDiscovered: { [key: string]: IDevice } = {};
+    // 	return new Promise((resolve, reject) => {
+    // 		let timeoutCleared = false;
+    // 		// Create a single handler for 'iAm' events to avoid multiple listeners and potential memory leaks
+    // 		const iAmHandler = this._createIAmHandler(deviceDiscovered, queue, () => {
+    // 			if (!timeoutCleared) {
+    // 				timeoutCleared = true;
+    // 				clearTimeout(timeOutId);
+    // 			}
+    // 		});
+    // 		const cleanup = () => this.client.removeListener("iAm", iAmHandler);
+    // 		// Register start event BEFORE sending whoIs to avoid race condition
+    // 		queue.once("start", () => {
+    // 			if (!useBroadcast) this._addMissingIpsToQueue(queue, deviceDiscovered);
+    // 			cleanup();
+    // 			resolve(queue);
+    // 		});
+    // 		const timeOutId = setTimeout(() => {
+    // 			if (!useBroadcast) {
+    // 				queue.setQueue([]);
+    // 				return;
+    // 			}
+    // 			cleanup();
+    // 			reject("[TIMEOUT] - Cannot establish connection with BACnet server.");
+    // 		}, this.CONNECTION_TIME_OUT);
+    // 		this.client.on("iAm", iAmHandler);
+    // 		this._sendWhoIsRequests(useBroadcast);
+    // 	});
+    // }
+    // private _createIAmHandler(deviceDiscovered: { [key: string]: IDevice }, queue: SpinalQueue<IDevice>, onFirstDevice: () => void): (device: IDevice) => void {
+    // 	let firstDeviceReceived = false;
+    // 	return (device: IDevice) => {
+    // 		console.log("device found", device);
+    // 		if (!firstDeviceReceived) {
+    // 			firstDeviceReceived = true;
+    // 			onFirstDevice();
+    // 		}
+    // 		const { address, deviceId } = device;
+    // 		const key = `${address}-${deviceId}`;
+    // 		if (!deviceDiscovered[key]) {
+    // 			deviceDiscovered[key] = device;
+    // 			queue.addToQueue(device);
+    // 		}
+    // 	};
+    // }
+    // private _sendWhoIsRequests(useBroadcast: boolean): void {
+    // 	if (useBroadcast) {
+    // 		console.log("discover using broadcast");
+    // 		this.client.whoIs({ dest: { net: "65535", adr: [""] } });
+    // 	} else {
+    // 		console.log("discover using unicast");
+    // 		const ips = this.discoverModel.network?.ips?.get() || [];
+    // 		for (const { address } of ips) {
+    // 			this.client.whoIs({
+    // 				address,
+    // 				dest: { net: "65535", adr: [""] },
+    // 			});
+    // 		}
+    // 	}
+    // }
+    // private _addMissingIpsToQueue(queue: SpinalQueue<IDevice>, deviceDiscovered: { [key: string]: IDevice }): void {
+    // 	// console.log("queue.once unicast");
+    // 	const missingDevices: IDevice[] = [];
+    // 	const ips = this.discoverModel.network?.ips?.get() || [];
+    // 	const ipsFound = Object.values(deviceDiscovered).map((device) => device.address);
+    // 	for (const { address, deviceId } of ips) {
+    // 		const key = `${address}-${deviceId}`;
+    // 		if (!deviceDiscovered[key] && !ipsFound.includes(address)) {
+    // 			missingDevices.push({
+    // 				address,
+    // 				deviceId: deviceId || PropertyIds.MAX_BACNET_PROPERTY_ID,
+    // 			} as IDevice);
+    // 		}
+    // 	}
+    // 	// console.log("ips not found", missingDevices);
+    // 	queue.addToQueue(missingDevices);
+    // }
+    // private _initSpinalDevice(device: IDevice): Promise<IDevice | void> {
+    // 	return new Promise((resolve, reject) => {
+    // 		const spinalDevice = new SpinalDevice(device);
+    // 		spinalDevice.on("initialized", (res) => {
+    // 			const info = res.device;
+    // 			if (!info) return resolve();
+    // 			this.devices.set(info.deviceId, res);
+    // 			resolve(info);
+    // 			// Remove the initialized listener to prevent memory leaks in case of multiple devices
+    // 			spinalDevice.removeAllListeners("initialized");
+    // 		});
+    // 		spinalDevice.on("error", () => {
+    // 			console.log(device.address, "not found");
+    // 			resolve();
+    // 			// Remove the error listener to prevent memory leaks in case of multiple errors
+    // 			spinalDevice.removeAllListeners("error");
+    // 		});
+    // 		spinalDevice.init();
+    // 	});
+    // }
+    // private _addDeviceFound(device: IDevice): void {
+    // 	this.discoverModel.devices.push(device);
+    // }
     _createNodes() {
         return __awaiter(this, void 0, void 0, function* () {
-            console.log("creating nodes in graph...");
+            console.log("[_createNodes] creating nodes in graph...");
             try {
                 const queue = yield this._getDevicesSelected(this.discoverModel);
                 const { context, graph, organ, network } = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.initSpinalDiscoverNetwork(this.discoverModel);
@@ -237,11 +247,11 @@ class SpinalDiscover {
                     // if (deviceAlreadyExist) continue;
                 }
                 this.discoverModel.changeState(spinal_connector_service_2.STATES.created);
-                console.log("nodes created with success!");
+                console.log("[_createNodes] nodes created with success!");
             }
             catch (error) {
                 this.discoverModel.changeState(spinal_connector_service_2.STATES.error);
-                console.error("Error creating nodes:", error.message || error);
+                console.error("[_createNodes] Error creating nodes:", error.message || error);
             }
             finally {
                 const state = this.discoverModel.state.get();
@@ -271,7 +281,7 @@ class SpinalDiscover {
             const queue = new spinal_connector_service_1.SpinalQueue();
             const { protocol, host, port } = (_a = (0, config_1.getConfig)()) === null || _a === void 0 ? void 0 : _a.spinalConnector;
             const url = `${protocol}://${host}:${port}`;
-            console.log(url);
+            console.log("[_getDevicesSelected] ", url);
             const list = yield discoverModel.getTreeToCreate(url);
             queue.addToQueue(list);
             return queue;
@@ -315,6 +325,10 @@ class Discover extends events_1.EventEmitter {
             return;
         }
         const model = this._discoverQueue.dequeue();
+        if (!model) {
+            this.emit("next");
+            return;
+        }
         const spinalDiscover = new SpinalDiscover(model);
         spinalDiscover.init();
         let timeout = false;
