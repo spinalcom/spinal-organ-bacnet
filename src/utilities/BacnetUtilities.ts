@@ -29,7 +29,7 @@ import { EventPayload, SpinalCov } from "../modules/SpinalCov";
 import { v4 as uuid } from "uuid";
 import ipc from "node-ipc";
 import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, BACNET_COV_EVENT_NAME, CLIENT_RESET_EVENT } from "spinal-bacnet-service";
-import type { BacnetReadOutcome } from "../indicators/DeviceCommunicationIndicators";
+import type { BacnetReadOutcome } from "../Interfaces/IDeviceCommunicationIndicators";
 
 class BacnetUtilitiesClass {
 	private static instance: BacnetUtilitiesClass;
@@ -199,6 +199,10 @@ class BacnetUtilitiesClass {
 
 	public async resetClient() {
 		return this._sendDataToBacnetServer(CLIENT_RESET_EVENT, []);
+	}
+
+	public pingDevice(host: string): Promise<{ reachable: boolean; responseTimeMs: number | null }> {
+		return this._sendDataToBacnetServer("pingDevice", [host]);
 	}
 
 	////////////////////////////////////////////////////////////////

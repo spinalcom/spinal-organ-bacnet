@@ -130,6 +130,9 @@ class DeviceCommunicationIndicators {
     fetchCurrentIndicators(now = Date.now()) {
         return {
             communicationStatus: this._getCommunicationStatus(),
+            pingStatus: "unknown",
+            pingLastCheckAt: null,
+            pingResponseTimeMs: null,
             requestsLaunched: this._requestsLaunched,
             firstAttemptSuccesses: this._firstAttemptSuccesses,
             finalSuccesses: this._finalSuccesses,

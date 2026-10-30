@@ -38,11 +38,14 @@ import { loadPtrValue } from "../utilities/Functions";
 import ProfileManager, { IProfileData } from "../utilities/profileManager";
 import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 import { DEVICE_UPDATE_FAILED, DEVICE_UPDATE_SUCCESS } from "../utilities/eventNames";
-import { DeviceCommunicationIndicators, type DeviceCommunicationIndicatorsSnapshot } from "../indicators/DeviceCommunicationIndicators";
+import { DeviceCommunicationIndicators } from "../indicators/DeviceCommunicationIndicators";
+import type { DeviceCommunicationIndicatorsSnapshot } from "../Interfaces/IDeviceCommunicationIndicators";
 import { areIndicatorsEnabled } from "../indicators/indicatorConfiguration";
+import { DevicePingMonitor } from "../indicators/DevicePingMonitor";
 
 export class SpinalDevice extends EventEmitter {
 	public readonly indicators = new DeviceCommunicationIndicators();
+	private readonly _pingMonitor = new DevicePingMonitor();
 	public device: IDevice | undefined;
 	private info: any;
 	public covData: IObjectId[] = [];
@@ -147,7 +150,23 @@ export class SpinalDevice extends EventEmitter {
 	}
 
 	public getCommunicationIndicators(): DeviceCommunicationIndicatorsSnapshot {
-		return this.indicators.fetchCurrentIndicators();
+		return {
+			...this.indicators.fetchCurrentIndicators(),
+			...this._pingMonitor.fetchCurrentIndicators(),
+		};
+	}
+
+	private _startDevicePing(): void {
+		this._pingMonitor.start(this.device?.address, () => this.scheduleCommunicationControlEndpointUpdate(0, "icmpPing", true));
+	}
+
+	public async initializeControlPoints(): Promise<void> {
+		await this.updateCommunicationControlEndpoints(false);
+		await this.updateCommunicationControlEndpoints(false, "icmpPing");
+	}
+
+	public startDevicePingMonitoring(): void {
+		this._startDevicePing();
 	}
 
 	public startCommunicationMetricsLogging(): void {
@@ -169,12 +188,10 @@ export class SpinalDevice extends EventEmitter {
 		this._logCommunicationMetrics();
 	}
 
-	public async updateCommunicationControlEndpoints(recordTimeSeries = true): Promise<void> {
-		if (!areIndicatorsEnabled()) return;
-
+	public async updateCommunicationControlEndpoints(recordTimeSeries = true, trigger?: string): Promise<void> {
 		const update = this._communicationControlEndpointSync.then(async () => {
 			if (!this._bmsDevice) throw new Error("BMS device node is not initialized");
-			await SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, this.getCommunicationIndicators(), recordTimeSeries);
+			await SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, this.getCommunicationIndicators(), recordTimeSeries, trigger);
 		});
 		this._communicationControlEndpointSync = update.catch((error) => {
 			console.error(`[updateCommunicationControlEndpoints] [${this.Name}] - Failed to synchronize communication indicators:`, error);
@@ -182,12 +199,11 @@ export class SpinalDevice extends EventEmitter {
 		await this._communicationControlEndpointSync;
 	}
 
-	public scheduleCommunicationControlEndpointUpdate(delay = 250): void {
-		if (!areIndicatorsEnabled()) return;
+	public scheduleCommunicationControlEndpointUpdate(delay = 250, trigger?: string, recordTimeSeries = false): void {
 		if (this._communicationControlEndpointSyncTimer) clearTimeout(this._communicationControlEndpointSyncTimer);
 		this._communicationControlEndpointSyncTimer = setTimeout(() => {
 			this._communicationControlEndpointSyncTimer = null;
-			void this.updateCommunicationControlEndpoints(false);
+			void this.updateCommunicationControlEndpoints(recordTimeSeries, trigger);
 		}, delay);
 		this._communicationControlEndpointSyncTimer.unref();
 	}
@@ -269,10 +285,15 @@ export class SpinalDevice extends EventEmitter {
 	public async createDeviceNodeInGraph(context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode> {
 		if (!deviceNode) {
 			deviceNode = await SpinalNetworkUtilities.createNetworkElementNode(this.device as any, SpinalBmsDevice.nodeTypeName);
-			return network.addChildInContext(deviceNode, SpinalBmsDevice.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
+			deviceNode = await network.addChildInContext(deviceNode, SpinalBmsDevice.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
+		} else {
+			await SpinalNetworkUtilities.updateNetworkElementNode(deviceNode, this.device as any);
 		}
 
-		return SpinalNetworkUtilities.updateNetworkElementNode(deviceNode, this.device as any);
+		this._context = context;
+		this._network = network;
+		this._bmsDevice = deviceNode;
+		return deviceNode;
 	}
 
 	/** create device item list in graph */
@@ -294,7 +315,7 @@ export class SpinalDevice extends EventEmitter {
 
 			await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.success);
 		} catch (error) {
-			console.log(`[createDeviceItemList] [${deviceName}] - items creation failed due to "${(error as Error).message}"`);
+			console.error(`[createDeviceItemList] [${deviceName}] - items creation failed due to "${(error as Error).message}"`);
 			await spinalBacnetValueModel.changeState(BACNET_VALUES_STATE.error);
 			return;
 		}

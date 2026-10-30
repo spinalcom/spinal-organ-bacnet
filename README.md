@@ -42,6 +42,8 @@ Optional variables:
 -   `BACNET_SERVICE_PORT`: BACnet service port (default: `47810`)
 -   `CLEAR_ORGAN_IF_NOT_COMPATIBLE`: `1`/`true` to reset the organ when data is incompatible
 -   `ADD_INDICATORS`: `1`/`true` to enable communication indicator controlpoints and history (disabled by default)
+-   `DEVICE_PING_INTERVAL_SECONDS`: interval between ICMP pings for each discovered device in seconds (default: `60`)
+-   `DEBUG_LOGS`: `1`/`true` to enable informational and debug logs from the organ (disabled by default; errors remain visible)
 
 Example:
 
@@ -56,6 +58,7 @@ export ORGAN_FOLDER_PATH="/organs"
 
 export LAUNCH_OWN_BACNET_SERVICE="true"
 export BACNET_SERVICE_PORT="47810"
+export DEVICE_PING_INTERVAL_SECONDS="60"
 ```
 
 ## Scripts
@@ -120,6 +123,10 @@ TimeSeries with the same timestamp. The last response date is stored as a Unix
 timestamp in milliseconds. Status history uses numeric values: `0` stopped,
 `1` unknown, `2` online, `3` degraded, and `4` offline. COV notifications
 refresh the current values without adding duplicate time-series samples.
+
+The controlpoint groups, profile metadata, endpoint definitions, and history conversions are configured in [ControlPointProfiles.ts](src/indicators/ControlPointProfiles.ts). Each endpoint selects a property from the communication indicator snapshot and a `timeSeriesFormat` (`status`, `date`, `number`, or `none`).
+
+Every discovered device is ICMP-pinged immediately and then at the interval configured by `DEVICE_PING_INTERVAL_SECONDS`, independently of BACnet supervision and `ADD_INDICATORS`. The organ sends each ping request to the BACnet service over IPC, and the service returns reachability and response time to the organ. The "BACnet device ping" controlpoint profile shows the ping status, last check time, and response time.
 
 While indicators are enabled, the organ logs a metrics snapshot immediately
 and then every 60 seconds; it logs one final snapshot when monitoring stops.

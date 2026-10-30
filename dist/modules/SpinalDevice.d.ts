@@ -3,9 +3,11 @@ import { SpinalContext, SpinalNode } from "spinal-model-graph";
 import { SpinalBacnetValueModel, SpinalListenerModel } from "spinal-model-bacnet";
 import { IDevice, IObjectId } from "../Interfaces";
 import { IProfileData } from "../utilities/profileManager";
-import { DeviceCommunicationIndicators, type DeviceCommunicationIndicatorsSnapshot } from "../indicators/DeviceCommunicationIndicators";
+import { DeviceCommunicationIndicators } from "../indicators/DeviceCommunicationIndicators";
+import type { DeviceCommunicationIndicatorsSnapshot } from "../Interfaces/IDeviceCommunicationIndicators";
 export declare class SpinalDevice extends EventEmitter {
     readonly indicators: DeviceCommunicationIndicators;
+    private readonly _pingMonitor;
     device: IDevice | undefined;
     private info;
     covData: IObjectId[];
@@ -30,10 +32,13 @@ export declare class SpinalDevice extends EventEmitter {
     get Name(): string;
     getBmsDeviceNode(): SpinalNode<any>;
     getCommunicationIndicators(): DeviceCommunicationIndicatorsSnapshot;
+    private _startDevicePing;
+    initializeControlPoints(): Promise<void>;
+    startDevicePingMonitoring(): void;
     startCommunicationMetricsLogging(): void;
     stopCommunicationMetricsLogging(): void;
-    updateCommunicationControlEndpoints(recordTimeSeries?: boolean): Promise<void>;
-    scheduleCommunicationControlEndpointUpdate(delay?: number): void;
+    updateCommunicationControlEndpoints(recordTimeSeries?: boolean, trigger?: string): Promise<void>;
+    scheduleCommunicationControlEndpointUpdate(delay?: number, trigger?: string, recordTimeSeries?: boolean): void;
     private _logCommunicationMetrics;
     getListenerModel(): SpinalListenerModel;
     getProfileData(): Promise<IProfileData[]>;

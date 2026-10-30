@@ -1,7 +1,7 @@
 import bacnet from "bacstack";
 import { IDevice, IObjectId } from "../Interfaces";
 import { EventPayload } from "../modules/SpinalCov";
-import type { BacnetReadOutcome } from "../indicators/DeviceCommunicationIndicators";
+import type { BacnetReadOutcome } from "../Interfaces/IDeviceCommunicationIndicators";
 declare class BacnetUtilitiesClass {
     private static instance;
     private _client;
@@ -24,6 +24,10 @@ declare class BacnetUtilitiesClass {
     discoverDevices(networkInfo: any): Promise<IDevice[]>;
     getItemListByFragment(device: IDevice, objectId: IObjectId): Promise<IObjectId[]>;
     resetClient(): Promise<any>;
+    pingDevice(host: string): Promise<{
+        reachable: boolean;
+        responseTimeMs: number | null;
+    }>;
     _getObjectDetail(device: IDevice, objects: Array<IObjectId>): Promise<{
         [key: string]: string | boolean | number;
     }[]>;

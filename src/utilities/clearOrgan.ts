@@ -3,6 +3,7 @@ import { SpinalNode } from "spinal-env-viewer-graph-service";
 import { SpinalBmsDevice, SpinalBmsEndpoint, SpinalBmsEndpointGroup, SpinalBmsNetwork } from "spinal-model-bmsnetwork";
 import { SpinalOrganConfigModel } from "spinal-model-bacnet";
 import spinalLog from "./displayLog";
+import { debugLog } from "./debugLog";
 
 export async function clearOrgan(organModel: SpinalOrganConfigModel) {
 	const references = await getAllOrganReferences(organModel);
@@ -14,7 +15,7 @@ export async function clearOrgan(organModel: SpinalOrganConfigModel) {
 			organModel.rem_attr("pilot");
 
 			await organModel.initializeModelsList(); // Reinitialize the models list after clearing the organ model
-			spinalLog.log("Successfully cleared organ references:", result);
+			console.log("Successfully cleared organ references:", result);
 			return result;
 		})
 		.catch((err) => {
@@ -45,7 +46,7 @@ function getAllOrganReferences(organModel: SpinalOrganConfigModel): Promise<Spin
 
 async function clearReference(reference: SpinalNode) {
 	const { devices, endpoints } = await getAndClearDeviceAndEndpointsFromOrgan(reference);
-	spinalLog.log(`Clearing reference: ${reference.getName().get()} with ${devices.length} devices and ${endpoints.length} endpoints.`);
+	console.log(`Clearing reference: ${reference.getName().get()} with ${devices.length} devices and ${endpoints.length} endpoints.`);
 	// devices.forEach(clearDevice);
 	// endpoints.forEach(clearEndpoint);
 	console.log(`[clearReference] ${devices.length} devices and ${endpoints.length} endpoints cleared`);

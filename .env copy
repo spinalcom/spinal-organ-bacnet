@@ -8,9 +8,7 @@ PORT="8080"
 
 
 ORGAN_FOLDER_PATH="/__users__/admin/organs" # Chemin dans le Hub ou l organ sera cree.
-
 BACNET_PRIORITY="16"
-
 
 # Avec 1/true, efface les donnees de l organ si leur format est incompatible (operation destructive).
 CLEAR_ORGAN_IF_NOT_COMPATIBLE="1"
@@ -34,3 +32,10 @@ SKIP_ENDPOINTS_INITIALIZATION="0"
 # Avec 1/true, active le calcul et l'affichage des indicateurs des devices.
 # Toute autre valeur (ou variable absente) desactive le calcul et ces logs.
 ADD_INDICATORS="0"
+
+
+# devices pings intervals in second
+DEVICE_PING_INTERVAL_SECONDS="60" 
+
+# display debug logs 1/true
+DEBUG_LOGS=1

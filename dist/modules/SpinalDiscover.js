@@ -252,6 +252,9 @@ class SpinalDiscover {
                         yield spinalDevice.createDeviceNodeInGraph(context, network, deviceAlreadyExist);
                     // if (deviceAlreadyExist) continue;
                 }
+                for (const spinalDevice of this.devices.values()) {
+                    yield spinalDevice.initializeControlPoints();
+                }
                 this.discoverModel.changeState(spinal_connector_service_2.STATES.created);
                 console.log("[_createNodes] nodes created with success!");
             }

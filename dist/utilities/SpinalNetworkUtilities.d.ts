@@ -4,7 +4,7 @@ import { SpinalContext, SpinalNode } from "spinal-model-graph";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import { IDataDiscover } from "../Interfaces/IDataDiscover";
 import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
-import type { DeviceCommunicationIndicatorsSnapshot } from "../indicators/DeviceCommunicationIndicators";
+import type { DeviceCommunicationIndicatorsSnapshot } from "../Interfaces/IDeviceCommunicationIndicators";
 declare const bmsTypeNames: readonly [string, string, string, string];
 type BmsNodeType = (typeof bmsTypeNames)[number];
 type InputDataTypes = ({
@@ -20,7 +20,7 @@ declare class SpinalNetworkUtilitiesClass {
     static getIntance(): SpinalNetworkUtilitiesClass;
     initSpinalDiscoverNetwork(spinalModel: SpinalDiscoverModel): Promise<IDataDiscover>;
     getTimeSeriesInstance(): SpinalServiceTimeseries;
-    updateCommunicationControlEndpoints(deviceNode: SpinalNode, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries?: boolean): Promise<void>;
+    updateCommunicationControlEndpoints(deviceNode: SpinalNode, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries?: boolean, trigger?: string): Promise<void>;
     initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue>;
     initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<SpinalDevice>;
     updateEndpointInGraph(spinalDevice: SpinalDevice, children: {
@@ -45,7 +45,10 @@ declare class SpinalNetworkUtilitiesClass {
     _createEndpointByArray(context: SpinalContext, groupNode: SpinalNode, endpointArray: InputDataEndpoint[], deviceName: string): Promise<SpinalNode[]>;
     private _formatEndpointCreationInfo;
     updateNetworkElementNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode>;
+    updateControlPointNode(node: SpinalNode, newInfo: InputDataTypes): Promise<SpinalNode>;
+    private _updateNetworkElementNode;
     createNetworkElementNode(nodeInfo: InputDataTypes, type: BmsNodeType): Promise<SpinalNode>;
+    createControlPointNode(nodeInfo: InputDataTypes, type: BmsNodeType): Promise<SpinalNode>;
     private _updateElementInfo;
     private _createBmsElementFromType;
     private _createBmsNodeFromElement;
@@ -57,6 +60,7 @@ declare class SpinalNetworkUtilitiesClass {
     private _getChildrenAsObj;
     private _existingNodeIsInvalid;
     private loadPtrValue;
+    private _checkIfValueIsValidAndUpdateControlPoint;
     private _checkIfValueIsValidAndUpdate;
     private _endpointCanBeCreate;
     private _checkIfInfoIsValid;

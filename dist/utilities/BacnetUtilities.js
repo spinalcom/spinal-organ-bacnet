@@ -196,6 +196,9 @@ class BacnetUtilitiesClass {
             return this._sendDataToBacnetServer(spinal_bacnet_service_1.CLIENT_RESET_EVENT, []);
         });
     }
+    pingDevice(host) {
+        return this._sendDataToBacnetServer("pingDevice", [host]);
+    }
     ////////////////////////////////////////////////////////////////
     ////                  GET OBJECT DETAIL                       //
     ////////////////////////////////////////////////////////////////

@@ -25,7 +25,7 @@ function clearOrgan(organModel) {
             organModel.rem_attr("listener");
             organModel.rem_attr("pilot");
             yield organModel.initializeModelsList(); // Reinitialize the models list after clearing the organ model
-            displayLog_1.default.log("Successfully cleared organ references:", result);
+            console.log("Successfully cleared organ references:", result);
             return result;
         }))
             .catch((err) => {
@@ -53,7 +53,7 @@ function getAllOrganReferences(organModel) {
 function clearReference(reference) {
     return __awaiter(this, void 0, void 0, function* () {
         const { devices, endpoints } = yield getAndClearDeviceAndEndpointsFromOrgan(reference);
-        displayLog_1.default.log(`Clearing reference: ${reference.getName().get()} with ${devices.length} devices and ${endpoints.length} endpoints.`);
+        console.log(`Clearing reference: ${reference.getName().get()} with ${devices.length} devices and ${endpoints.length} endpoints.`);
         // devices.forEach(clearDevice);
         // endpoints.forEach(clearEndpoint);
         console.log(`[clearReference] ${devices.length} devices and ${endpoints.length} endpoints cleared`);

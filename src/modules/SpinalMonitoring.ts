@@ -41,6 +41,7 @@ class SpinalMonitoring {
 	private queue: SpinalQueue<SpinalListenerModel> = new SpinalQueue();
 	private priorityQueue: MinPriorityQueue<priorityQueueElementType> = new MinPriorityQueue();
 	private initIsProcessing: boolean = false;
+	private _controlPointsInitialized = false;
 	private intervalTimesMap: Map<number, any> = new Map();
 	private binded: Map<string | number, BindProcess> = new Map();
 	private devices: { [key: string]: SpinalDevice } = {};
@@ -128,7 +129,11 @@ class SpinalMonitoring {
 		await this._waitEndpointCreation();
 		console.log(`[startDeviceInitialisation] All devices initialized`);
 
+		for (const device of devicesInitialized) await device.initializeControlPoints();
+		this._controlPointsInitialized = true;
+
 		this.startMonitoring();
+		for (const device of devicesInitialized) device.startDevicePingMonitoring();
 		SpinalCov.getInstance().startCovProcessing(); // start cov processing
 	}
 
@@ -226,7 +231,7 @@ class SpinalMonitoring {
 
 	private async _handleMonitoredDevice(device: SpinalDevice, resolve: resolveCallback): Promise<SpinalDevice> {
 		device.startCommunicationMetricsLogging();
-		await device.updateCommunicationControlEndpoints();
+		if (this._controlPointsInitialized) await device.updateCommunicationControlEndpoints();
 		const id = device.Id;
 		this.devices[id] = device;
 		// const alreadyInit = this.devices[String(id)];
@@ -271,7 +276,7 @@ class SpinalMonitoring {
 
 	private async _handleStoppedDevice(device: SpinalDevice, resolve: resolveCallback): Promise<void> {
 		device.stopCommunicationMetricsLogging();
-		await device.updateCommunicationControlEndpoints();
+		if (this._controlPointsInitialized) await device.updateCommunicationControlEndpoints();
 		const id = device.Id;
 		const alreadyInit = this.devices[id as string | number];
 		const deviceName = device.Name;

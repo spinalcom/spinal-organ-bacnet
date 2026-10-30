@@ -70,6 +70,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 require("json5/lib/register");
+const debugLog_1 = require("./utilities/debugLog");
 const spinal_core_connectorjs_type_1 = require("spinal-core-connectorjs_type");
 const spinal_model_bacnet_1 = require("spinal-model-bacnet");
 const spinal_connector_service_1 = require("spinal-connector-service");
@@ -80,6 +81,7 @@ const BacnetUtilities_1 = __importDefault(require("./utilities/BacnetUtilities")
 const spinal_bacnet_service_1 = require("spinal-bacnet-service");
 const clearOrgan_1 = require("./utilities/clearOrgan");
 const config_1 = require("./config");
+(0, debugLog_1.configureLogging)();
 // const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
 //// Load environment variables for the organ configuration
 const { protocol, host, port, userId, password, path, name } = (_a = (0, config_1.getConfig)()) === null || _a === void 0 ? void 0 : _a.spinalConnector;
@@ -97,6 +99,8 @@ spinalConnectorService
     .then((_a) => __awaiter(void 0, [_a], void 0, function* ({ alreadyExists, node: organModel }) {
     var _b, _c, _d;
     yield organModel.initializeModelsList(); // initialize the list of models in the organ
+    const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
+    console.log("[thenCallback] ", message);
     if (alreadyExists) {
         const { valid, message } = yield organModel.checkOrganDataValidity();
         if (!valid) {
@@ -129,8 +133,6 @@ spinalConnectorService
             (0, Functions_1.restartProcessById)(pm2_id);
         });
     }
-    const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
-    console.log("[thenCallback] ", message);
     (0, Functions_1.bindAllModels)(organModel);
 }))
     .catch((err) => {

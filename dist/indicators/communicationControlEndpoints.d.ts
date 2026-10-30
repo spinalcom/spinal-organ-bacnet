@@ -1,8 +1,11 @@
 import { InputDataEndpoint } from "spinal-model-bmsnetwork";
-import { DeviceCommunicationIndicatorsSnapshot } from "./DeviceCommunicationIndicators";
-export declare const COMMUNICATION_CONTROL_ENDPOINT_GROUP_ID = "bacnet_indicators_BACnet device indicators";
-export declare const COMMUNICATION_CONTROL_ENDPOINT_GROUP_NAME = "BACnet device indicators";
-export declare const COMMUNICATION_CONTROL_ENDPOINT_GROUP_RELATION = "hasControlPoints";
-export declare const COMMUNICATION_CONTROL_ENDPOINT_PROFILE = "BACnet device indicators";
-export declare function getCommunicationControlEndpoints(snapshot: DeviceCommunicationIndicatorsSnapshot): InputDataEndpoint[];
-export declare function getCommunicationControlEndpointTimeSeriesValue(endpointId: string, value: InputDataEndpoint["currentValue"]): number | undefined;
+import type { DeviceCommunicationIndicatorsSnapshot } from "../Interfaces/IDeviceCommunicationIndicators";
+import type { CommunicationControlProfileConfig } from "../Interfaces/IControlPointProfile";
+export type { CommunicationControlProfileConfig, ControlPointEndpointConfig, SnapshotProperty, TimeSeriesFormat } from "../Interfaces/IControlPointProfile";
+export declare const COMMUNICATION_CONTROL_PROFILES: CommunicationControlProfileConfig[];
+export declare const COMMUNICATION_CONTROL_ENDPOINT_GROUP_ID: string;
+export declare const COMMUNICATION_CONTROL_ENDPOINT_GROUP_NAME: string;
+export declare const COMMUNICATION_CONTROL_ENDPOINT_GROUP_RELATION: string;
+export declare const COMMUNICATION_CONTROL_ENDPOINT_PROFILE: string;
+export declare function getCommunicationControlEndpoints(snapshot: DeviceCommunicationIndicatorsSnapshot, profile?: CommunicationControlProfileConfig): InputDataEndpoint[];
+export declare function getCommunicationControlEndpointTimeSeriesValue(endpointId: string, value: InputDataEndpoint["currentValue"], profile?: CommunicationControlProfileConfig): number | undefined;

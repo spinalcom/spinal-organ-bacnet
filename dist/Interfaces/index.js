@@ -20,6 +20,8 @@ __exportStar(require("./IReadPropertyMultiple"), exports);
 __exportStar(require("./IObjectId"), exports);
 __exportStar(require("./ICovObj"), exports);
 __exportStar(require("./IDataMonitor"), exports);
+__exportStar(require("./IControlPointProfile"), exports);
+__exportStar(require("./IDeviceCommunicationIndicators"), exports);
 // import { IDevice } from "./IDevice";
 // import { IRequestArray } from "./IRequestArray";
 // import { IReadPropertyMultiple, IReadProperty } from "./IReadPropertyMultiple";

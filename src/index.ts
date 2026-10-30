@@ -24,6 +24,7 @@
 
 require("json5/lib/register");
 
+import { configureLogging } from "./utilities/debugLog";
 import { FileSystem, spinalCore } from "spinal-core-connectorjs_type";
 import { BACNET_ORGAN_TYPE, SpinalOrganConfigModel } from "spinal-model-bacnet";
 import { SpinalConnectorService } from "spinal-connector-service";
@@ -36,6 +37,8 @@ import { launchBacnetService, SERVICE_NAME } from "spinal-bacnet-service";
 import { clearOrgan } from "./utilities/clearOrgan";
 
 import { getConfig } from "./config";
+
+configureLogging();
 
 // const { protocol, host, port, userId, password, path, name } = config.spinalConnector;
 
@@ -58,6 +61,9 @@ spinalConnectorService
 	.initialize(connect, organInfo)
 	.then(async ({ alreadyExists, node: organModel }) => {
 		await organModel.initializeModelsList(); // initialize the list of models in the organ
+
+		const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
+		console.log("[thenCallback] ", message);
 
 		if (alreadyExists) {
 			const { valid, message } = await organModel.checkOrganDataValidity();
@@ -96,9 +102,6 @@ spinalConnectorService
 				restartProcessById(pm2_id);
 			});
 		}
-
-		const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
-		console.log("[thenCallback] ", message);
 
 		bindAllModels(organModel as SpinalOrganConfigModel);
 	})

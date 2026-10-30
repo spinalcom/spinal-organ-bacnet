@@ -4,7 +4,7 @@ import BacnetUtilities from "../utilities/BacnetUtilities";
 import { COV_EVENTS_NAMES, PropertyIds } from "../utilities/GlobalVariables";
 import { SpinalNetworkUtilities } from "../utilities/SpinalNetworkUtilities";
 import EventEmitter from "events";
-import type { CovSubscriptionOperation } from "../indicators/DeviceCommunicationIndicators";
+import type { CovSubscriptionOperation } from "../Interfaces/IDeviceCommunicationIndicators";
 import { areIndicatorsEnabled } from "../indicators/indicatorConfiguration";
 
 export type EventPayload = {

@@ -284,6 +284,10 @@ class SpinalDiscover {
 				// if (deviceAlreadyExist) continue;
 			}
 
+			for (const spinalDevice of this.devices.values()) {
+				await spinalDevice.initializeControlPoints();
+			}
+
 			this.discoverModel.changeState(STATES.created);
 			console.log("[_createNodes] nodes created with success!");
 		} catch (error) {

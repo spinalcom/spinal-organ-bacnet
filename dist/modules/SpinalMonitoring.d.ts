@@ -3,6 +3,7 @@ declare class SpinalMonitoring {
     private queue;
     private priorityQueue;
     private initIsProcessing;
+    private _controlPointsInitialized;
     private intervalTimesMap;
     private binded;
     private devices;

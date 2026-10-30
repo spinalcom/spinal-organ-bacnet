@@ -43,6 +43,7 @@ class SpinalMonitoring {
         this.queue = new spinal_connector_service_1.SpinalQueue();
         this.priorityQueue = new priority_queue_1.MinPriorityQueue();
         this.initIsProcessing = false;
+        this._controlPointsInitialized = false;
         this.intervalTimesMap = new Map();
         this.binded = new Map();
         this.devices = {};
@@ -121,7 +122,12 @@ class SpinalMonitoring {
             }
             yield this._waitEndpointCreation();
             console.log(`[startDeviceInitialisation] All devices initialized`);
+            for (const device of devicesInitialized)
+                yield device.initializeControlPoints();
+            this._controlPointsInitialized = true;
             this.startMonitoring();
+            for (const device of devicesInitialized)
+                device.startDevicePingMonitoring();
             SpinalCov_1.SpinalCov.getInstance().startCovProcessing(); // start cov processing
         });
     }
@@ -209,7 +215,8 @@ class SpinalMonitoring {
     _handleMonitoredDevice(device, resolve) {
         return __awaiter(this, void 0, void 0, function* () {
             device.startCommunicationMetricsLogging();
-            yield device.updateCommunicationControlEndpoints();
+            if (this._controlPointsInitialized)
+                yield device.updateCommunicationControlEndpoints();
             const id = device.Id;
             this.devices[id] = device;
             // const alreadyInit = this.devices[String(id)];
@@ -247,7 +254,8 @@ class SpinalMonitoring {
     _handleStoppedDevice(device, resolve) {
         return __awaiter(this, void 0, void 0, function* () {
             device.stopCommunicationMetricsLogging();
-            yield device.updateCommunicationControlEndpoints();
+            if (this._controlPointsInitialized)
+                yield device.updateCommunicationControlEndpoints();
             const id = device.Id;
             const alreadyInit = this.devices[id];
             const deviceName = device.Name;
