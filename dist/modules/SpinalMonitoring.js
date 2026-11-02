@@ -38,6 +38,7 @@ const SpinalCov_1 = require("./SpinalCov");
 const spinal_connector_service_1 = require("spinal-connector-service");
 const SpinalNetworkUtilities_1 = require("../utilities/SpinalNetworkUtilities");
 const BacnetUtilities_1 = require("../utilities/BacnetUtilities");
+const DEVICE_UPDATE_CONCURRENCY = 4;
 class SpinalMonitoring {
     constructor() {
         this.queue = new spinal_connector_service_1.SpinalQueue();
@@ -338,22 +339,28 @@ class SpinalMonitoring {
             const successful = [];
             const failed = [];
             let attempted = 0;
-            for (const item of deviceToUpdate) {
-                const device = this.devices[item.id];
-                if (!device)
-                    continue;
-                attempted++;
-                try {
-                    if (yield device.updateEndpoints(interval))
-                        successful.push(item);
-                    else
+            let nextDeviceIndex = 0;
+            const updateNextDevice = () => __awaiter(this, void 0, void 0, function* () {
+                while (nextDeviceIndex < deviceToUpdate.length) {
+                    const item = deviceToUpdate[nextDeviceIndex++];
+                    const device = this.devices[item.id];
+                    if (!device)
+                        continue;
+                    attempted++;
+                    try {
+                        if (yield device.updateEndpoints(interval))
+                            successful.push(item);
+                        else
+                            failed.push(item);
+                    }
+                    catch (error) {
+                        console.error("[launchUpdating] ", error);
                         failed.push(item);
+                    }
                 }
-                catch (error) {
-                    console.error("[launchUpdating] ", error);
-                    failed.push(item);
-                }
-            }
+            });
+            const workerCount = Math.min(DEVICE_UPDATE_CONCURRENCY, deviceToUpdate.length);
+            yield Promise.all(Array.from({ length: workerCount }, () => updateNextDevice()));
             if (attempted > 0 && failed.length === attempted) {
                 try {
                     yield BacnetUtilities_1.BacnetUtilities.resetClient();

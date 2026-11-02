@@ -280,23 +280,34 @@ class BacnetUtilitiesClass {
                 timestamp: Date.now(),
             };
             const responseEvent = `${spinal_bacnet_service_1.RESPONSE_EVENT_NAME}_${params.id}`;
+            let timeout;
+            const cleanup = () => {
+                clearTimeout(timeout);
+                client.off(responseEvent, onResponse);
+            };
             const onResponse = (response) => {
+                cleanup();
                 if (response.status === "error") {
-                    return reject({ message: response.error });
+                    return reject(new Error(response.error));
                 }
                 resolve(response.data);
             };
+            timeout = setTimeout(() => {
+                client.off(responseEvent, onResponse);
+                reject(new Error(`[${functionName}] BACnet service response timed out after ${BacnetUtilitiesClass.REQUEST_TIMEOUT_MS}ms`));
+            }, BacnetUtilitiesClass.REQUEST_TIMEOUT_MS);
             client.once(responseEvent, onResponse);
             try {
                 client.emit(spinal_bacnet_service_1.MESSAGE_EVENT_NAME, params);
             }
             catch (error) {
-                client.removeListener(responseEvent, onResponse);
+                cleanup();
                 reject(error);
             }
         });
     }
 }
+BacnetUtilitiesClass.REQUEST_TIMEOUT_MS = 30000;
 const BacnetUtilities = BacnetUtilitiesClass.getInstance();
 exports.BacnetUtilities = BacnetUtilities;
 exports.default = BacnetUtilities;

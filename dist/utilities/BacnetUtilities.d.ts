@@ -3,6 +3,7 @@ import { IDevice, IObjectId } from "../Interfaces";
 import { EventPayload } from "../modules/SpinalCov";
 import type { BacnetReadOutcome } from "../Interfaces/IDeviceCommunicationIndicators";
 declare class BacnetUtilitiesClass {
+    private static readonly REQUEST_TIMEOUT_MS;
     private static instance;
     private _client;
     private _ipcClient;

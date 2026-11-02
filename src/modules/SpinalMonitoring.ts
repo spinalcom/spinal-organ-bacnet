@@ -37,6 +37,8 @@ import { BacnetUtilities } from "../utilities/BacnetUtilities";
 type priorityQueueElementType = { interval: number; priority: number };
 type resolveCallback = (device: SpinalDevice) => void;
 
+const DEVICE_UPDATE_CONCURRENCY = 4;
+
 class SpinalMonitoring {
 	private queue: SpinalQueue<SpinalListenerModel> = new SpinalQueue();
 	private priorityQueue: MinPriorityQueue<priorityQueueElementType> = new MinPriorityQueue();
@@ -366,20 +368,27 @@ class SpinalMonitoring {
 		const successful: { id: string | number }[] = [];
 		const failed: { id: string | number }[] = [];
 		let attempted = 0;
+		let nextDeviceIndex = 0;
 
-		for (const item of deviceToUpdate) {
-			const device = this.devices[item.id];
-			if (!device) continue;
+		const updateNextDevice = async () => {
+			while (nextDeviceIndex < deviceToUpdate.length) {
+				const item = deviceToUpdate[nextDeviceIndex++];
+				const device = this.devices[item.id];
+				if (!device) continue;
 
-			attempted++;
-			try {
-				if (await device.updateEndpoints(interval)) successful.push(item);
-				else failed.push(item);
-			} catch (error) {
-				console.error("[launchUpdating] ", error);
-				failed.push(item);
+				attempted++;
+				try {
+					if (await device.updateEndpoints(interval)) successful.push(item);
+					else failed.push(item);
+				} catch (error) {
+					console.error("[launchUpdating] ", error);
+					failed.push(item);
+				}
 			}
-		}
+		};
+
+		const workerCount = Math.min(DEVICE_UPDATE_CONCURRENCY, deviceToUpdate.length);
+		await Promise.all(Array.from({ length: workerCount }, () => updateNextDevice()));
 
 		if (attempted > 0 && failed.length === attempted) {
 			try {

@@ -32,6 +32,7 @@ import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, 
 import type { BacnetReadOutcome } from "../Interfaces/IDeviceCommunicationIndicators";
 
 class BacnetUtilitiesClass {
+	private static readonly REQUEST_TIMEOUT_MS = 30_000;
 	private static instance: BacnetUtilitiesClass;
 	private _client: bacnet = null;
 	private _ipcClient: any = null;
@@ -271,6 +272,7 @@ class BacnetUtilitiesClass {
 	private _sendDataToBacnetServer(functionName: string, parameters: any[] = []): Promise<any> {
 		return new Promise((resolve, reject) => {
 			const client = this._ipcClient;
+
 			if (!client) {
 				reject(new Error("BACnet IPC client is not connected"));
 				return;
@@ -285,19 +287,29 @@ class BacnetUtilitiesClass {
 			};
 
 			const responseEvent = `${RESPONSE_EVENT_NAME}_${params.id}`;
+			let timeout: ReturnType<typeof setTimeout>;
+			const cleanup = () => {
+				clearTimeout(timeout);
+				client.off(responseEvent, onResponse);
+			};
 			const onResponse = (response: any) => {
+				cleanup();
 				if (response.status === "error") {
-					return reject({ message: response.error });
+					return reject(new Error(response.error));
 				}
 
 				resolve(response.data);
 			};
+			timeout = setTimeout(() => {
+				client.off(responseEvent, onResponse);
+				reject(new Error(`[${functionName}] BACnet service response timed out after ${BacnetUtilitiesClass.REQUEST_TIMEOUT_MS}ms`));
+			}, BacnetUtilitiesClass.REQUEST_TIMEOUT_MS);
 			client.once(responseEvent, onResponse);
 
 			try {
 				client.emit(MESSAGE_EVENT_NAME, params);
 			} catch (error) {
-				client.removeListener(responseEvent, onResponse);
+				cleanup();
 				reject(error);
 			}
 		});
