@@ -97,6 +97,8 @@ spinalConnectorService
 
 		// if it is running by pm2, bind the restart function to restart the process
 		if (pm2_id) {
+			organModel.restart?.set(false);
+
 			organModel.restart.bind(() => {
 				if (!organModel.restart?.get()) return;
 				restartProcessById(pm2_id);

@@ -97,7 +97,7 @@ const spinalConnectorService = spinal_connector_service_1.SpinalConnectorService
 spinalConnectorService
     .initialize(connect, organInfo)
     .then((_a) => __awaiter(void 0, [_a], void 0, function* ({ alreadyExists, node: organModel }) {
-    var _b, _c, _d;
+    var _b, _c, _d, _e;
     yield organModel.initializeModelsList(); // initialize the list of models in the organ
     const message = alreadyExists ? "organ found !" : "organ not found, creating new organ !";
     console.log("[thenCallback] ", message);
@@ -126,6 +126,7 @@ spinalConnectorService
     const pm2_id = pm2_instance ? pm2_instance.pm_id : null;
     // if it is running by pm2, bind the restart function to restart the process
     if (pm2_id) {
+        (_e = organModel.restart) === null || _e === void 0 ? void 0 : _e.set(false);
         organModel.restart.bind(() => {
             var _a;
             if (!((_a = organModel.restart) === null || _a === void 0 ? void 0 : _a.get()))
