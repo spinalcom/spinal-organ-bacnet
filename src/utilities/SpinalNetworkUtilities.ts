@@ -35,7 +35,7 @@ import { SpinalGraphService } from "spinal-env-viewer-graph-service";
 import { decodeBitStringValue } from "./Functions";
 import { Model } from "spinal-core-connectorjs";
 import { debugLog } from "./debugLog";
-import { COMMUNICATION_CONTROL_PROFILES, getCommunicationControlEndpoints, getCommunicationControlEndpointTimeSeriesValue } from "../indicators/communicationControlEndpoints";
+import { COMMUNICATION_CONTROL_PROFILES, CommunicationControlProfileConfig, getCommunicationControlEndpoints, getCommunicationControlEndpointTimeSeriesValue } from "../indicators/communicationControlEndpoints";
 import type { DeviceCommunicationIndicatorsSnapshot } from "../Interfaces/IDeviceCommunicationIndicators";
 
 const bmsTypeNames = [SpinalBmsNetwork.nodeTypeName, SpinalBmsDevice.nodeTypeName, SpinalBmsEndpointGroup.nodeTypeName, SpinalBmsEndpoint.nodeTypeName] as const;
@@ -46,6 +46,7 @@ type InputDataTypes = ({ name: string; type: string } | InputDataDevice | InputD
 class SpinalNetworkUtilitiesClass {
 	private static _instance: SpinalNetworkUtilitiesClass;
 	private _timeSeriesService: SpinalServiceTimeseries | null = null;
+	private _indicatorsContexts = new WeakMap<SpinalGraph, Map<string, Promise<SpinalContext>>>();
 
 	private constructor() {}
 
@@ -70,74 +71,177 @@ class SpinalNetworkUtilitiesClass {
 		return this._timeSeriesService;
 	}
 
-	public async updateCommunicationControlEndpoints(deviceNode: SpinalNode, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries = true, trigger?: string): Promise<void> {
+	public async getOrCreateIndicatorsContext(graph: SpinalGraph): Promise<SpinalContext> {
+		const contextName = process.env.INDICATORS_CONTEXT_NAME?.trim();
+		if (!contextName) throw new Error("Environment variable INDICATORS_CONTEXT_NAME is missing");
+
+		let contextsByName = this._indicatorsContexts.get(graph);
+		if (!contextsByName) {
+			contextsByName = new Map();
+			this._indicatorsContexts.set(graph, contextsByName);
+		}
+
+		let contextPromise = contextsByName.get(contextName);
+		if (!contextPromise) {
+			contextPromise = this._findOrCreateIndicatorsContext(graph, contextName);
+			contextsByName.set(contextName, contextPromise);
+		}
+
+		try {
+			return await contextPromise;
+		} catch (error) {
+			contextsByName.delete(contextName);
+			throw error;
+		}
+	}
+
+	private async _findOrCreateIndicatorsContext(graph: SpinalGraph, contextName: string): Promise<SpinalContext> {
+		const existingContext = await graph.getContext(contextName);
+		if (existingContext) {
+			if (!(existingContext instanceof SpinalContext)) {
+				throw new Error(`Graph child "${contextName}" is not a SpinalContext`);
+			}
+			return existingContext;
+		}
+
+		return graph.addContext(new SpinalContext(contextName));
+	}
+
+	public async updateCommunicationControlEndpoints(deviceNode: SpinalNode, indicatorContext: SpinalContext, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries = true, trigger?: string): Promise<void> {
 		for (const profile of COMMUNICATION_CONTROL_PROFILES) {
 			if (trigger ? profile.trigger !== trigger : Boolean(profile.trigger)) continue;
+
 			const flagValue = profile.enabledWhen ? process.env[profile.enabledWhen]?.trim().toLowerCase() : undefined;
+
 			if (profile.enabledWhen && flagValue !== "1" && flagValue !== "true") continue;
 
-			const existingGroups = await deviceNode.getChildren([profile.relation]);
-			let groupNode = existingGroups.find((group) => group.info?.idNetwork?.get() === profile.id);
-			const groupInfo = {
-				id: profile.id,
-				name: profile.name,
-				type: SpinalBmsEndpointGroup.nodeTypeName,
-				path: "",
-				indicatorProfile: profile.indicatorProfile,
-			};
-
-			if (groupNode) {
-				await this.updateControlPointNode(groupNode, groupInfo);
-			} else {
-				groupNode = await this.createControlPointNode(groupInfo, SpinalBmsEndpointGroup.nodeTypeName);
-				await deviceNode.addChild(groupNode, profile.relation, SPINAL_RELATION_PTR_LST_TYPE);
-			}
-
-			const existingEndpoints = await groupNode.getChildren([SpinalBmsEndpoint.relationName]);
-			const endpointsById = new Map<string, SpinalNode>();
-
-			for (const endpointNode of existingEndpoints) {
-				const id = endpointNode.info?.idNetwork?.get();
-				if (typeof id === "string" && id.length > 0) endpointsById.set(id, endpointNode);
-			}
-
-			const endpointInfos = getCommunicationControlEndpoints(snapshot, profile);
-			const historyTimestamp = Date.now();
-			await Promise.all(
-				endpointInfos.map(async (endpointInfo) => {
-					const existingEndpoint = endpointsById.get(endpointInfo.id);
-					let endpointNode = existingEndpoint;
-					if (existingEndpoint) {
-						const element = await existingEndpoint.getElement(true);
-						if (!element) throw new Error(`Failed to load control endpoint "${endpointInfo.name}"`);
-
-						const hasChanges = Object.entries(endpointInfo).some(([key, value]) => {
-							const modelValue = element[key];
-							const currentValue = modelValue && typeof modelValue.get === "function" ? modelValue.get() : modelValue;
-							return !Object.is(currentValue, value);
-						});
-						if (hasChanges) await this.updateControlPointNode(existingEndpoint, endpointInfo);
-					} else {
-						endpointNode = await this.createControlPointNode(endpointInfo, SpinalBmsEndpoint.nodeTypeName);
-						endpointNode = await groupNode!.addChild(endpointNode, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE);
-					}
-
-					const value = getCommunicationControlEndpointTimeSeriesValue(endpointInfo.id, endpointInfo.currentValue, profile);
-					if (recordTimeSeries && typeof value === "number") {
-						SpinalGraphService._addNode(endpointNode as SpinalNode);
-						const saved = await this.getTimeSeriesInstance().insertFromEndpoint((endpointNode as SpinalNode).getId().get(), value, historyTimestamp);
-						if (!saved) throw new Error(`Failed to record time series for control endpoint "${endpointInfo.name}"`);
-					}
-				}),
-			);
-
-			const currentEndpointIds = new Set(endpointInfos.map((endpointInfo) => endpointInfo.id));
-			const obsoleteEndpoints = existingEndpoints.filter((endpointNode) => {
-				const id = endpointNode.info?.idNetwork?.get();
-				return typeof id === "string" && /^bacnet_(?:indicator|ping)_/.test(id) && !currentEndpointIds.has(id);
-			});
-			await Promise.all(obsoleteEndpoints.map((endpointNode) => groupNode!.removeChild(endpointNode, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE)));
+			await this._updateCommunicationControlProfile(deviceNode, indicatorContext, snapshot, profile, recordTimeSeries);
 		}
+	}
+
+	private async _updateCommunicationControlProfile(deviceNode: SpinalNode, indicatorContext: SpinalContext, snapshot: DeviceCommunicationIndicatorsSnapshot, profile: CommunicationControlProfileConfig, recordTimeSeries: boolean): Promise<void> {
+		const existingGroups = await deviceNode.getChildren([profile.relation]);
+		const existingGroup = existingGroups.find((group) => group.info?.idNetwork?.get() === profile.id);
+		const groupNode = existingGroup ? await this._updateControlPointGroupNode(existingGroup, profile) : await this._createControlPointGroupNode(deviceNode, profile);
+		const existingEndpoints = await groupNode.getChildren([SpinalBmsEndpoint.relationName]);
+		const endpointsById = this._convertExtingEndpointsToMap(existingEndpoints);
+		const endpointInfos = getCommunicationControlEndpoints(snapshot, profile);
+		const historyTimestamp = Date.now();
+
+		const promises = endpointInfos.map((endpointInfo) => {
+			const existingEndpoint = endpointsById.get(endpointInfo.id);
+			return existingEndpoint ? this._updateCommunicationControlEndpoint(existingEndpoint, endpointInfo, profile, recordTimeSeries, historyTimestamp) : this._createCommunicationControlEndpoint(groupNode, indicatorContext, endpointInfo, profile, recordTimeSeries, historyTimestamp);
+		});
+
+		return Promise.all(promises).then(async () => {
+			await this._addControlPointToContext(groupNode, profile.relation, indicatorContext);
+			await this._removeObsoleteCommunicationControlEndpoints(groupNode, existingEndpoints, endpointInfos);
+		});
+	}
+
+	private async _createCommunicationControlEndpoint(groupNode: SpinalNode, indicatorContext: SpinalContext, endpointInfo: ReturnType<typeof getCommunicationControlEndpoints>[number], profile: CommunicationControlProfileConfig, recordTimeSeries: boolean, historyTimestamp: number): Promise<void> {
+		const endpointNode = await this.createControlPointNode(endpointInfo, SpinalBmsEndpoint.nodeTypeName);
+		await groupNode.addChildInContext(endpointNode, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE, indicatorContext);
+		await this._completeCommunicationControlEndpoint(endpointNode, endpointInfo, profile, recordTimeSeries, historyTimestamp);
+	}
+
+	private async _updateCommunicationControlEndpoint(endpointNode: SpinalNode, endpointInfo: ReturnType<typeof getCommunicationControlEndpoints>[number], profile: CommunicationControlProfileConfig, recordTimeSeries: boolean, historyTimestamp: number): Promise<void> {
+		const element = await endpointNode.getElement(true);
+		if (!element) throw new Error(`Failed to load control endpoint "${endpointInfo.name}"`);
+
+		if (this._hasEndpointChanges(endpointInfo, element)) await this.updateControlPointNode(endpointNode, endpointInfo);
+		await this._completeCommunicationControlEndpoint(endpointNode, endpointInfo, profile, recordTimeSeries, historyTimestamp);
+	}
+
+	private async _completeCommunicationControlEndpoint(endpointNode: SpinalNode, endpointInfo: ReturnType<typeof getCommunicationControlEndpoints>[number], profile: CommunicationControlProfileConfig, recordTimeSeries: boolean, historyTimestamp: number): Promise<void> {
+		const endpointConfig = profile.endpoints.find((endpoint) => endpoint.id === endpointInfo.id);
+		if (endpointConfig?.timeSeriesStatusMap) {
+			await this._createControlPointValueLegend(endpointNode, endpointConfig.timeSeriesStatusMap);
+		}
+
+		const value = getCommunicationControlEndpointTimeSeriesValue(endpointInfo.id, endpointInfo.currentValue, profile);
+		if (recordTimeSeries && typeof value === "number") {
+			SpinalGraphService._addNode(endpointNode);
+			const saved = await this.getTimeSeriesInstance().insertFromEndpoint(endpointNode.getId().get(), value, historyTimestamp);
+			if (!saved) throw new Error(`Failed to record time series for control endpoint "${endpointInfo.name}"`);
+		}
+	}
+
+	private async _createControlPointValueLegend(controlPointNode: SpinalNode, statusMap: Record<string, number>): Promise<void> {
+		const first = Object.entries(statusMap)[0];
+		if (!first) return; // No entries in the status map, nothing to create
+
+		const [firstStatus, firstValue] = first;
+
+		await serviceDocumentation.addAttributeByCategoryName(controlPointNode, "value legend", String(firstValue), firstStatus);
+
+		const remainingEntries = Object.entries(statusMap).slice(1);
+
+		await Promise.all(remainingEntries.map(([status, value]) => serviceDocumentation.addAttributeByCategoryName(controlPointNode, "value legend", String(value), status)));
+	}
+
+	private async _removeObsoleteCommunicationControlEndpoints(groupNode: SpinalNode, existingEndpoints: SpinalNode<any>[], endpointInfos: ReturnType<typeof getCommunicationControlEndpoints>): Promise<void> {
+		const currentEndpointIds = new Set(endpointInfos.map((endpointInfo) => endpointInfo.id));
+		const obsoleteEndpoints = existingEndpoints.filter((endpointNode) => {
+			const id = endpointNode.info?.idNetwork?.get();
+			return typeof id === "string" && /^bacnet_(?:indicator|ping)_/.test(id) && !currentEndpointIds.has(id);
+		});
+
+		await Promise.all(obsoleteEndpoints.map((endpointNode) => groupNode.removeChild(endpointNode, SpinalBmsEndpoint.relationName, SPINAL_RELATION_PTR_LST_TYPE)));
+	}
+
+	private _hasEndpointChanges(endpointInfo: InputDataEndpoint, element: any) {
+		return Object.entries(endpointInfo).some(([key, value]) => {
+			const modelValue = element[key];
+			const currentValue = modelValue && typeof modelValue.get === "function" ? modelValue.get() : modelValue;
+			return !Object.is(currentValue, value);
+		});
+	}
+
+	private _convertExtingEndpointsToMap(existingEndpoints: SpinalNode<any>[]) {
+		const endpointsById = new Map<string, SpinalNode>();
+
+		for (const endpointNode of existingEndpoints) {
+			const id = endpointNode.info?.idNetwork?.get();
+			if (typeof id === "string" && id.length > 0) endpointsById.set(id, endpointNode);
+		}
+		return endpointsById;
+	}
+
+	private async _createControlPointGroupNode(deviceNode: SpinalNode<any>, profile: CommunicationControlProfileConfig): Promise<SpinalNode> {
+		const groupInfo = {
+			id: profile.id,
+			name: profile.name,
+			type: SpinalBmsEndpointGroup.nodeTypeName,
+			path: "",
+			indicatorProfile: profile.indicatorProfile,
+		};
+		const groupNode = await this.createControlPointNode(groupInfo, SpinalBmsEndpointGroup.nodeTypeName);
+		await deviceNode.addChild(groupNode, profile.relation, SPINAL_RELATION_PTR_LST_TYPE);
+
+		return groupNode;
+	}
+
+	private async _updateControlPointGroupNode(groupNode: SpinalNode, profile: CommunicationControlProfileConfig): Promise<SpinalNode> {
+		const groupInfo = {
+			id: profile.id,
+			name: profile.name,
+			type: SpinalBmsEndpointGroup.nodeTypeName,
+			path: "",
+			indicatorProfile: profile.indicatorProfile,
+		};
+		return this.updateControlPointNode(groupNode, groupInfo);
+	}
+
+	private async _addControlPointToContext(cpProfileNode: SpinalNode, relationName: string, indicatorContext: SpinalContext): Promise<SpinalNode> {
+		const indicatorInContext = await indicatorContext.getChildren([relationName]);
+		const isAlreadyInContext = indicatorInContext.some((child) => child.getId().get() === cpProfileNode.getId().get());
+
+		if (!isAlreadyInContext) {
+			await indicatorContext.addChildInContext(cpProfileNode, relationName, SPINAL_RELATION_PTR_LST_TYPE, indicatorContext);
+		}
+
+		return cpProfileNode;
 	}
 
 	public async initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue> {
@@ -551,9 +655,10 @@ class SpinalNetworkUtilitiesClass {
 		}
 	}
 
-	private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalNode; organ: SpinalNode; context: SpinalContext }> {
+	private async _getSpinalDiscoverModel(discoverModel: SpinalDiscoverModel): Promise<{ graph: SpinalGraph; organ: SpinalNode; context: SpinalContext }> {
 		const promises = [discoverModel.getGraph(), discoverModel.getContext(), discoverModel.getOrgan()];
 		const [graph, context, organ] = await Promise.all(promises);
+		if (!(graph instanceof SpinalGraph)) throw new Error("Discover model graph is not a SpinalGraph");
 
 		// const organ = {
 		//    contextName: context.getName().get(),

@@ -1,6 +1,6 @@
 import { InputDataDevice, InputDataEndpoint, InputDataEndpointGroup, SpinalServiceTimeseries } from "spinal-model-bmsnetwork";
 import { SpinalBacnetValueModel, SpinalDiscoverModel, SpinalListenerModel } from "spinal-model-bacnet";
-import { SpinalContext, SpinalNode } from "spinal-model-graph";
+import { SpinalContext, SpinalGraph, SpinalNode } from "spinal-model-graph";
 import { SpinalDevice } from "../modules/SpinalDevice";
 import { IDataDiscover } from "../Interfaces/IDataDiscover";
 import { IDataBacnetValue } from "../Interfaces/IDataBacnetValue";
@@ -16,11 +16,25 @@ type InputDataTypes = ({
 declare class SpinalNetworkUtilitiesClass {
     private static _instance;
     private _timeSeriesService;
+    private _indicatorsContexts;
     private constructor();
     static getIntance(): SpinalNetworkUtilitiesClass;
     initSpinalDiscoverNetwork(spinalModel: SpinalDiscoverModel): Promise<IDataDiscover>;
     getTimeSeriesInstance(): SpinalServiceTimeseries;
-    updateCommunicationControlEndpoints(deviceNode: SpinalNode, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries?: boolean, trigger?: string): Promise<void>;
+    getOrCreateIndicatorsContext(graph: SpinalGraph): Promise<SpinalContext>;
+    private _findOrCreateIndicatorsContext;
+    updateCommunicationControlEndpoints(deviceNode: SpinalNode, indicatorContext: SpinalContext, snapshot: DeviceCommunicationIndicatorsSnapshot, recordTimeSeries?: boolean, trigger?: string): Promise<void>;
+    private _updateCommunicationControlProfile;
+    private _createCommunicationControlEndpoint;
+    private _updateCommunicationControlEndpoint;
+    private _completeCommunicationControlEndpoint;
+    private _createControlPointValueLegend;
+    private _removeObsoleteCommunicationControlEndpoints;
+    private _hasEndpointChanges;
+    private _convertExtingEndpointsToMap;
+    private _createControlPointGroupNode;
+    private _updateControlPointGroupNode;
+    private _addControlPointToContext;
     initSpinalBacnetValueModel(spinalModel: SpinalBacnetValueModel): Promise<IDataBacnetValue>;
     initSpinalListenerModel(spinalModel: SpinalListenerModel): Promise<SpinalDevice>;
     updateEndpointInGraph(spinalDevice: SpinalDevice, children: {

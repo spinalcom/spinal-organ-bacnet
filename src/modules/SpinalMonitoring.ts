@@ -131,7 +131,6 @@ class SpinalMonitoring {
 		await this._waitEndpointCreation();
 		console.log(`[startDeviceInitialisation] All devices initialized`);
 
-		for (const device of devicesInitialized) await device.initializeControlPoints();
 		this._controlPointsInitialized = true;
 
 		this.startMonitoring();

@@ -279,13 +279,9 @@ class SpinalDiscover {
 					this.devices.set(deviceId, spinalDevice);
 				}
 
-				if (spinalDevice) await spinalDevice.createDeviceNodeInGraph(context, network, deviceAlreadyExist);
+				if (spinalDevice) await spinalDevice.createDeviceNodeInGraph(graph, context, network, deviceAlreadyExist);
 
 				// if (deviceAlreadyExist) continue;
-			}
-
-			for (const spinalDevice of this.devices.values()) {
-				await spinalDevice.initializeControlPoints();
 			}
 
 			this.discoverModel.changeState(STATES.created);

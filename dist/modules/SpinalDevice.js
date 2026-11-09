@@ -152,6 +152,7 @@ class SpinalDevice extends events_1.EventEmitter {
                 this._profile = profile;
                 if (this._bmsDevice)
                     this.device = this._bmsDevice.info.get(); // set the device info from the graph
+                yield this.initializeControlPoints();
                 // const saveTimeSeries = listenerModel.saveTimeSeries?.get() || false;
                 // this._networkService = new NetworkService(saveTimeSeries);
                 // await this._initNetworkService(graph, context, organ);
@@ -211,9 +212,10 @@ class SpinalDevice extends events_1.EventEmitter {
     updateCommunicationControlEndpoints() {
         return __awaiter(this, arguments, void 0, function* (recordTimeSeries = true, trigger) {
             const update = this._communicationControlEndpointSync.then(() => __awaiter(this, void 0, void 0, function* () {
-                if (!this._bmsDevice)
-                    throw new Error("BMS device node is not initialized");
-                yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, this.getCommunicationIndicators(), recordTimeSeries, trigger);
+                if (!this._graph || !this._bmsDevice)
+                    throw new Error("BMS device node or graph is not initialized");
+                const indicatorContext = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.getOrCreateIndicatorsContext(this._graph);
+                yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, indicatorContext, this.getCommunicationIndicators(), recordTimeSeries, trigger);
             }));
             this._communicationControlEndpointSync = update.catch((error) => {
                 console.error(`[updateCommunicationControlEndpoints] [${this.Name}] - Failed to synchronize communication indicators:`, error);
@@ -292,7 +294,7 @@ class SpinalDevice extends events_1.EventEmitter {
     clearCovList() {
         this.covData = [];
     }
-    createDeviceNodeInGraph(context, network, deviceNode) {
+    createDeviceNodeInGraph(graph, context, network, deviceNode) {
         return __awaiter(this, void 0, void 0, function* () {
             if (!deviceNode) {
                 deviceNode = yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.createNetworkElementNode(this.device, spinal_model_bmsnetwork_1.SpinalBmsDevice.nodeTypeName);
@@ -301,9 +303,11 @@ class SpinalDevice extends events_1.EventEmitter {
             else {
                 yield SpinalNetworkUtilities_1.SpinalNetworkUtilities.updateNetworkElementNode(deviceNode, this.device);
             }
+            this._graph = graph;
             this._context = context;
             this._network = network;
             this._bmsDevice = deviceNode;
+            yield this.initializeControlPoints();
             return deviceNode;
         });
     }

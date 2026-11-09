@@ -127,6 +127,8 @@ export class SpinalDevice extends EventEmitter {
 
 			if (this._bmsDevice) this.device = this._bmsDevice.info.get(); // set the device info from the graph
 
+			await this.initializeControlPoints();
+
 			// const saveTimeSeries = listenerModel.saveTimeSeries?.get() || false;
 			// this._networkService = new NetworkService(saveTimeSeries);
 			// await this._initNetworkService(graph, context, organ);
@@ -190,9 +192,12 @@ export class SpinalDevice extends EventEmitter {
 
 	public async updateCommunicationControlEndpoints(recordTimeSeries = true, trigger?: string): Promise<void> {
 		const update = this._communicationControlEndpointSync.then(async () => {
-			if (!this._bmsDevice) throw new Error("BMS device node is not initialized");
-			await SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, this.getCommunicationIndicators(), recordTimeSeries, trigger);
+			if (!this._graph || !this._bmsDevice) throw new Error("BMS device node or graph is not initialized");
+			const indicatorContext = await SpinalNetworkUtilities.getOrCreateIndicatorsContext(this._graph);
+
+			await SpinalNetworkUtilities.updateCommunicationControlEndpoints(this._bmsDevice, indicatorContext, this.getCommunicationIndicators(), recordTimeSeries, trigger);
 		});
+
 		this._communicationControlEndpointSync = update.catch((error) => {
 			console.error(`[updateCommunicationControlEndpoints] [${this.Name}] - Failed to synchronize communication indicators:`, error);
 		});
@@ -282,7 +287,7 @@ export class SpinalDevice extends EventEmitter {
 		this.covData = [];
 	}
 
-	public async createDeviceNodeInGraph(context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode> {
+	public async createDeviceNodeInGraph(graph: SpinalGraph, context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode> {
 		if (!deviceNode) {
 			deviceNode = await SpinalNetworkUtilities.createNetworkElementNode(this.device as any, SpinalBmsDevice.nodeTypeName);
 			deviceNode = await network.addChildInContext(deviceNode, SpinalBmsDevice.relationName, SPINAL_RELATION_PTR_LST_TYPE, context);
@@ -290,9 +295,11 @@ export class SpinalDevice extends EventEmitter {
 			await SpinalNetworkUtilities.updateNetworkElementNode(deviceNode, this.device as any);
 		}
 
+		this._graph = graph;
 		this._context = context;
 		this._network = network;
 		this._bmsDevice = deviceNode;
+		await this.initializeControlPoints();
 		return deviceNode;
 	}
 

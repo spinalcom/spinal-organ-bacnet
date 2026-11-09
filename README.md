@@ -42,6 +42,7 @@ Optional variables:
 -   `BACNET_SERVICE_PORT`: BACnet service port (default: `47810`)
 -   `CLEAR_ORGAN_IF_NOT_COMPATIBLE`: `1`/`true` to reset the organ when data is incompatible
 -   `ADD_INDICATORS`: `1`/`true` to enable communication indicator controlpoints and history (disabled by default)
+-   `INDICATORS_CONTEXT_NAME`: graph context name used for communication indicator and ping controlpoints (required to initialize controlpoints)
 -   `DEVICE_PING_INTERVAL_SECONDS`: interval between ICMP pings for each discovered device in seconds (default: `60`)
 -   `DEBUG_LOGS`: `1`/`true` to enable informational and debug logs from the organ (disabled by default; errors remain visible)
 

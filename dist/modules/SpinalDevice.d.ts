@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { SpinalContext, SpinalNode } from "spinal-model-graph";
+import { SpinalContext, SpinalGraph, SpinalNode } from "spinal-model-graph";
 import { SpinalBacnetValueModel, SpinalListenerModel } from "spinal-model-bacnet";
 import { IDevice, IObjectId } from "../Interfaces";
 import { IProfileData } from "../utilities/profileManager";
@@ -49,7 +49,7 @@ export declare class SpinalDevice extends EventEmitter {
     pushToCovList(children?: IObjectId[] | IObjectId): IObjectId[];
     /** clear covList */
     clearCovList(): void;
-    createDeviceNodeInGraph(context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode>;
+    createDeviceNodeInGraph(graph: SpinalGraph, context: SpinalContext, network: SpinalNode, deviceNode?: SpinalNode): Promise<SpinalNode>;
     /** create device item list in graph */
     createDeviceItemList(context: SpinalContext, deviceNode: SpinalNode, spinalBacnetValueModel: SpinalBacnetValueModel): Promise<void>;
     private fetchAllBacnetObjectList;

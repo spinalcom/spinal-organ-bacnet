@@ -32,6 +32,7 @@ SKIP_ENDPOINTS_INITIALIZATION="0"
 # Avec 1/true, active le calcul et l'affichage des indicateurs des devices.
 # Toute autre valeur (ou variable absente) desactive le calcul et ces logs.
 ADD_INDICATORS="0"
+INDICATORS_CONTEXT_NAME=".Bacnet_devices_indicators"
 
 
 # devices pings intervals in second
