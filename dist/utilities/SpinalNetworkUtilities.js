@@ -278,7 +278,12 @@ class SpinalNetworkUtilitiesClass {
             const deviceNode = spinalDevice.getBmsDeviceNode();
             if (!deviceNode)
                 throw new Error("Device node not found in graph");
-            const endpointsObj = yield this._getAllEndpointsInGraph(deviceNode);
+            let endpointsObj = yield this._getAllEndpointsInGraph(deviceNode);
+            const missingEndpoints = children.filter((child) => !endpointsObj[`${child.type}_${child.id}`]).map((child) => ({ instance: child.id, type: child.type }));
+            if (missingEndpoints.length > 0) {
+                yield spinalDevice.checkAndCreateEndpointsIfNotExist(missingEndpoints);
+                endpointsObj = yield this._getAllEndpointsInGraph(deviceNode);
+            }
             const updates = [];
             for (const child of children) {
                 const endpointKey = `${child.type}_${child.id}`;
@@ -292,7 +297,7 @@ class SpinalNetworkUtilitiesClass {
                     });
                 }
                 else {
-                    console.error(`[updateEndpointInGraph] [${spinalDevice.Name}] - Endpoint ${child.id} of type ${child.type} not found in graph`);
+                    console.error(`[updateEndpointInGraph] [${spinalDevice.Name}] - Failed to create missing endpoint ${child.id} of type ${child.type}`);
                 }
             }
             return this._handleEndpointUpdatesAndLogResponse(updates, spinalDevice);
