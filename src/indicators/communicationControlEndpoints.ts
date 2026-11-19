@@ -17,7 +17,7 @@ export const COMMUNICATION_CONTROL_ENDPOINT_GROUP_RELATION = defaultProfile.rela
 export const COMMUNICATION_CONTROL_ENDPOINT_PROFILE = defaultProfile.indicatorProfile;
 
 function getEndpointValue(endpoint: ControlPointEndpointConfig, snapshot: DeviceCommunicationIndicatorsSnapshot): InputDataEndpoint["currentValue"] {
-	const value = snapshot[endpoint.snapshotProperty];
+	const value = snapshot[endpoint.snapshotProperty] ?? endpoint.defaultValue;
 	if (endpoint.timeSeriesFormat === "date" && typeof value === "number") {
 		return new Date(value).toISOString();
 	}

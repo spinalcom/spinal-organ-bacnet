@@ -32,7 +32,7 @@ import { SERVICE_NAME, COV_EVENT_NAME, MESSAGE_EVENT_NAME, RESPONSE_EVENT_NAME, 
 import type { BacnetReadOutcome } from "../Interfaces/IDeviceCommunicationIndicators";
 
 class BacnetUtilitiesClass {
-	private static readonly REQUEST_TIMEOUT_MS = 30_000;
+	private static readonly REQUEST_TIMEOUT_MS = 300 * 1000;
 	private static instance: BacnetUtilitiesClass;
 	private _client: bacnet = null;
 	private _ipcClient: any = null;

@@ -58,11 +58,29 @@ test("builds stable control endpoints from communication indicators", () => {
 	);
 });
 
+test("uses each control point default when its snapshot value is null", () => {
+	const profile = COMMUNICATION_CONTROL_PROFILES.find((item) => item.id === COMMUNICATION_CONTROL_ENDPOINT_GROUP_ID);
+	const snapshot = new DeviceCommunicationIndicators().fetchCurrentIndicators();
+	const endpoints = getCommunicationControlEndpoints(snapshot, profile);
+	const byId = new Map(endpoints.map((endpoint) => [endpoint.id, endpoint]));
+
+	assert.equal(byId.get("bacnet_indicator_response_time").currentValue, 0);
+	assert.equal(byId.get("bacnet_indicator_read_success_rate").currentValue, 0);
+	assert.equal(byId.get("bacnet_indicator_read_failure_rate").currentValue, 0);
+	assert.equal(byId.get("bacnet_indicator_last_response").currentValue, "");
+});
+
 test("builds the configured ping controlpoints and time-series values", () => {
 	const profile = COMMUNICATION_CONTROL_PROFILES.find((item) => item.id === "bacnet_ping_BACnet device ping");
 	assert.ok(profile);
 
 	const snapshot = new DeviceCommunicationIndicators().fetchCurrentIndicators();
+	const defaultEndpoints = getCommunicationControlEndpoints(snapshot, profile);
+	const defaultById = new Map(defaultEndpoints.map((endpoint) => [endpoint.id, endpoint]));
+	assert.equal(defaultById.get("bacnet_ping_status").currentValue, -1);
+	assert.equal(defaultById.get("bacnet_ping_last_check").currentValue, "");
+	assert.equal(defaultById.get("bacnet_ping_response_time").currentValue, 0);
+
 	snapshot.pingStatus = "online";
 	snapshot.pingLastCheckAt = 100_000;
 	snapshot.pingResponseTimeMs = 8.5;

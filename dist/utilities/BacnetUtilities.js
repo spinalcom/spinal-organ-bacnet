@@ -307,7 +307,7 @@ class BacnetUtilitiesClass {
         });
     }
 }
-BacnetUtilitiesClass.REQUEST_TIMEOUT_MS = 30000;
+BacnetUtilitiesClass.REQUEST_TIMEOUT_MS = 300 * 1000;
 const BacnetUtilities = BacnetUtilitiesClass.getInstance();
 exports.BacnetUtilities = BacnetUtilities;
 exports.default = BacnetUtilities;

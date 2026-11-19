@@ -9,6 +9,7 @@ export interface ControlPointEndpointConfig {
 	path: string;
 	snapshotProperty: SnapshotProperty;
 	dataType: string;
+	defaultValue: string | number | boolean;
 	unit?: string;
 	timeSeriesFormat: TimeSeriesFormat;
 	timeSeriesStatusMap?: Record<string, number>;

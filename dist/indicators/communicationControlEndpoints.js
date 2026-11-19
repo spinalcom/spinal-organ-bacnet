@@ -14,13 +14,13 @@ exports.COMMUNICATION_CONTROL_ENDPOINT_GROUP_NAME = defaultProfile.name;
 exports.COMMUNICATION_CONTROL_ENDPOINT_GROUP_RELATION = defaultProfile.relation;
 exports.COMMUNICATION_CONTROL_ENDPOINT_PROFILE = defaultProfile.indicatorProfile;
 function getEndpointValue(endpoint, snapshot) {
-    var _a;
-    const value = snapshot[endpoint.snapshotProperty];
+    var _a, _b;
+    const value = (_a = snapshot[endpoint.snapshotProperty]) !== null && _a !== void 0 ? _a : endpoint.defaultValue;
     if (endpoint.timeSeriesFormat === "date" && typeof value === "number") {
         return new Date(value).toISOString();
     }
     if (endpoint.timeSeriesFormat === "status") {
-        const status = (_a = endpoint.timeSeriesStatusMap) === null || _a === void 0 ? void 0 : _a[String(value)];
+        const status = (_b = endpoint.timeSeriesStatusMap) === null || _b === void 0 ? void 0 : _b[String(value)];
         if (typeof status !== "number")
             throw new Error(`Control point "${endpoint.id}" has an unmapped status: "${String(value)}"`);
         return status;
